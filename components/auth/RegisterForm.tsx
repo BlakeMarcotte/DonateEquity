@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Eye, EyeOff, Loader2, Users, Building, Shield } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ChevronDown } from 'lucide-react'
 
 interface Organization {
   id: string
@@ -24,37 +24,27 @@ const ROLES = [
   {
     value: 'donor' as UserRole,
     label: 'Donor',
-    description: 'Pre-commit equity donations to nonprofits upon liquidity events',
-    icon: Users,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50 border-blue-200',
+    description: 'Individual looking to donate equity to nonprofits',
   },
   {
     value: 'nonprofit_admin' as UserRole,
-    label: 'Nonprofit Admin',
-    description: 'Manage campaigns and coordinate donation workflows',
-    icon: Building,
-    color: 'text-green-600',
-    bgColor: 'bg-green-50 border-green-200',
+    label: 'Nonprofit Administrator',
+    description: 'Managing campaigns and donation workflows for a nonprofit',
   },
   {
     value: 'appraiser' as UserRole,
-    label: 'Appraiser',
-    description: 'Conduct professional equity valuations and appraisals',
-    icon: Shield,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50 border-purple-200',
+    label: 'Professional Appraiser',
+    description: 'Conducting equity valuations and appraisals',
   },
 ]
 
 export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: RegisterFormProps) {
-  const [step, setStep] = useState<'role' | 'details' | 'organization'>('role')
+  const [step, setStep] = useState<'basic' | 'organization'>('basic')
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     confirmPassword: '',
     displayName: '',
-    phoneNumber: '',
     role: '' as UserRole | '',
     organizationId: '',
     organizationName: '',
@@ -105,22 +95,11 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
     }))
   }
 
-  const handleRoleSelect = (role: UserRole) => {
-    setFormData(prev => ({
-      ...prev,
-      role,
-      organizationId: '',
-      organizationName: '',
-      createNewOrg: false,
-    }))
-    setStep('details')
-  }
-
   const handleNext = () => {
     setError('')
     
-    if (step === 'details') {
-      if (!formData.email || !formData.password || !formData.displayName) {
+    if (step === 'basic') {
+      if (!formData.email || !formData.password || !formData.displayName || !formData.role) {
         setError('Please fill in all required fields')
         return
       }
@@ -159,12 +138,9 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
   const handleBack = () => {
     setError('')
     if (step === 'organization') {
-      setStep('details')
-    } else if (step === 'details') {
-      setStep('role')
+      setStep('basic')
     }
   }
-
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -181,7 +157,6 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
           email: formData.email,
           password: formData.password,
           displayName: formData.displayName,
-          phoneNumber: formData.phoneNumber || undefined,
           role: formData.role,
           organizationId: formData.createNewOrg ? undefined : formData.organizationId || undefined,
           organizationName: formData.createNewOrg ? formData.organizationName : undefined,
@@ -207,125 +182,90 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
     }
   }
 
-  if (step === 'role') {
+  if (step === 'basic') {
     return (
       <Card className="border-0 shadow-none p-0">
         <CardContent className="p-0">
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Choose your account type
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                Create Your Account
               </h3>
-              <p className="text-sm text-gray-600">
-                Select the option that best describes your role in the equity donation process.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {ROLES.map((role) => {
-                const Icon = role.icon
-                return (
-                  <button
-                    key={role.value}
-                    type="button"
-                    onClick={() => handleRoleSelect(role.value)}
-                    className={`w-full p-4 text-left border-2 rounded-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-md ${
-                      formData.role === role.value
-                        ? role.bgColor
-                        : 'bg-white border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <Icon className={`w-6 h-6 mt-0.5 ${role.color}`} />
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900 mb-1">
-                          {role.label}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          {role.description}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (step === 'details') {
-    return (
-      <Card className="border-0 shadow-none p-0">
-        <CardContent className="p-0">
-          <div className="space-y-6">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Personal Information
-              </h3>
-              <p className="text-sm text-gray-600">
-                Enter your details to create your {ROLES.find(r => r.value === formData.role)?.label.toLowerCase()} account.
+              <p className="text-gray-600">
+                Join the future of charitable giving with equity donations
               </p>
             </div>
 
             <form onSubmit={(e) => { e.preventDefault(); handleNext(); }} className="space-y-6">
-              {/* Name and Email */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="displayName" className="text-gray-700 font-medium">
-                    Full Name *
-                  </Label>
-                  <Input
-                    id="displayName"
-                    name="displayName"
-                    type="text"
-                    required
-                    value={formData.displayName}
-                    onChange={handleInputChange}
-                    placeholder="Enter your full name"
-                    disabled={loading}
-                    className={error ? 'form-error' : ''}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-gray-700 font-medium">
-                    Email Address *
-                  </Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Enter your email address"
-                    disabled={loading}
-                    className={error ? 'form-error' : ''}
-                  />
-                </div>
-              </div>
-
-              {/* Phone Number */}
+              {/* Full Name */}
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber" className="text-gray-700 font-medium">
-                  Phone Number
+                <Label htmlFor="displayName" className="text-gray-700 font-medium">
+                  Full Name *
                 </Label>
                 <Input
-                  id="phoneNumber"
-                  name="phoneNumber"
-                  type="tel"
-                  value={formData.phoneNumber}
+                  id="displayName"
+                  name="displayName"
+                  type="text"
+                  required
+                  value={formData.displayName}
                   onChange={handleInputChange}
-                  placeholder="(555) 123-4567"
+                  placeholder="Enter your full name"
                   disabled={loading}
+                  className={`text-base h-12 ${error ? 'form-error' : ''}`}
                 />
               </div>
 
+              {/* Email Address */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-gray-700 font-medium">
+                  Email Address *
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="Enter your email address"
+                  disabled={loading}
+                  className={`text-base h-12 ${error ? 'form-error' : ''}`}
+                />
+              </div>
+
+              {/* Role Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="role" className="text-gray-700 font-medium">
+                  I am a *
+                </Label>
+                <div className="relative">
+                  <select
+                    id="role"
+                    name="role"
+                    required
+                    value={formData.role}
+                    onChange={handleInputChange}
+                    disabled={loading}
+                    className={`w-full h-12 px-4 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200 appearance-none bg-white pr-10 ${error ? 'form-error' : ''}`}
+                  >
+                    <option value="">Select your role</option>
+                    {ROLES.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                </div>
+                {formData.role && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    {ROLES.find(r => r.value === formData.role)?.description}
+                  </p>
+                )}
+              </div>
+
               {/* Password Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-gray-700 font-medium">
                     Password *
@@ -338,23 +278,23 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
                       required
                       value={formData.password}
                       onChange={handleInputChange}
-                      placeholder="Create a secure password"
+                      placeholder="Create a secure password (min. 6 characters)"
                       disabled={loading}
-                      className={`pr-10 ${error ? 'form-error' : ''}`}
+                      className={`text-base h-12 pr-12 ${error ? 'form-error' : ''}`}
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-0 top-0 h-10 w-10 text-gray-400 hover:text-gray-600"
+                      className="absolute right-0 top-0 h-12 w-12 text-gray-400 hover:text-gray-600"
                       onClick={() => setShowPassword(!showPassword)}
                       disabled={loading}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
+                        <EyeOff className="h-5 w-5" />
                       ) : (
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-5 w-5" />
                       )}
                     </Button>
                   </div>
@@ -374,21 +314,21 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
                       onChange={handleInputChange}
                       placeholder="Confirm your password"
                       disabled={loading}
-                      className={`pr-10 ${error ? 'form-error' : ''}`}
+                      className={`text-base h-12 pr-12 ${error ? 'form-error' : ''}`}
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-0 top-0 h-10 w-10 text-gray-400 hover:text-gray-600"
+                      className="absolute right-0 top-0 h-12 w-12 text-gray-400 hover:text-gray-600"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       disabled={loading}
                       aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                     >
                       {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
+                        <EyeOff className="h-5 w-5" />
                       ) : (
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-5 w-5" />
                       )}
                     </Button>
                   </div>
@@ -397,37 +337,27 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
 
               {/* Error Message */}
               {error && (
-                <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+                <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
                   {error}
                 </div>
               )}
 
-              {/* Navigation Buttons */}
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleBack}
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  Back
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    'Continue'
-                  )}
-                </Button>
-              </div>
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 text-base font-semibold"
+                size="lg"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Creating Account...
+                  </>
+                ) : (
+                  formData.role === 'nonprofit_admin' || formData.role === 'appraiser' ? 'Continue' : 'Create Account'
+                )}
+              </Button>
             </form>
           </div>
         </CardContent>
@@ -439,31 +369,36 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
   return (
     <Card className="border-0 shadow-none p-0">
       <CardContent className="p-0">
-        <div className="space-y-6">
+        <div className="space-y-8">
           <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">
               Organization Details
             </h3>
-            <p className="text-sm text-gray-600">
-              Select your organization or create a new one.
+            <p className="text-gray-600">
+              Tell us about your {formData.role === 'nonprofit_admin' ? 'nonprofit organization' : 'appraisal firm'}
             </p>
           </div>
 
           <div className="space-y-6">
             {/* Toggle for new organization */}
-            <div className="flex items-center gap-3">
-              <input
-                id="createNewOrg"
-                name="createNewOrg"
-                type="checkbox"
-                checked={formData.createNewOrg}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                disabled={loading}
-              />
-              <Label htmlFor="createNewOrg" className="text-gray-700 font-medium">
-                Create a new organization
-              </Label>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <input
+                  id="createNewOrg"
+                  name="createNewOrg"
+                  type="checkbox"
+                  checked={formData.createNewOrg}
+                  onChange={handleInputChange}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  disabled={loading}
+                />
+                <Label htmlFor="createNewOrg" className="text-gray-700 font-medium">
+                  I want to register a new organization
+                </Label>
+              </div>
+              <p className="text-sm text-gray-600 ml-7">
+                Check this if your organization isn&apos;t listed below
+              </p>
             </div>
 
             {formData.createNewOrg ? (
@@ -478,52 +413,55 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
                   required
                   value={formData.organizationName}
                   onChange={handleInputChange}
-                  placeholder="Enter organization name"
+                  placeholder={`Enter your ${formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraisal firm'} name`}
                   disabled={loading}
-                  className={error ? 'form-error' : ''}
+                  className={`text-base h-12 ${error ? 'form-error' : ''}`}
                 />
               </div>
             ) : (
               <div className="space-y-2">
                 <Label htmlFor="organizationId" className="text-gray-700 font-medium">
-                  Select Organization *
+                  Select Your Organization *
                 </Label>
-                <select
-                  id="organizationId"
-                  name="organizationId"
-                  required
-                  value={formData.organizationId}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200"
-                  disabled={loading || loadingOrgs}
-                >
-                  <option value="">
-                    {loadingOrgs ? 'Loading organizations...' : 'Select an organization'}
-                  </option>
-                  {organizations.map((org) => (
-                    <option key={org.id} value={org.id}>
-                      {org.name}
+                <div className="relative">
+                  <select
+                    id="organizationId"
+                    name="organizationId"
+                    required
+                    value={formData.organizationId}
+                    onChange={handleInputChange}
+                    className={`w-full h-12 px-4 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200 appearance-none bg-white pr-10 ${error ? 'form-error' : ''}`}
+                    disabled={loading || loadingOrgs}
+                  >
+                    <option value="">
+                      {loadingOrgs ? 'Loading organizations...' : `Select your ${formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraisal firm'}`}
                     </option>
-                  ))}
-                </select>
+                    {organizations.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                </div>
               </div>
             )}
 
             {/* Error Message */}
             {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+              <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
                 {error}
               </div>
             )}
 
             {/* Navigation Buttons */}
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleBack}
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 h-12 text-base"
               >
                 Back
               </Button>
@@ -531,12 +469,12 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
                 type="button"
                 onClick={handleNext}
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 h-12 text-base font-semibold"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Creating Account...
                   </>
                 ) : (
                   'Create Account'
