@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle, DollarSign, Shield, Users } from 'lucide-react'
@@ -27,7 +28,15 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" role="navigation" aria-label="Main navigation">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/images/b16c1b84-cf9d-4263-b646-0213ed167e38.png"
+                alt="Donate Equity"
+                width={32}
+                height={32}
+                className="h-8 w-8"
+                priority
+              />
               <h1 className="text-xl font-bold text-gray-900">
                 <span className="sr-only">Donate Equity - </span>
                 Donate Equity
@@ -216,7 +225,15 @@ export default function HomePage() {
       <footer className="bg-gray-900 text-white py-16" role="contentinfo">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h4 className="text-2xl font-bold mb-6 text-white">Donate Equity</h4>
+            <div className="flex justify-center items-center gap-4 mb-6">
+              <Image
+                src="/images/bfe92aaa-be90-469e-8668-5d1fc1a34371.png"
+                alt="Donate Equity Logo"
+                width={280}
+                height={80}
+                className="h-10 w-auto"
+              />
+            </div>
             <p className="text-lg text-gray-300 mb-10 max-w-2xl mx-auto">
               Empowering charitable giving through innovative equity donation solutions.
               Building the future of philanthropy, one commitment at a time.

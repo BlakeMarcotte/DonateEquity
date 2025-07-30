@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { ReactNode } from 'react'
 import { CheckCircle } from 'lucide-react'
 
@@ -36,10 +37,17 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
         <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16">
           {/* Logo */}
           <div className="mb-12">
-            <h1 className="text-2xl font-bold text-white">
-              Donate Equity
-            </h1>
-            <p className="text-blue-200 mt-2 text-sm">
+            <div className="flex items-center gap-4 mb-4">
+              <Image
+                src="/images/bfe92aaa-be90-469e-8668-5d1fc1a34371.png"
+                alt="Donate Equity Logo"
+                width={280}
+                height={80}
+                className="h-12 w-auto"
+                priority
+              />
+            </div>
+            <p className="text-blue-200 text-sm">
               Professional Equity Donation Platform
             </p>
           </div>
@@ -91,9 +99,19 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
       <div className="w-full lg:w-1/2 flex flex-col">
         {/* Mobile Logo */}
         <div className="lg:hidden bg-white border-b border-gray-200 px-6 py-4">
-          <h1 className="text-xl font-bold text-gray-900">
-            Donate Equity
-          </h1>
+          <div className="flex items-center gap-3">
+            <Image
+              src="/images/b16c1b84-cf9d-4263-b646-0213ed167e38.png"
+              alt="Donate Equity"
+              width={32}
+              height={32}
+              className="h-8 w-8"
+              priority
+            />
+            <h1 className="text-xl font-bold text-gray-900">
+              Donate Equity
+            </h1>
+          </div>
         </div>
 
         {/* Form Container */}
