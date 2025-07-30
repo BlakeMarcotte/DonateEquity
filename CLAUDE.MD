@@ -23,6 +23,10 @@ A Next.js/TypeScript application enabling donors to pre-commit equity donations 
 - Role-based access control (RBAC)
 - Enterprise-level Firestore security rules
 - Secure storage bucket access rules
+- Professional split-screen authentication UI following Equity Compass styling guide
+- Multi-step role-based registration flow with organization management
+- Protected route components with granular permission control
+- Comprehensive error handling and loading states
 
 ### Campaign Management
 - Nonprofits create campaigns with monetary goals
@@ -704,3 +708,218 @@ This styling guide provides the complete design DNA for the Donate Equity platfo
 - Consider accessibility (WCAG 2.1 AA compliance)
 - Plan for scalability from the beginning
 - **Follow the Donate Equity Styling Guide exactly** for all UI implementations
+
+## Authentication Implementation Guide
+
+### Authentication Architecture
+
+The platform implements a comprehensive authentication system using Firebase Auth with custom claims for role-based access control. The system follows enterprise security standards with professional UI/UX patterns.
+
+#### Core Components
+
+**AuthContext Provider (`contexts/AuthContext.tsx`)**
+- Manages global authentication state
+- Fetches user profiles from Firestore
+- Handles custom claims from Firebase Auth
+- Provides user data, loading states, and error handling
+- Automatic token refresh and session management
+
+**AuthLayout Component (`components/auth/AuthLayout.tsx`)**
+- Split-screen authentication layout following Equity Compass design
+- Left side: Dark value proposition section with features list
+- Right side: Clean authentication forms
+- Fully responsive (mobile shows form only with mobile logo)
+- Professional color scheme and animations
+
+**Protected Route System (`components/auth/ProtectedRoute.tsx`)**
+- Role-based route protection with granular permissions
+- Convenience wrappers for specific roles (DonorRoute, NonprofitAdminRoute, etc.)
+- Automatic redirects for unauthorized access
+- Loading states during authentication checks
+
+#### Authentication Flow
+
+**Registration Process**
+1. **Role Selection**: Multi-step wizard with visual role cards
+2. **Personal Details**: Form with password visibility toggles and validation
+3. **Organization Setup** (for nonprofit_admin/appraiser roles): Organization selection or creation
+4. **Account Creation**: Firebase user creation with Firestore profile and custom claims
+
+**Login Process**
+1. **Email/Password Authentication**: Professional form with error handling
+2. **Profile Loading**: Automatic Firestore profile and custom claims fetching
+3. **Route Protection**: Redirect based on role and permissions
+4. **Session Management**: Persistent authentication with token refresh
+
+#### Role-Based Access Control
+
+**User Roles and Permissions**
+```typescript
+// Donor permissions
+['create_donation', 'view_own_donations', 'manage_own_profile']
+
+// Nonprofit Admin permissions  
+['create_campaign', 'manage_campaigns', 'view_donations', 'manage_organization', 'manage_own_profile']
+
+// Appraiser permissions
+['view_assigned_tasks', 'submit_appraisals', 'manage_own_profile']
+
+// Admin permissions
+['manage_all_users', 'manage_all_campaigns', 'manage_all_donations', 'view_analytics', 'system_admin']
+```
+
+**Organization Management**
+- Nonprofits and appraisers require organization association
+- Support for creating new organizations during registration
+- Organization admin assignment and member management
+- Type-based organization filtering (nonprofit vs appraiser)
+
+#### UI/UX Implementation
+
+**Split-Screen Authentication Layout**
+- Left panel: Dark background (#011D28) with value proposition
+- Feature list with check icons and professional descriptions
+- Trust indicators (SOC 2, GDPR, 99.9% uptime)
+- Background pattern overlay for visual depth
+
+**Form Design Patterns**
+- Multi-step registration with progress indication
+- Password visibility toggles with Eye/EyeOff icons
+- Real-time validation with professional error states
+- Loading states with spinner animations
+- Role selection with icon-based cards
+
+**Responsive Behavior**
+- Desktop: Full split-screen layout
+- Mobile: Form-only view with compact mobile logo
+- Tablet: Responsive breakpoints with optimized spacing
+
+#### Security Implementation
+
+**Firebase Integration**
+- Production-ready Firestore security rules
+- Custom claims for role-based access
+- Secure user profile document creation
+- Organization membership validation
+
+**Input Security**
+- XSS prevention with proper escaping
+- Input validation on both client and server
+- Rate limiting for authentication attempts
+- Secure error messaging (no information leakage)
+
+**Session Management**
+- Automatic token refresh
+- Secure logout with session cleanup
+- Protected route middleware
+- Persistent authentication state
+
+#### Component Usage Examples
+
+**Basic Authentication Layout**
+```tsx
+import AuthLayout from '@/components/auth/AuthLayout'
+import LoginForm from '@/components/auth/LoginForm'
+
+export default function LoginPage() {
+  return (
+    <AuthLayout mode="login">
+      <LoginForm />
+    </AuthLayout>
+  )
+}
+```
+
+**Protected Route Implementation**
+```tsx
+import { ProtectedRoute, DonorRoute } from '@/components/auth/ProtectedRoute'
+
+// General protected route
+<ProtectedRoute requiredRoles={['donor', 'nonprofit_admin']}>
+  <DashboardContent />
+</ProtectedRoute>
+
+// Role-specific route
+<DonorRoute>
+  <DonorDashboard />
+</DonorRoute>
+```
+
+**Authentication State Usage**
+```tsx
+import { useAuth } from '@/contexts/AuthContext'
+
+function UserProfile() {
+  const { user, userProfile, customClaims, loading } = useAuth()
+  
+  if (loading) return <LoadingSpinner />
+  
+  return (
+    <div>
+      <h1>Welcome, {userProfile?.displayName}</h1>
+      <p>Role: {customClaims?.role}</p>
+    </div>
+  )
+}
+```
+
+#### Development Standards
+
+**Component Organization**
+- All auth components in `components/auth/` directory
+- Shared context in `contexts/` directory  
+- API routes in `app/api/auth/` directory
+- Type definitions in `types/auth.ts`
+
+**Code Quality Standards**
+- TypeScript strict mode with proper typing
+- Comprehensive error handling and user feedback
+- Loading states for all async operations
+- Accessibility features (ARIA labels, keyboard navigation)
+- Mobile-first responsive design
+
+**Testing Requirements**
+- Unit tests for auth components
+- Integration tests for authentication flow
+- E2E tests for complete user registration/login
+- Security testing for unauthorized access
+
+#### Firebase Configuration Requirements
+
+**Environment Variables**
+```env
+# Firebase Client Configuration
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+# Firebase Admin Configuration
+FIREBASE_PRIVATE_KEY=your_private_key
+FIREBASE_CLIENT_EMAIL=your_client_email
+```
+
+**Firestore Security Rules (Production-Ready)**
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User profile access
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Organization-based access
+    match /organizations/{orgId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        (resource.data.adminIds.hasAny([request.auth.uid]) || 
+         request.auth.token.role == 'admin');
+    }
+  }
+}
+```
+
+This authentication system provides enterprise-grade security while maintaining an exceptional user experience that builds trust and confidence with users making important financial decisions.

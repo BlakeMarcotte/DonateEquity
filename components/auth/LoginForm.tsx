@@ -4,6 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from '@/lib/firebase/auth'
 import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent } from '@/components/ui/card'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
 interface LoginFormProps {
   onSuccess?: () => void
@@ -13,6 +18,7 @@ interface LoginFormProps {
 export default function LoginForm({ onSuccess, redirectTo = '/dashboard' }: LoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
@@ -39,6 +45,7 @@ export default function LoginForm({ onSuccess, redirectTo = '/dashboard' }: Logi
       switch (authError.code) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
+        case 'auth/invalid-credential':
           setError('Invalid email or password')
           break
         case 'auth/too-many-requests':
@@ -46,6 +53,9 @@ export default function LoginForm({ onSuccess, redirectTo = '/dashboard' }: Logi
           break
         case 'auth/user-disabled':
           setError('Account has been disabled')
+          break
+        case 'auth/invalid-email':
+          setError('Please enter a valid email address')
           break
         default:
           setError('Login failed. Please try again.')
@@ -56,52 +66,85 @@ export default function LoginForm({ onSuccess, redirectTo = '/dashboard' }: Logi
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-          Email
-        </label>
-        <input
-          id="email"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Enter your email"
-          disabled={loading}
-        />
-      </div>
+    <Card className="border-0 shadow-none p-0">
+      <CardContent className="p-0">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Email Field */}
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-gray-700 font-medium">
+              Email address
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email address"
+              disabled={loading}
+              className={error ? 'form-error' : ''}
+            />
+          </div>
 
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Enter your password"
-          disabled={loading}
-        />
-      </div>
+          {/* Password Field */}
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-gray-700 font-medium">
+              Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                disabled={loading}
+                className={`pr-10 ${error ? 'form-error' : ''}`}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-10 w-10 text-gray-400 hover:text-gray-600"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
 
-      {error && (
-        <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
-          {error}
-        </div>
-      )}
+          {/* Error Message */}
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+              {error}
+            </div>
+          )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? 'Signing in...' : 'Sign In'}
-      </button>
-    </form>
+          {/* Submit Button */}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full"
+            size="lg"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              'Sign in'
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
