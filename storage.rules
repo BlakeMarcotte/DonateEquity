@@ -1,0 +1,142 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserId() {
+      return request.auth.uid;
+    }
+    
+    function getUserRole() {
+      return request.auth.token.role;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && getUserRole() == role;
+    }
+    
+    function hasAnyRole(roles) {
+      return isAuthenticated() && getUserRole() in roles;
+    }
+    
+    function isAdmin() {
+      return hasRole('admin');
+    }
+    
+    function isDonationParticipant(donationId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/donations/$(donationId)) &&
+        (get(/databases/$(database)/documents/donations/$(donationId)).data.donorId == getUserId() ||
+         get(/databases/$(database)/documents/donations/$(donationId)).data.nonprofitAdminId == getUserId() ||
+         get(/databases/$(database)/documents/donations/$(donationId)).data.appraiserId == getUserId());
+    }
+    
+    function isCampaignParticipant(campaignId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/campaigns/$(campaignId)) &&
+        (get(/databases/$(database)/documents/campaigns/$(campaignId)).data.createdBy == getUserId() ||
+         hasRole('admin'));
+    }
+    
+    function isValidFileType(allowedTypes) {
+      return resource.contentType in allowedTypes;
+    }
+    
+    function isValidFileSize(maxSizeBytes) {
+      return resource.size <= maxSizeBytes;
+    }
+
+    // User profile images
+    match /users/{userId}/profile/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if (
+        isAuthenticated() && 
+        (getUserId() == userId || isAdmin()) &&
+        isValidFileType(['image/jpeg', 'image/png', 'image/webp']) &&
+        isValidFileSize(5 * 1024 * 1024) // 5MB limit
+      );
+      allow delete: if (
+        isAuthenticated() && 
+        (getUserId() == userId || isAdmin())
+      );
+    }
+
+    // Organization documents and images
+    match /organizations/{orgId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if (
+        isAuthenticated() && 
+        (request.auth.token.organizationId == orgId || isAdmin()) &&
+        isValidFileSize(10 * 1024 * 1024) // 10MB limit
+      );
+      allow delete: if (
+        isAuthenticated() && 
+        (request.auth.token.organizationId == orgId || isAdmin())
+      );
+    }
+    
+    // Donation-specific documents
+    match /donations/{donationId}/{folder}/{fileName} {
+      allow read: if isDonationParticipant(donationId) || isAdmin();
+      allow write: if (
+        (isDonationParticipant(donationId) || isAdmin()) &&
+        isValidFileSize(50 * 1024 * 1024) && // 50MB limit for legal/financial docs
+        isValidFileType([
+          'application/pdf',
+          'image/jpeg', 
+          'image/png',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain'
+        ])
+      );
+      allow delete: if isDonationParticipant(donationId) || isAdmin();
+    }
+    
+    // Campaign shared materials
+    match /campaigns/{campaignId}/shared/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if (
+        isCampaignParticipant(campaignId) &&
+        isValidFileSize(25 * 1024 * 1024) && // 25MB limit
+        isValidFileType([
+          'application/pdf',
+          'image/jpeg', 
+          'image/png',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain'
+        ])
+      );
+      allow delete: if isCampaignParticipant(campaignId) || isAdmin();
+    }
+    
+    // Temporary uploads (for processing)
+    match /temp/{userId}/{fileName} {
+      allow read, write: if (
+        isAuthenticated() && 
+        getUserId() == userId &&
+        isValidFileSize(100 * 1024 * 1024) // 100MB temp limit
+      );
+      allow delete: if isAuthenticated() && getUserId() == userId;
+    }
+    
+    // System/admin files
+    match /system/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Backup storage (admin only)
+    match /backups/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Default deny rule
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

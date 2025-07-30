@@ -1,0 +1,184 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { adminAuth, adminDb } from '@/lib/firebase/admin'
+import { UserRole, CustomClaims } from '@/types/auth'
+
+interface RegisterRequest {
+  email: string
+  password: string
+  displayName: string
+  role: UserRole
+  organizationId?: string
+  organizationName?: string
+  phoneNumber?: string
+}
+
+const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
+  donor: ['create_donation', 'view_own_donations', 'manage_own_profile'],
+  nonprofit_admin: [
+    'create_campaign',
+    'manage_campaigns',
+    'view_donations',
+    'manage_organization',
+    'manage_own_profile'
+  ],
+  appraiser: [
+    'view_assigned_tasks',
+    'submit_appraisals',
+    'manage_own_profile'
+  ],
+  admin: [
+    'manage_all_users',
+    'manage_all_campaigns',
+    'manage_all_donations',
+    'view_analytics',
+    'system_admin'
+  ]
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body: RegisterRequest = await request.json()
+    
+    // Validate required fields
+    const { email, password, displayName, role, organizationId, organizationName, phoneNumber } = body
+    
+    if (!email || !password || !displayName || !role) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    // Validate role
+    if (!['donor', 'nonprofit_admin', 'appraiser', 'admin'].includes(role)) {
+      return NextResponse.json(
+        { error: 'Invalid role specified' },
+        { status: 400 }
+      )
+    }
+
+    // For nonprofit_admin and appraiser roles, organizationId or organizationName is required
+    if ((role === 'nonprofit_admin' || role === 'appraiser') && !organizationId && !organizationName) {
+      return NextResponse.json(
+        { error: 'Organization information required for this role' },
+        { status: 400 }
+      )
+    }
+
+    // Create Firebase user
+    const userRecord = await adminAuth.createUser({
+      email,
+      password,
+      displayName,
+      phoneNumber,
+      emailVerified: false,
+    })
+
+    // Handle organization creation/linking
+    let finalOrganizationId = organizationId
+
+    if (!finalOrganizationId && organizationName) {
+      // Create new organization
+      const orgRef = adminDb.collection('organizations').doc()
+      await orgRef.set({
+        name: organizationName,
+        type: role === 'nonprofit_admin' ? 'nonprofit' : 'appraiser',
+        createdBy: userRecord.uid,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        adminIds: [userRecord.uid],
+        isActive: true,
+      })
+      finalOrganizationId = orgRef.id
+    } else if (finalOrganizationId && role !== 'donor') {
+      // Add user to existing organization
+      const orgRef = adminDb.collection('organizations').doc(finalOrganizationId)
+      const orgDoc = await orgRef.get()
+      
+      if (!orgDoc.exists) {
+        await adminAuth.deleteUser(userRecord.uid)
+        return NextResponse.json(
+          { error: 'Organization not found' },
+          { status: 400 }
+        )
+      }
+
+      // Add user to organization's member list
+      await orgRef.update({
+        adminIds: [...(orgDoc.data()?.adminIds || []), userRecord.uid],
+        updatedAt: new Date(),
+      })
+    }
+
+    // Set custom claims
+    const customClaims: CustomClaims = {
+      role,
+      organizationId: finalOrganizationId,
+      permissions: ROLE_PERMISSIONS[role],
+    }
+
+    await adminAuth.setCustomUserClaims(userRecord.uid, customClaims)
+
+    // Create user profile in Firestore
+    await adminDb.collection('users').doc(userRecord.uid).set({
+      uid: userRecord.uid,
+      email,
+      displayName,
+      role,
+      organizationId: finalOrganizationId,
+      phoneNumber,
+      photoURL: null,
+      isEmailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      metadata: {
+        signUpMethod: 'email',
+        lastLoginAt: null,
+      },
+    })
+
+    return NextResponse.json(
+      {
+        success: true,
+        user: {
+          uid: userRecord.uid,
+          email: userRecord.email,
+          displayName: userRecord.displayName,
+          role,
+          organizationId: finalOrganizationId,
+        },
+      },
+      { status: 201 }
+    )
+  } catch (error: unknown) {
+    console.error('Registration error:', error)
+    
+    // Handle Firebase Auth errors
+    const authError = error as { code?: string }
+    if (authError.code === 'auth/email-already-exists') {
+      return NextResponse.json(
+        { error: 'Email already registered' },
+        { status: 409 }
+      )
+    }
+    
+    if (authError.code === 'auth/invalid-email') {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      )
+    }
+    
+    if (authError.code === 'auth/weak-password') {
+      return NextResponse.json(
+        { error: 'Password must be at least 6 characters' },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'Registration failed. Please try again.' },
+      { status: 500 }
+    )
+  }
+}

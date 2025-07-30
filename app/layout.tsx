@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { APP_NAME, APP_DESCRIPTION } from '@/lib/constants'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -31,12 +32,14 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full scroll-smooth">
       <body className={`${inter.className} h-full antialiased`}>
-        <a href="#main-content" className="skip-to-main">
-          Skip to main content
-        </a>
-        <main id="main-content" className="min-h-full">
-          {children}
-        </main>
+        <AuthProvider>
+          <a href="#main-content" className="skip-to-main">
+            Skip to main content
+          </a>
+          <main id="main-content" className="min-h-full">
+            {children}
+          </main>
+        </AuthProvider>
       </body>
     </html>
   )

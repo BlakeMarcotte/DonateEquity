@@ -1,0 +1,256 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return request.auth.token.role;
+    }
+    
+    function getUserId() {
+      return request.auth.uid;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && getUserRole() == role;
+    }
+    
+    function hasAnyRole(roles) {
+      return isAuthenticated() && getUserRole() in roles;
+    }
+    
+    function isAdmin() {
+      return hasRole('admin');
+    }
+    
+    function belongsToUser(userId) {
+      return isAuthenticated() && getUserId() == userId;
+    }
+    
+    function isDonationParticipant(donationData) {
+      return isAuthenticated() && (
+        donationData.donorId == getUserId() ||
+        donationData.nonprofitAdminId == getUserId() ||
+        donationData.appraiserId == getUserId()
+      );
+    }
+    
+    function isOrganizationMember(orgId) {
+      return isAuthenticated() && request.auth.token.organizationId == orgId;
+    }
+
+    // Users collection - users can only access their own profile
+    match /users/{userId} {
+      allow read: if belongsToUser(userId) || isAdmin();
+      allow write: if belongsToUser(userId) || isAdmin();
+      allow create: if belongsToUser(userId);
+    }
+    
+    // Organizations collection
+    match /organizations/{orgId} {
+      allow read: if isAuthenticated();
+      allow create: if hasAnyRole(['nonprofit_admin', 'appraiser', 'admin']);
+      allow update: if isOrganizationMember(orgId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Campaigns collection
+    match /campaigns/{campaignId} {
+      allow read: if isAuthenticated();
+      allow create: if hasRole('nonprofit_admin') || isAdmin();
+      allow update: if (
+        isAuthenticated() && (
+          resource.data.createdBy == getUserId() ||
+          isAdmin()
+        )
+      );
+      allow delete: if isAdmin();
+      
+      // Campaign donations subcollection
+      match /donations/{donationId} {
+        allow read: if (
+          isAuthenticated() && (
+            resource.data.donorId == getUserId() ||
+            resource.data.nonprofitAdminId == getUserId() ||
+            resource.data.appraiserId == getUserId() ||
+            isAdmin()
+          )
+        );
+        allow create: if hasRole('donor') || isAdmin();
+        allow update: if (
+          isAuthenticated() && (
+            resource.data.donorId == getUserId() ||
+            resource.data.nonprofitAdminId == getUserId() ||
+            resource.data.appraiserId == getUserId() ||
+            isAdmin()
+          )
+        );
+        allow delete: if isAdmin();
+      }
+      
+      // Campaign tasks subcollection
+      match /tasks/{taskId} {
+        allow read: if (
+          isAuthenticated() && (
+            resource.data.assignedTo == getUserId() ||
+            resource.data.createdBy == getUserId() ||
+            isAdmin()
+          )
+        );
+        allow create: if hasAnyRole(['nonprofit_admin', 'appraiser', 'admin']);
+        allow update: if (
+          isAuthenticated() && (
+            resource.data.assignedTo == getUserId() ||
+            resource.data.createdBy == getUserId() ||
+            isAdmin()
+          )
+        );
+        allow delete: if isAdmin();
+      }
+    }
+    
+    // Donations collection - main donation documents
+    match /donations/{donationId} {
+      allow read: if (
+        isAuthenticated() && (
+          resource.data.donorId == getUserId() ||
+          resource.data.nonprofitAdminId == getUserId() ||
+          resource.data.appraiserId == getUserId() ||
+          isAdmin()
+        )
+      );
+      allow create: if hasRole('donor') || isAdmin();
+      allow update: if (
+        isAuthenticated() && (
+          resource.data.donorId == getUserId() ||
+          resource.data.nonprofitAdminId == getUserId() ||
+          resource.data.appraiserId == getUserId() ||
+          isAdmin()
+        )
+      );
+      allow delete: if isAdmin();
+      
+      // Donation tasks subcollection
+      match /tasks/{taskId} {
+        allow read: if (
+          isAuthenticated() && (
+            resource.data.assignedTo == getUserId() ||
+            resource.data.createdBy == getUserId() ||
+            isDonationParticipant(get(/databases/$(database)/documents/donations/$(donationId)).data) ||
+            isAdmin()
+          )
+        );
+        allow create: if (
+          isAuthenticated() && (
+            hasAnyRole(['nonprofit_admin', 'appraiser', 'donor']) ||
+            isAdmin()
+          )
+        );
+        allow update: if (
+          isAuthenticated() && (
+            resource.data.assignedTo == getUserId() ||
+            resource.data.createdBy == getUserId() ||
+            isDonationParticipant(get(/databases/$(database)/documents/donations/$(donationId)).data) ||
+            isAdmin()
+          )
+        );
+        allow delete: if isAdmin();
+      }
+      
+      // Donation documents subcollection
+      match /documents/{docId} {
+        allow read: if (
+          isAuthenticated() && (
+            isDonationParticipant(get(/databases/$(database)/documents/donations/$(donationId)).data) ||
+            isAdmin()
+          )
+        );
+        allow create: if (
+          isAuthenticated() && (
+            hasAnyRole(['nonprofit_admin', 'appraiser', 'donor']) ||
+            isAdmin()
+          )
+        );
+        allow update: if (
+          isAuthenticated() && (
+            resource.data.uploadedBy == getUserId() ||
+            isDonationParticipant(get(/databases/$(database)/documents/donations/$(donationId)).data) ||
+            isAdmin()
+          )
+        );
+        allow delete: if (
+          isAuthenticated() && (
+            resource.data.uploadedBy == getUserId() ||
+            isAdmin()
+          )
+        );
+      }
+    }
+    
+    // Global tasks collection
+    match /tasks/{taskId} {
+      allow read: if (
+        isAuthenticated() && (
+          resource.data.assignedTo == getUserId() ||
+          resource.data.createdBy == getUserId() ||
+          isAdmin()
+        )
+      );
+      allow create: if hasAnyRole(['nonprofit_admin', 'appraiser', 'donor', 'admin']);
+      allow update: if (
+        isAuthenticated() && (
+          resource.data.assignedTo == getUserId() ||
+          resource.data.createdBy == getUserId() ||
+          isAdmin()
+        )
+      );
+      allow delete: if (
+        isAuthenticated() && (
+          resource.data.createdBy == getUserId() ||
+          isAdmin()
+        )
+      );
+    }
+    
+    // Documents collection - standalone documents
+    match /documents/{docId} {
+      allow read: if (
+        isAuthenticated() && (
+          resource.data.uploadedBy == getUserId() ||
+          resource.data.sharedWith[getUserId()] == true ||
+          isAdmin()
+        )
+      );
+      allow create: if isAuthenticated();
+      allow update: if (
+        isAuthenticated() && (
+          resource.data.uploadedBy == getUserId() ||
+          isAdmin()
+        )
+      );
+      allow delete: if (
+        isAuthenticated() && (
+          resource.data.uploadedBy == getUserId() ||
+          isAdmin()
+        )
+      );
+    }
+    
+    // Admin-only collections
+    match /audit_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+    
+    match /system_config/{configId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Default deny rule - blocks access to any other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
