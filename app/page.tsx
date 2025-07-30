@@ -1,24 +1,24 @@
 export default function Home() {
   return (
-    <div className="bg-gradient-to-br from-white via-blue-50/30 to-primary-50/20 min-h-screen">
+    <div className="bg-white min-h-screen">
       {/* Navigation Bar */}
-      <nav className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50">
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <h2 className="text-xl font-bold text-gray-900">Donate Equity</h2>
             </div>
             <div className="hidden md:flex items-center space-x-6">
-              <a href="/campaigns" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">
+              <a href="/campaigns" className="text-gray-700 hover:text-primary-600 font-medium transition-colors">
                 Campaigns
               </a>
-              <a href="/about" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">
+              <a href="/about" className="text-gray-700 hover:text-primary-600 font-medium transition-colors">
                 How It Works
               </a>
-              <a href="/auth/sign-in" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">
+              <a href="/auth/sign-in" className="text-gray-700 hover:text-primary-600 font-medium transition-colors">
                 Sign In
               </a>
-              <a href="/auth/sign-up" className="btn-primary">
+              <a href="/auth/sign-up" className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg">
                 Get Started
               </a>
             </div>
@@ -27,21 +27,21 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-20 pb-16 sm:pt-24 sm:pb-20">
+      <section className="bg-white py-20 sm:py-24">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl text-center">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 mb-6 animate-fade-in">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 mb-6">
               Pre-commit Equity Donations to{' '}
               <span className="text-primary-600">Nonprofits</span>
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in">
+            <p className="text-xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
               Empower charitable giving by pledging equity upon liquidity events. Connect donors,
               nonprofits, and appraisers in a seamless, secure donation workflow.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <a
                 href="/auth/sign-up"
-                className="btn-primary px-8 py-3 text-lg font-semibold shadow-custom-lg hover:shadow-custom-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 inline-flex items-center"
               >
                 Get Started Today
                 <svg className="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,31 +50,31 @@ export default function Home() {
               </a>
               <a
                 href="/campaigns"
-                className="btn-secondary px-8 py-3 text-lg font-semibold hover:shadow-custom-md transform hover:-translate-y-0.5 transition-all duration-200"
+                className="bg-white border-2 border-gray-300 hover:border-primary-600 text-gray-700 hover:text-primary-600 px-8 py-4 text-lg font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
               >
                 Browse Campaigns
               </a>
             </div>
 
             {/* Trust Indicators */}
-            <div className="mt-16 flex flex-col sm:flex-row items-center justify-center gap-8 text-sm text-gray-500">
+            <div className="mt-16 flex flex-col sm:flex-row items-center justify-center gap-8 text-sm text-gray-600">
               <div className="flex items-center gap-2">
-                <svg className="h-5 w-5 text-success-500" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="h-5 w-5 text-success-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                Enterprise Security
+                <span className="font-medium">Enterprise Security</span>
               </div>
               <div className="flex items-center gap-2">
-                <svg className="h-5 w-5 text-success-500" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="h-5 w-5 text-success-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                WCAG AA Compliant
+                <span className="font-medium">WCAG AA Compliant</span>
               </div>
               <div className="flex items-center gap-2">
-                <svg className="h-5 w-5 text-success-500" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="h-5 w-5 text-success-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                SOC 2 Compliant
+                <span className="font-medium">SOC 2 Compliant</span>
               </div>
             </div>
           </div>
@@ -82,7 +82,7 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
@@ -94,8 +94,8 @@ export default function Home() {
           </div>
 
           <div className="grid gap-8 md:gap-12 md:grid-cols-3">
-            <div className="text-center group">
-              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 text-primary-600 group-hover:bg-primary-200 transition-colors duration-300">
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 text-center">
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary-600 text-white">
                 <svg
                   className="h-8 w-8"
                   fill="none"
@@ -110,15 +110,15 @@ export default function Home() {
                   />
                 </svg>
               </div>
-              <h3 className="mb-4 text-xl font-semibold text-gray-900">Equity Commitments</h3>
+              <h3 className="mb-4 text-xl font-bold text-gray-900">Equity Commitments</h3>
               <p className="text-gray-600 leading-relaxed">
                 Pledge stock, options, RSUs, and other equity instruments upon future liquidity
                 events. Set conditions and amounts that work for your situation.
               </p>
             </div>
 
-            <div className="text-center group">
-              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 text-primary-600 group-hover:bg-primary-200 transition-colors duration-300">
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 text-center">
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-success-600 text-white">
                 <svg
                   className="h-8 w-8"
                   fill="none"
@@ -133,15 +133,15 @@ export default function Home() {
                   />
                 </svg>
               </div>
-              <h3 className="mb-4 text-xl font-semibold text-gray-900">Secure Workflow</h3>
+              <h3 className="mb-4 text-xl font-bold text-gray-900">Secure Workflow</h3>
               <p className="text-gray-600 leading-relaxed">
                 Enterprise-grade security with role-based access control, encrypted document storage,
                 and comprehensive audit trails for complete transparency.
               </p>
             </div>
 
-            <div className="text-center group">
-              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 text-primary-600 group-hover:bg-primary-200 transition-colors duration-300">
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 text-center">
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary-600 text-white">
                 <svg
                   className="h-8 w-8"
                   fill="none"
@@ -156,7 +156,7 @@ export default function Home() {
                   />
                 </svg>
               </div>
-              <h3 className="mb-4 text-xl font-semibold text-gray-900">Collaborative Platform</h3>
+              <h3 className="mb-4 text-xl font-bold text-gray-900">Collaborative Platform</h3>
               <p className="text-gray-600 leading-relaxed">
                 Connect donors, nonprofits, and certified appraisers in a streamlined process
                 with shared task lists and real-time communication.
@@ -172,19 +172,19 @@ export default function Home() {
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
             Ready to Make an Impact?
           </h2>
-          <p className="text-xl text-primary-100 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
             Join the platform that&apos;s revolutionizing charitable giving through equity donations
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <a
               href="/auth/sign-up"
-              className="inline-flex items-center justify-center px-8 py-3 text-lg font-semibold rounded-lg bg-white text-primary-600 hover:bg-gray-50 transition-colors duration-200 shadow-custom-lg"
+              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg bg-white text-primary-600 hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               Create Your Account
             </a>
             <a
               href="/campaigns"
-              className="inline-flex items-center justify-center px-8 py-3 text-lg font-semibold rounded-lg border-2 border-white text-white hover:bg-white hover:text-primary-600 transition-colors duration-200"
+              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg border-2 border-white text-white hover:bg-white hover:text-primary-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               Explore Campaigns
             </a>
@@ -196,18 +196,18 @@ export default function Home() {
       <footer className="bg-gray-900 text-white py-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h3 className="text-2xl font-bold mb-4">Donate Equity</h3>
-            <p className="text-gray-400 mb-6">
+            <h3 className="text-2xl font-bold mb-4 text-white">Donate Equity</h3>
+            <p className="text-gray-300 mb-6 text-lg">
               Empowering charitable giving through innovative equity donation solutions
             </p>
-            <div className="flex justify-center space-x-6 text-sm text-gray-400">
-              <a href="/privacy" className="hover:text-white transition-colors">
+            <div className="flex justify-center space-x-8 text-sm">
+              <a href="/privacy" className="text-gray-300 hover:text-white transition-colors font-medium">
                 Privacy Policy
               </a>
-              <a href="/terms" className="hover:text-white transition-colors">
+              <a href="/terms" className="text-gray-300 hover:text-white transition-colors font-medium">
                 Terms of Service
               </a>
-              <a href="/contact" className="hover:text-white transition-colors">
+              <a href="/contact" className="text-gray-300 hover:text-white transition-colors font-medium">
                 Contact Us
               </a>
             </div>
