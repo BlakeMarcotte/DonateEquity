@@ -4,7 +4,7 @@ import { verifyAuthToken } from '@/lib/auth/middleware'
 
 interface CreateOrganizationRequest {
   name: string
-  type: 'nonprofit' | 'appraiser'
+  type: 'nonprofit' | 'appraiser' | 'donor'
   description?: string
   website?: string
   phone?: string
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!['nonprofit', 'appraiser'].includes(type)) {
+    if (!['nonprofit', 'appraiser', 'donor'].includes(type)) {
       return NextResponse.json(
         { error: 'Invalid organization type' },
         { status: 400 }
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 
     let query = adminDb.collection('organizations').where('isActive', '==', true)
 
-    if (type && ['nonprofit', 'appraiser'].includes(type)) {
+    if (type && ['nonprofit', 'appraiser', 'donor'].includes(type)) {
       query = query.where('type', '==', type)
     }
 

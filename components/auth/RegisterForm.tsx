@@ -12,7 +12,7 @@ import { Eye, EyeOff, Loader2, ChevronDown } from 'lucide-react'
 interface Organization {
   id: string
   name: string
-  type: 'nonprofit' | 'appraiser'
+  type: 'nonprofit' | 'appraiser' | 'donor'
 }
 
 interface RegisterFormProps {
@@ -58,7 +58,7 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
 
-  const fetchOrganizations = async (type: 'nonprofit' | 'appraiser') => {
+  const fetchOrganizations = async (type: 'nonprofit' | 'appraiser' | 'donor') => {
     setLoadingOrgs(true)
     try {
       const response = await fetch(`/api/organizations?type=${type}&limit=50`)
@@ -78,6 +78,9 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
     if (formData.role === 'nonprofit_admin' || formData.role === 'appraiser') {
       const orgType = formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraiser'
       fetchOrganizations(orgType)
+    } else if (formData.role === 'donor') {
+      // Fetch donor organizations
+      fetchOrganizations('donor')
     } else {
       setOrganizations([])
     }
@@ -114,12 +117,8 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
         return
       }
       
-      const requiresOrganization = formData.role === 'nonprofit_admin' || formData.role === 'appraiser'
-      if (requiresOrganization) {
-        setStep('organization')
-      } else {
-        handleSubmit()
-      }
+      // All roles now require organization setup
+      setStep('organization')
     } else if (step === 'organization') {
       if (!formData.createNewOrg && !formData.organizationId) {
         setError('Please select an organization or choose to create a new one')
@@ -347,7 +346,7 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
                     Creating Account...
                   </>
                 ) : (
-                  formData.role === 'nonprofit_admin' || formData.role === 'appraiser' ? 'Continue' : 'Create Account'
+                  'Continue'
                 )}
               </Button>
             </form>
@@ -367,7 +366,10 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
               Organization Details
             </h3>
             <p className="text-sm text-gray-600">
-              Tell us about your {formData.role === 'nonprofit_admin' ? 'nonprofit organization' : 'appraisal firm'}
+              {formData.role === 'donor' 
+                ? 'Tell us about your donor organization or foundation'
+                : `Tell us about your ${formData.role === 'nonprofit_admin' ? 'nonprofit organization' : 'appraisal firm'}`
+              }
             </p>
           </div>
 
@@ -405,7 +407,10 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
                   required
                   value={formData.organizationName}
                   onChange={handleInputChange}
-                  placeholder={`Enter your ${formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraisal firm'} name`}
+                  placeholder={`Enter your ${
+                    formData.role === 'donor' ? 'organization or foundation' :
+                    formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraisal firm'
+                  } name`}
                   disabled={loading}
                   className={`text-base h-12 ${error ? 'form-error' : ''}`}
                 />
@@ -426,7 +431,10 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
                     disabled={loading || loadingOrgs}
                   >
                     <option value="">
-                      {loadingOrgs ? 'Loading organizations...' : `Select your ${formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraisal firm'}`}
+                      {loadingOrgs ? 'Loading organizations...' : `Select your ${
+                        formData.role === 'donor' ? 'organization or foundation' :
+                        formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraisal firm'
+                      }`}
                     </option>
                     {organizations.map((org) => (
                       <option key={org.id} value={org.id}>

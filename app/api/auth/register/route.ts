@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // For nonprofit_admin and appraiser roles, organizationId or organizationName is required
-    if ((role === 'nonprofit_admin' || role === 'appraiser') && !organizationId && !organizationName) {
+    // All roles now require organizationId or organizationName
+    if (!organizationId && !organizationName) {
       return NextResponse.json(
-        { error: 'Organization information required for this role' },
+        { error: 'Organization information is required for all users' },
         { status: 400 }
       )
     }
@@ -80,9 +80,13 @@ export async function POST(request: NextRequest) {
     if (!finalOrganizationId && organizationName) {
       // Create new organization
       const orgRef = adminDb.collection('organizations').doc()
+      let orgType = 'donor' // Default for donors
+      if (role === 'nonprofit_admin') orgType = 'nonprofit'
+      if (role === 'appraiser') orgType = 'appraiser'
+      
       await orgRef.set({
         name: organizationName,
-        type: role === 'nonprofit_admin' ? 'nonprofit' : 'appraiser',
+        type: orgType,
         createdBy: userRecord.uid,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -90,7 +94,7 @@ export async function POST(request: NextRequest) {
         isActive: true,
       })
       finalOrganizationId = orgRef.id
-    } else if (finalOrganizationId && role !== 'donor') {
+    } else if (finalOrganizationId) {
       // Add user to existing organization
       const orgRef = adminDb.collection('organizations').doc(finalOrganizationId)
       const orgDoc = await orgRef.get()
@@ -116,10 +120,8 @@ export async function POST(request: NextRequest) {
       permissions: ROLE_PERMISSIONS[role],
     }
 
-    // Only add organizationId to claims if it exists
-    if (finalOrganizationId) {
-      customClaims.organizationId = finalOrganizationId
-    }
+    // All users now have an organization
+    customClaims.organizationId = finalOrganizationId
 
     await adminAuth.setCustomUserClaims(userRecord.uid, customClaims)
 
@@ -139,10 +141,8 @@ export async function POST(request: NextRequest) {
       },
     }
 
-    // Only add organizationId if it exists (not undefined)
-    if (finalOrganizationId) {
-      userProfileData.organizationId = finalOrganizationId
-    }
+    // All users now have an organization
+    userProfileData.organizationId = finalOrganizationId
 
     // Only add phoneNumber if it exists (not undefined)
     if (phoneNumber) {
