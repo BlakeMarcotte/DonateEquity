@@ -9,7 +9,7 @@ import {
   Search,
   BookOpen,
   Video,
-  FileDocument,
+  File,
   Users,
   DollarSign,
   Scale,
@@ -125,7 +125,7 @@ const categories = [
 const resourceTypes = [
   { id: 'all', name: 'All Types', icon: FileText },
   { id: 'guide', name: 'Guides', icon: BookOpen },
-  { id: 'template', name: 'Templates', icon: FileDocument },
+  { id: 'template', name: 'Templates', icon: File },
   { id: 'video', name: 'Videos', icon: Video },
   { id: 'webinar', name: 'Webinars', icon: Users },
   { id: 'case-study', name: 'Case Studies', icon: Star },
@@ -154,7 +154,7 @@ export default function ResourcesPage() {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'guide': return BookOpen
-      case 'template': return FileDocument
+      case 'template': return File
       case 'video': return Video
       case 'webinar': return Users
       case 'case-study': return Star

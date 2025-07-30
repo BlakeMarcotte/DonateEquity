@@ -299,31 +299,46 @@ export default function CampaignsPage() {
 
         {/* Create Campaign Modal */}
         {showCreateModal && (
-          <CreateCampaignModal
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={() => {
-              setShowCreateModal(false)
-              fetchCampaigns()
-            }}
-            organizationId={customClaims?.organizationId || ''}
-            userId={userProfile?.uid || ''}
-          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div 
+              className="absolute inset-0" 
+              onClick={() => setShowCreateModal(false)}
+            />
+            <CreateCampaignModal
+              onClose={() => setShowCreateModal(false)}
+              onSuccess={() => {
+                setShowCreateModal(false)
+                fetchCampaigns()
+              }}
+              organizationId={customClaims?.organizationId || ''}
+              userId={userProfile?.uid || ''}
+            />
+          </div>
         )}
 
         {/* Edit Campaign Modal */}
         {showEditModal && selectedCampaign && (
-          <EditCampaignModal
-            campaign={selectedCampaign}
-            onClose={() => {
-              setShowEditModal(false)
-              setSelectedCampaign(null)
-            }}
-            onSuccess={() => {
-              setShowEditModal(false)
-              setSelectedCampaign(null)
-              fetchCampaigns()
-            }}
-          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div 
+              className="absolute inset-0" 
+              onClick={() => {
+                setShowEditModal(false)
+                setSelectedCampaign(null)
+              }}
+            />
+            <EditCampaignModal
+              campaign={selectedCampaign}
+              onClose={() => {
+                setShowEditModal(false)
+                setSelectedCampaign(null)
+              }}
+              onSuccess={() => {
+                setShowEditModal(false)
+                setSelectedCampaign(null)
+                fetchCampaigns()
+              }}
+            />
+          </div>
         )}
       </div>
     </NonprofitAdminRoute>
@@ -381,8 +396,7 @@ function CreateCampaignModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative z-10 transform transition-all">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">Create New Campaign</h2>
           <button
@@ -481,7 +495,6 @@ function CreateCampaignModal({
             </button>
           </div>
         </form>
-      </div>
     </div>
   )
 }
@@ -525,8 +538,7 @@ function EditCampaignModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative z-10 transform transition-all">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">Edit Campaign</h2>
           <button
@@ -613,7 +625,6 @@ function EditCampaignModal({
             </button>
           </div>
         </form>
-      </div>
     </div>
   )
 }

@@ -3,8 +3,9 @@
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { useState, useEffect } from 'react'
-import { doc, getDoc, updateDoc } from 'firebase/firestore'
+import { updateDoc, doc } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
+import { getOrCreateOrganization, type Organization, updateOrganization } from '@/lib/firebase/organizations'
 import {
   Building2,
   MapPin,
@@ -20,71 +21,52 @@ import {
   DollarSign
 } from 'lucide-react'
 
-interface Organization {
-  id: string
-  name: string
-  type: 'nonprofit' | 'appraiser'
-  description: string
-  website?: string
-  phone?: string
-  email: string
-  address: {
-    street: string
-    city: string
-    state: string
-    zipCode: string
-    country: string
-  }
-  taxId?: string
-  establishedYear?: number
-  adminIds: string[]
-  memberIds: string[]
-  createdAt: Date
-  updatedAt: Date
-}
 
 export default function OrganizationPage() {
-  const { userProfile, customClaims } = useAuth()
+  const { userProfile, customClaims, loading: authLoading } = useAuth()
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Organization>>({})
 
   useEffect(() => {
-    if (customClaims?.organizationId) {
+    // Wait for auth to fully load before attempting to fetch
+    if (!authLoading && customClaims?.organizationId) {
       fetchOrganization()
+    } else if (!authLoading && !customClaims?.organizationId) {
+      setLoading(false)
+      setError('No organization ID found in user claims')
     }
-  }, [customClaims?.organizationId])
+  }, [customClaims?.organizationId, authLoading])
 
   const fetchOrganization = async () => {
-    if (!customClaims?.organizationId) return
+    if (!customClaims?.organizationId || !userProfile) return
 
+    setError(null)
     try {
-      const orgDoc = await getDoc(doc(db, 'organizations', customClaims.organizationId))
-      if (orgDoc.exists()) {
-        const data = orgDoc.data()
-        const org: Organization = {
-          id: orgDoc.id,
-          name: data.name,
-          type: data.type,
-          description: data.description,
-          website: data.website,
-          phone: data.phone,
-          email: data.email,
-          address: data.address,
-          taxId: data.taxId,
-          establishedYear: data.establishedYear,
-          adminIds: data.adminIds || [],
-          memberIds: data.memberIds || [],
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-        }
+      console.log('Fetching organization:', customClaims.organizationId)
+      console.log('User role:', customClaims.role)
+      
+      const org = await getOrCreateOrganization(
+        customClaims.organizationId,
+        userProfile.email,
+        userProfile.uid,
+        userProfile.displayName ? `${userProfile.displayName}'s Organization` : undefined
+      )
+      
+      if (org) {
+        console.log('Organization loaded:', org)
         setOrganization(org)
         setEditForm(org)
+      } else {
+        console.log('Failed to get or create organization')
+        setError('Failed to load organization')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching organization:', error)
+      setError(`Failed to fetch organization: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -105,19 +87,17 @@ export default function OrganizationPage() {
 
     setSaving(true)
     try {
-      const updateData = {
-        ...editForm,
-        updatedAt: new Date(),
-      }
-      delete updateData.id
-      delete updateData.createdAt
-
-      await updateDoc(doc(db, 'organizations', organization.id), updateData)
+      const success = await updateOrganization(organization.id, editForm)
       
-      setOrganization({ ...organization, ...editForm, updatedAt: new Date() })
-      setEditing(false)
+      if (success) {
+        setOrganization({ ...organization, ...editForm, updatedAt: new Date() })
+        setEditing(false)
+      } else {
+        setError('Failed to save organization changes')
+      }
     } catch (error) {
       console.error('Error updating organization:', error)
+      setError('Failed to save organization changes')
     } finally {
       setSaving(false)
     }
@@ -141,10 +121,43 @@ export default function OrganizationPage() {
     }
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading organization...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <Building2 className="mx-auto h-12 w-12 text-red-400" />
+          <h3 className="mt-2 text-lg font-medium text-gray-900">Organization Access Error</h3>
+          <p className="mt-2 text-sm text-red-600">{error}</p>
+          <div className="mt-6 space-y-3">
+            <button
+              onClick={() => {
+                setError(null)
+                setLoading(true)
+                fetchOrganization()
+              }}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              Try Again
+            </button>
+            <div className="text-xs text-gray-500 space-y-1">
+              <p>Debug info:</p>
+              <p>Role: {customClaims?.role || 'None'}</p>
+              <p>Org ID: {customClaims?.organizationId || 'None'}</p>
+              <p>User ID: {userProfile?.uid || 'None'}</p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -158,6 +171,9 @@ export default function OrganizationPage() {
           <p className="mt-1 text-sm text-gray-500">
             Your account is not associated with an organization.
           </p>
+          <div className="mt-4 text-xs text-gray-400">
+            <p>Organization ID: {customClaims?.organizationId || 'Not set'}</p>
+          </div>
         </div>
       </div>
     )

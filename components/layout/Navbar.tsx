@@ -140,81 +140,92 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex items-center">
+    <>
+      {/* Left Sidebar */}
+      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg border-r border-gray-200 hidden lg:flex lg:flex-col">
+        {/* Logo */}
+        <div className="flex items-center px-6 py-4 border-b border-gray-200">
+          <Link href="/dashboard" className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Heart className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-bold text-xl text-gray-900">Donate Equity</span>
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex-1 flex flex-col px-4 py-6 space-y-2">
+          {filteredNavItems.map((item) => {
+            const Icon = item.icon
+            const isActive = isActiveRoute(item.href)
+            
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span>{item.name}</span>
+              </Link>
+            )
+          })}
+          
+          <Link
+            href="/profile"
+            className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 ${
+              pathname === '/profile'
+                ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <User className="w-5 h-5" />
+            <span>Profile</span>
+          </Link>
+        </div>
+
+        {/* User Menu */}
+        <div className="px-4 py-4 border-t border-gray-200">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <User className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {userProfile?.displayName || user.email}
+              </p>
+              <p className="text-xs text-gray-500 capitalize">
+                {userRole?.replace('_', ' ')}
+              </p>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+          >
+            <LogOut className="w-5 h-5" />
+            <span>Sign out</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Navigation */}
+      <div className="lg:hidden">
+        {/* Mobile Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
+          <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Heart className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold text-xl text-gray-900">Donate Equity</span>
-            </Link>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            {filteredNavItems.map((item) => {
-              const Icon = item.icon
-              const isActive = isActiveRoute(item.href)
-              
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.name}</span>
-                </Link>
-              )
-            })}
-          </div>
-
-          {/* User Menu */}
-          <div className="hidden md:flex items-center space-x-4">
-            <Link
-              href="/profile"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                pathname === '/profile'
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <User className="w-4 h-4" />
-              <span>Profile</span>
+              <span className="font-bold text-lg text-gray-900">Donate Equity</span>
             </Link>
             
-            <div className="h-6 w-px bg-gray-300" />
-            
-            <div className="flex items-center space-x-3">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">
-                  {userProfile?.displayName || user.email}
-                </p>
-                <p className="text-xs text-gray-500 capitalize">
-                  {userRole?.replace('_', ' ')}
-                </p>
-              </div>
-              
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                title="Sign out"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden lg:block">Sign out</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="md:hidden">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200"
@@ -227,69 +238,84 @@ export default function Navbar() {
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Mobile Navigation Menu */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-200">
-          <div className="px-4 pt-2 pb-3 space-y-1">
-            {filteredNavItems.map((item) => {
-              const Icon = item.icon
-              const isActive = isActiveRoute(item.href)
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setIsMobileMenuOpen(false)} />
+            <div className="fixed inset-y-0 left-0 max-w-xs w-full bg-white shadow-xl">
+              <div className="flex items-center px-4 py-4 border-b border-gray-200">
+                <Link href="/dashboard" className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <Heart className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="font-bold text-xl text-gray-900">Donate Equity</span>
+                </Link>
+              </div>
               
-              return (
+              <div className="flex flex-col px-4 py-6 space-y-2">
+                {filteredNavItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive = isActiveRoute(item.href)
+                  
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium transition-colors duration-200 ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-600'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span>{item.name}</span>
+                    </Link>
+                  )
+                })}
+                
                 <Link
-                  key={item.name}
-                  href={item.href}
+                  href="/profile"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 ${
-                    isActive
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium transition-colors duration-200 ${
+                    pathname === '/profile'
                       ? 'bg-blue-50 text-blue-600'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span>{item.name}</span>
+                  <User className="w-5 h-5" />
+                  <span>Profile</span>
                 </Link>
-              )
-            })}
-            
-            <Link
-              href="/profile"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition-colors duration-200 ${
-                pathname === '/profile'
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <User className="w-5 h-5" />
-              <span>Profile</span>
-            </Link>
-          </div>
-          
-          <div className="px-4 py-3 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-medium text-gray-900">
-                  {userProfile?.displayName || user.email}
-                </p>
-                <p className="text-sm text-gray-500 capitalize">
-                  {userRole?.replace('_', ' ')}
-                </p>
               </div>
               
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sign out</span>
-              </button>
+              <div className="px-4 py-4 border-t border-gray-200 mt-auto">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-medium text-gray-900 truncate">
+                      {userProfile?.displayName || user.email}
+                    </p>
+                    <p className="text-sm text-gray-500 capitalize">
+                      {userRole?.replace('_', ' ')}
+                    </p>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Sign out</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </nav>
+        )}
+      </div>
+    </>
   )
 }

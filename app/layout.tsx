@@ -36,7 +36,7 @@ export default function RootLayout({
         <AuthProvider>
           <div className="min-h-full">
             <Navbar />
-            <main className="flex-1">
+            <main className="lg:pl-64">
               {children}
             </main>
           </div>
