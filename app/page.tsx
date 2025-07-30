@@ -23,11 +23,6 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <div className={`min-h-screen bg-gray-50 ${inter.className}`}>
-      {/* Skip to main content - Accessibility */}
-      <a href="#main-content" className="skip-link">
-        Skip to main content
-      </a>
-
       {/* Navigation Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" role="navigation" aria-label="Main navigation">
@@ -83,7 +78,7 @@ export default function HomePage() {
         </nav>
       </header>
 
-      <main id="main-content">
+      <main>
         {/* Hero Section */}
         <section className="py-20 sm:py-24 lg:py-32 bg-white" aria-labelledby="hero-heading">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

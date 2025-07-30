@@ -33,10 +33,7 @@ export default function RootLayout({
     <html lang="en" className="h-full scroll-smooth">
       <body className={`${inter.className} h-full antialiased`}>
         <AuthProvider>
-          <a href="#main-content" className="skip-to-main">
-            Skip to main content
-          </a>
-          <main id="main-content" className="min-h-full">
+          <main className="min-h-full">
             {children}
           </main>
         </AuthProvider>

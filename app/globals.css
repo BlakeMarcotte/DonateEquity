@@ -194,25 +194,6 @@ textarea::placeholder {
   animation: spin 1s linear infinite;
 }
 
-/* Skip link for accessibility */
-.skip-link {
-  position: absolute;
-  top: -40px;
-  left: 6px;
-  background: hsl(217 91% 60%);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 4px;
-  text-decoration: none;
-  font-weight: 600;
-  z-index: 100;
-  transition: top 0.3s;
-}
-
-.skip-link:focus {
-  top: 6px;
-}
-
 /* Screen reader only content */
 .sr-only {
   position: absolute;
