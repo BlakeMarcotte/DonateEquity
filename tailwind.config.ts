@@ -1,5 +1,10 @@
 import type { Config } from 'tailwindcss'
 
+/**
+ * Equity Compass - Professional Tailwind Configuration
+ * Implements the complete Equity Compass styling guide
+ * Optimized for financial platform applications
+ */
 const config: Config = {
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -9,116 +14,157 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Base colors - Equity Compass specification
+        border: "hsl(214.3 31.8% 91.4%)",
+        input: "hsl(214.3 31.8% 91.4%)",
+        ring: "hsl(222.2 84% 4.9%)",
+        background: "hsl(0 0% 100%)",
+        foreground: "hsl(222.2 84% 4.9%)",
+        
+        // Primary (Dark blue) - Professional brand color
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93bbfc',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          DEFAULT: "hsl(222.2 47.4% 11.2%)",
+          foreground: "hsl(210 40% 98%)",
+        },
+        
+        // Secondary (Light gray) - Supporting actions
+        secondary: {
+          DEFAULT: "hsl(210 40% 96%)",
+          foreground: "hsl(222.2 84% 4.9%)",
+        },
+        
+        // Destructive (Red) - Error and delete actions
+        destructive: {
+          DEFAULT: "hsl(0 84.2% 60.2%)",
+          foreground: "hsl(210 40% 98%)",
+        },
+        
+        // Muted (Light gray) - Subtle backgrounds
+        muted: {
+          DEFAULT: "hsl(210 40% 96%)",
+          foreground: "hsl(215.4 16.3% 46.9%)",
+        },
+        
+        // Accent (Light gray) - Hover states
+        accent: {
+          DEFAULT: "hsl(210 40% 96%)",
+          foreground: "hsl(222.2 84% 4.9%)",
+        },
+        
+        // Popover - Dropdown and modal backgrounds
+        popover: {
+          DEFAULT: "hsl(0 0% 100%)",
+          foreground: "hsl(222.2 84% 4.9%)",
+        },
+        
+        // Card - Content container backgrounds
+        card: {
+          DEFAULT: "hsl(0 0% 100%)",
+          foreground: "hsl(222.2 84% 4.9%)",
+        },
+
+        // Status colors for badges and indicators
+        yellow: {
+          100: "hsl(54 91% 91%)",
+          800: "hsl(45 83% 36%)",
+          200: "hsl(52 98% 83%)",
+        },
+        green: {
+          100: "hsl(142 69% 91%)",
+          800: "hsl(158 64% 25%)",  
+          200: "hsl(141 84% 77%)",
+          50: "hsl(138 76% 97%)",
+          600: "hsl(142 71% 45%)",
+        },
+        blue: {
+          100: "hsl(214 95% 93%)",
+          800: "hsl(213 94% 25%)",
+          200: "hsl(213 97% 87%)",
+          50: "hsl(214 100% 97%)",
+          500: "hsl(217 91% 60%)",
+          600: "hsl(221 83% 53%)",
+          700: "hsl(224 76% 48%)",
+        },
+        red: {
+          100: "hsl(0 93% 94%)",
+          800: "hsl(0 75% 42%)",
+          200: "hsl(0 96% 89%)",
+          50: "hsl(0 86% 97%)",
+          600: "hsl(0 72% 51%)",
         },
         gray: {
-          50: '#f9fafb',
-          100: '#f3f4f6',
-          200: '#e5e7eb',
-          300: '#d1d5db',
-          400: '#9ca3af',
-          500: '#6b7280',
-          600: '#4b5563',
-          700: '#374151',
-          800: '#1f2937',
-          900: '#111827',
+          50: "hsl(210 40% 98%)",
+          100: "hsl(210 40% 96%)",
+          200: "hsl(214.3 31.8% 91.4%)",
+          300: "hsl(213 27% 84%)",
+          400: "hsl(215 20% 65%)",
+          500: "hsl(215 16% 47%)",
+          600: "hsl(215 19% 35%)",
+          700: "hsl(215 25% 27%)",
+          800: "hsl(217 33% 17%)",
+          900: "hsl(222.2 84% 4.9%)",
         },
-        success: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
-        },
-        error: {
-          50: '#fef2f2',
-          100: '#fee2e2',
-          200: '#fecaca',
-          300: '#fca5a5',
-          400: '#f87171',
-          500: '#ef4444',
-          600: '#dc2626',
-          700: '#b91c1c',
-          800: '#991b1b',
-          900: '#7f1d1d',
-        },
-        warning: {
-          50: '#fffbeb',
-          100: '#fef3c7',
-          200: '#fde68a',
-          300: '#fcd34d',
-          400: '#fbbf24',
-          500: '#f59e0b',
-          600: '#d97706',
-          700: '#b45309',
-          800: '#92400e',
-          900: '#78350f',
+        
+        // Authentication page specific colors
+        'auth-dark': '#011D28', // Left panel background
+        
+        // Status badge colors
+        purple: {
+          50: "hsl(270 100% 98%)",
+          200: "hsl(269 100% 86%)",
+          800: "hsl(272 77% 28%)",
         },
       },
+      
+      // Professional border radius system
+      borderRadius: {
+        lg: "0.5rem",    // 8px - Standard for buttons, cards
+        md: "calc(0.5rem - 2px)",  // 6px
+        sm: "calc(0.5rem - 4px)",  // 4px
+      },
+      
+      // Font family - Inter from Google Fonts
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: [
+          'Inter',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'sans-serif',
+        ],
       },
-      fontSize: {
-        xs: ['0.75rem', { lineHeight: '1rem' }],
-        sm: ['0.875rem', { lineHeight: '1.25rem' }],
-        base: ['1rem', { lineHeight: '1.5rem' }],
-        lg: ['1.125rem', { lineHeight: '1.75rem' }],
-        xl: ['1.25rem', { lineHeight: '1.75rem' }],
-        '2xl': ['1.5rem', { lineHeight: '2rem' }],
-        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
-        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
-        '5xl': ['3rem', { lineHeight: '1.2' }],
-        '6xl': ['3.75rem', { lineHeight: '1.1' }],
-      },
-      spacing: {
-        '18': '4.5rem',
-        '88': '22rem',
-        '120': '30rem',
+      
+      // Professional animations
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
       },
       animation: {
-        'fade-in': 'fadeIn 0.3s ease-in-out',
-        'slide-up': 'slideUp 0.3s ease-out',
-        'slide-down': 'slideDown 0.3s ease-out',
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
       },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        slideUp: {
-          '0%': { transform: 'translateY(10px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
-        slideDown: {
-          '0%': { transform: 'translateY(-10px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
-      },
+      
+      // Enhanced shadow system
       boxShadow: {
-        'custom-sm': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-        'custom': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-        'custom-md': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-        'custom-lg': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-        'custom-xl': '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+        'sm': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+        'DEFAULT': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+        'md': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        'lg': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+        'xl': '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
       },
     },
   },
-  plugins: [],
+  plugins: [require("tailwindcss-animate")],
 }
 
 export default config
