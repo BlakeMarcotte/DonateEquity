@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
-import { UserRole, CustomClaims } from '@/types/auth'
+import { UserRole } from '@/types/auth'
 
 interface RegisterRequest {
   email: string
@@ -111,22 +111,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Set custom claims
-    const customClaims: CustomClaims = {
+    const customClaims: Record<string, unknown> = {
       role,
-      organizationId: finalOrganizationId,
       permissions: ROLE_PERMISSIONS[role],
+    }
+
+    // Only add organizationId to claims if it exists
+    if (finalOrganizationId) {
+      customClaims.organizationId = finalOrganizationId
     }
 
     await adminAuth.setCustomUserClaims(userRecord.uid, customClaims)
 
     // Create user profile in Firestore
-    await adminDb.collection('users').doc(userRecord.uid).set({
+    const userProfileData: Record<string, unknown> = {
       uid: userRecord.uid,
       email,
       displayName,
       role,
-      organizationId: finalOrganizationId,
-      phoneNumber,
       photoURL: null,
       isEmailVerified: false,
       createdAt: new Date(),
@@ -135,7 +137,19 @@ export async function POST(request: NextRequest) {
         signUpMethod: 'email',
         lastLoginAt: null,
       },
-    })
+    }
+
+    // Only add organizationId if it exists (not undefined)
+    if (finalOrganizationId) {
+      userProfileData.organizationId = finalOrganizationId
+    }
+
+    // Only add phoneNumber if it exists (not undefined)
+    if (phoneNumber) {
+      userProfileData.phoneNumber = phoneNumber
+    }
+
+    await adminDb.collection('users').doc(userRecord.uid).set(userProfileData)
 
     return NextResponse.json(
       {
