@@ -29,8 +29,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="h-full">
-      <body className={`${inter.className} h-full bg-gray-50`}>{children}</body>
+    <html lang="en" className="h-full scroll-smooth">
+      <body className={`${inter.className} h-full antialiased`}>
+        <a href="#main-content" className="skip-to-main">
+          Skip to main content
+        </a>
+        <main id="main-content" className="min-h-full">
+          {children}
+        </main>
+      </body>
     </html>
   )
 }
