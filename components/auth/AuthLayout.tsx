@@ -115,14 +115,14 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
         </div>
 
         {/* Form Container */}
-        <div className="flex-1 flex items-center justify-center px-6 py-12 sm:px-12">
-          <div className="w-full max-w-sm space-y-8">
+        <div className="flex-1 flex items-center justify-center px-6 py-8 sm:px-12">
+          <div className="w-full max-w-md space-y-6">
             {/* Form Header */}
             <div className="text-center">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                {mode === 'login' ? 'Welcome back' : 'Create your account'}
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {mode === 'login' ? 'Welcome back' : 'Get started'}
               </h2>
-              <p className="text-gray-600">
+              <p className="text-sm text-gray-600">
                 {mode === 'login' ? (
                   <>
                     Don&apos;t have an account?{' '}
@@ -148,11 +148,13 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
             </div>
 
             {/* Form Content */}
-            {children}
+            <div className="bg-white p-8 rounded-xl border border-gray-100 shadow-sm">
+              {children}
+            </div>
 
             {/* Additional Links */}
             {mode === 'login' && (
-              <div className="text-center">
+              <div className="text-center mt-4">
                 <Link
                   href="/auth/forgot-password"
                   className="text-sm text-blue-600 hover:text-blue-700 transition-colors duration-200"

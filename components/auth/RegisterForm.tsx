@@ -186,17 +186,9 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
     return (
       <Card className="border-0 shadow-none p-0">
         <CardContent className="p-0">
-          <div className="space-y-8">
-            <div className="text-center">
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                Create Your Account
-              </h3>
-              <p className="text-gray-600">
-                Join the future of charitable giving with equity donations
-              </p>
-            </div>
+          <div className="space-y-6">
 
-            <form onSubmit={(e) => { e.preventDefault(); handleNext(); }} className="space-y-6">
+            <form onSubmit={(e) => { e.preventDefault(); handleNext(); }} className="space-y-5">
               {/* Full Name */}
               <div className="space-y-2">
                 <Label htmlFor="displayName" className="text-gray-700 font-medium">
@@ -369,12 +361,12 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
   return (
     <Card className="border-0 shadow-none p-0">
       <CardContent className="p-0">
-        <div className="space-y-8">
+        <div className="space-y-6">
           <div className="text-center">
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
               Organization Details
             </h3>
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-600">
               Tell us about your {formData.role === 'nonprofit_admin' ? 'nonprofit organization' : 'appraisal firm'}
             </p>
           </div>
