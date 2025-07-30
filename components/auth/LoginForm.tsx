@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn } from '@/lib/firebase/auth'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -21,8 +21,17 @@ export default function LoginForm({ onSuccess, redirectTo = '/dashboard' }: Logi
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { refreshUserData } = useAuth()
+
+  useEffect(() => {
+    const message = searchParams.get('message')
+    if (message) {
+      setSuccessMessage(message)
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -119,6 +128,13 @@ export default function LoginForm({ onSuccess, redirectTo = '/dashboard' }: Logi
               </Button>
             </div>
           </div>
+
+          {/* Success Message */}
+          {successMessage && (
+            <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg">
+              {successMessage}
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

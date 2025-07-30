@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Eye, EyeOff, Loader2, ChevronDown } from 'lucide-react'
+import { signIn } from '@/lib/firebase/auth'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Organization {
   id: string
@@ -57,6 +59,7 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
+  const { refreshUserData } = useAuth()
 
   const fetchOrganizations = async (type: 'nonprofit' | 'appraiser' | 'donor') => {
     setLoadingOrgs(true)
@@ -165,10 +168,20 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
       const data = await response.json()
 
       if (data.success) {
-        if (onSuccess) {
-          onSuccess()
-        } else {
-          router.push(redirectTo)
+        // Automatically sign in the user after successful registration
+        try {
+          await signIn(formData.email, formData.password)
+          await refreshUserData()
+          
+          if (onSuccess) {
+            onSuccess()
+          } else {
+            router.push(redirectTo)
+          }
+        } catch (signInError) {
+          console.error('Auto sign-in error after registration:', signInError)
+          // If auto sign-in fails, redirect to login page with success message
+          router.push(`/auth/login?message=Registration successful! Please sign in.`)
         }
       } else {
         setError(data.error || 'Registration failed')
