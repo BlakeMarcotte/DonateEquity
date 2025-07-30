@@ -119,6 +119,19 @@ service cloud.firestore {
           resource.data.donorId == getUserId() ||
           resource.data.nonprofitAdminId == getUserId() ||
           resource.data.appraiserId == getUserId() ||
+          // Allow nonprofit admins to read donations for campaigns in their organization
+          (hasRole('nonprofit_admin') && 
+           exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
+           get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.organizationId == request.auth.token.organizationId) ||
+          isAdmin()
+        )
+      );
+      // Allow list/query operations for nonprofit admins to see donations for their campaigns
+      allow list: if (
+        isAuthenticated() && (
+          hasRole('nonprofit_admin') ||
+          hasRole('donor') ||
+          hasRole('appraiser') ||
           isAdmin()
         )
       );

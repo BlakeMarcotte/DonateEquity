@@ -3,6 +3,7 @@
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   collection, 
   query, 
@@ -46,6 +47,7 @@ interface Campaign {
 }
 
 export default function CampaignsPage() {
+  const router = useRouter()
   const { userProfile, customClaims } = useAuth()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
@@ -228,11 +230,14 @@ export default function CampaignsPage() {
             ) : (
               <div className="divide-y divide-gray-200">
                 {campaigns.map((campaign) => (
-                  <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors duration-200">
+                  <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors duration-200 cursor-pointer">
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                      <div 
+                        className="flex-1"
+                        onClick={() => router.push(`/campaigns/${campaign.id}`)}
+                      >
                         <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors duration-200">
                             {campaign.title}
                           </h3>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(campaign.status)}`}>
@@ -272,20 +277,35 @@ export default function CampaignsPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-2 ml-6">
-                        <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                      <div 
+                        className="flex items-center space-x-2 ml-6"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/campaigns/${campaign.id}`)
+                          }}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                          title="View Campaign Details"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation()
                             setSelectedCampaign(campaign)
                             setShowEditModal(true)
                           }}
                           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                          title="Edit Campaign"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                        <button 
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                        >
                           <MoreVertical className="w-4 h-4" />
                         </button>
                       </div>
