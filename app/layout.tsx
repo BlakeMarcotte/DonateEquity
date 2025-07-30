@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { APP_NAME, APP_DESCRIPTION } from '@/lib/constants'
 import { AuthProvider } from '@/contexts/AuthContext'
+import Navbar from '@/components/layout/Navbar'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -33,9 +34,12 @@ export default function RootLayout({
     <html lang="en" className="h-full scroll-smooth">
       <body className={`${inter.className} h-full antialiased`}>
         <AuthProvider>
-          <main className="min-h-full">
-            {children}
-          </main>
+          <div className="min-h-full">
+            <Navbar />
+            <main className="flex-1">
+              {children}
+            </main>
+          </div>
         </AuthProvider>
       </body>
     </html>
