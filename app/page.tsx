@@ -54,14 +54,14 @@ export default function HomePage() {
                 How It Works
               </a>
               <a 
-                href="/auth/sign-in" 
+                href="/auth/login" 
                 className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
                 aria-label="Sign in to your account"
               >
                 Sign In
               </a>
               <Button asChild>
-                <a href="/auth/sign-up" aria-label="Create your account">
+                <a href="/auth/register" aria-label="Create your account">
                   Get Started
                 </a>
               </Button>
@@ -99,7 +99,7 @@ export default function HomePage() {
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
                 <Button size="lg" asChild>
-                  <a href="/auth/sign-up" aria-label="Start your equity donation journey">
+                  <a href="/auth/register" aria-label="Start your equity donation journey">
                     Get Started Today
                     <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -203,7 +203,7 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Button size="lg" variant="outline" className="bg-white text-blue-600 border-white hover:bg-gray-50" asChild>
-                <a href="/auth/sign-up" aria-label="Create your account to start donating equity">
+                <a href="/auth/register" aria-label="Create your account to start donating equity">
                   Create Your Account
                 </a>
               </Button>
