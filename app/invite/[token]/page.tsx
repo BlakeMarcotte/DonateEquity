@@ -34,23 +34,38 @@ export default function InvitationPage() {
   const [responded, setResponded] = useState(false)
 
   useEffect(() => {
-    // If user is not authenticated, redirect to signup with invitation token
-    if (!authLoading && !user) {
-      router.push(`/auth/register?invitation=${params.token}`)
-      return
-    }
-    
-    // If user is authenticated, fetch invitation
-    if (params.token && user) {
+    // Always fetch invitation first to get campaignId
+    if (params.token) {
       fetchInvitation()
     }
-  }, [params.token, user, authLoading, router])
+  }, [params.token])
+
+  useEffect(() => {
+    // Check authentication after invitation is loaded
+    if (!authLoading && invitation) {
+      if (!user) {
+        // User is not authenticated, redirect to signup with invitation token and campaign
+        router.push(`/auth/register?invitation=${params.token}&campaign=${invitation.campaignId}`)
+        return
+      }
+    }
+  }, [user, authLoading, router, params.token, invitation])
 
   const fetchInvitation = async () => {
     if (!params.token) return
 
     try {
-      const invitationData = await getInvitationByToken(params.token as string)
+      // Use server-side API to fetch invitation
+      const response = await fetch(`/api/invitations/get-by-token?token=${params.token}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        setError(errorData.error || 'Failed to load invitation')
+        setLoading(false)
+        return
+      }
+      
+      const { invitation: invitationData } = await response.json()
       
       if (!invitationData) {
         setError('Invalid or expired invitation')
@@ -58,25 +73,33 @@ export default function InvitationPage() {
         return
       }
 
+      // Convert date strings back to Date objects
+      const invitation = {
+        ...invitationData,
+        invitedAt: new Date(invitationData.invitedAt),
+        expiresAt: new Date(invitationData.expiresAt),
+        respondedAt: invitationData.respondedAt ? new Date(invitationData.respondedAt) : undefined
+      }
+
       // Check if invitation is expired
-      if (new Date() > invitationData.expiresAt) {
+      if (new Date() > invitation.expiresAt) {
         setError('This invitation has expired')
         setLoading(false)
         return
       }
 
       // Check if invitation has already been responded to
-      if (invitationData.status !== 'pending') {
+      if (invitation.status !== 'pending') {
         setResponded(true)
-        setInvitation(invitationData)
+        setInvitation(invitation)
         setLoading(false)
         return
       }
 
-      setInvitation(invitationData)
+      setInvitation(invitation)
 
       // Fetch campaign details
-      const campaignDoc = await getDoc(doc(db, 'campaigns', invitationData.campaignId))
+      const campaignDoc = await getDoc(doc(db, 'campaigns', invitation.campaignId))
       if (campaignDoc.exists()) {
         const campaignData = campaignDoc.data()
         setCampaign({
@@ -86,9 +109,19 @@ export default function InvitationPage() {
           updatedAt: campaignData.updatedAt?.toDate() || new Date(),
         } as Campaign)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching invitation:', error)
-      setError('Failed to load invitation')
+      
+      // Provide specific error messages based on error type
+      if (error.message?.includes('expired')) {
+        setError('This invitation has expired. Please contact the person who invited you for a new invitation.')
+      } else if (error.message?.includes('already responded')) {
+        setError('You have already responded to this invitation.')
+      } else if (error.message?.includes('not found')) {
+        setError('This invitation link is invalid or has been removed.')
+      } else {
+        setError('Failed to load invitation. Please check the link and try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -97,36 +130,61 @@ export default function InvitationPage() {
   const handleResponse = async (response: 'accepted' | 'declined') => {
     if (!invitation) return
 
+    // If user is not authenticated, redirect to signup
+    if (!user) {
+      if (response === 'accepted') {
+        router.push(`/auth/register?invitation=${params.token}&campaign=${invitation.campaignId}`)
+      }
+      return
+    }
+
     setResponding(true)
     setError('')
 
     try {
-      const success = await respondToInvitation(
-        invitation.id, 
-        response, 
-        user?.uid
-      )
-
-      if (success) {
-        setInvitation(prev => prev ? { ...prev, status: response } : null)
-        setResponded(true)
+      if (response === 'accepted') {
+        // Use the API endpoint for accepting
+        const idToken = await user.getIdToken()
         
-        // If accepted, redirect to campaign or signup
-        if (response === 'accepted') {
-          if (user) {
-            // User is logged in, redirect to campaign
-            setTimeout(() => {
-              router.push(`/campaigns/${invitation.campaignId}/donate`)
-            }, 2000)
-          } else {
-            // User needs to sign up, redirect to signup with campaign context
-            setTimeout(() => {
-              router.push(`/auth/register?invitation=${params.token}&campaign=${invitation.campaignId}`)
-            }, 2000)
-          }
+        const apiResponse = await fetch('/api/invitations/accept', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            invitationToken: params.token
+          })
+        })
+        
+        if (apiResponse.ok) {
+          setInvitation(prev => prev ? { ...prev, status: response } : null)
+          setResponded(true)
+          
+          // Redirect to campaign with invitation context
+          setTimeout(() => {
+            const inviterName = encodeURIComponent(invitation.inviterName)
+            const message = invitation.message ? encodeURIComponent(invitation.message) : ''
+            const redirectUrl = `/campaigns/${invitation.campaignId}/donate?invitation=${params.token}&inviter=${inviterName}${message ? `&message=${message}` : ''}`
+            router.push(redirectUrl)
+          }, 2000)
+        } else {
+          const error = await apiResponse.json()
+          console.error('API Error:', error)
+          console.error('Response status:', apiResponse.status)
+          console.error('Response statusText:', apiResponse.statusText)
+          setError(error.error || 'Failed to accept invitation. Please try again.')
         }
       } else {
-        setError('Failed to respond to invitation. Please try again.')
+        // For decline, use the original function
+        const success = await respondToInvitation(invitation.id, response, user.uid)
+        
+        if (success) {
+          setInvitation(prev => prev ? { ...prev, status: response } : null)
+          setResponded(true)
+        } else {
+          setError('Failed to respond to invitation. Please try again.')
+        }
       }
     } catch (error) {
       console.error('Error responding to invitation:', error)
@@ -160,16 +218,31 @@ export default function InvitationPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto px-4">
-          <XCircle className="mx-auto h-16 w-16 text-red-500 mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Invitation Error</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => router.push('/')}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
-          >
-            Go Home
-          </button>
+        <div className="text-center max-w-lg mx-auto px-4">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <XCircle className="h-8 w-8 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Invitation Issue</h1>
+          <p className="text-gray-600 mb-8">{error}</p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => router.push('/browse')}
+              className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              Browse Campaigns
+            </button>
+          </div>
+          
+          <p className="text-sm text-gray-500 mt-6">
+            Need help? Contact the person who sent you this invitation.
+          </p>
         </div>
       </div>
     )
@@ -181,12 +254,18 @@ export default function InvitationPage() {
         <div className="text-center max-w-md mx-auto px-4">
           {invitation?.status === 'accepted' ? (
             <>
-              <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Invitation Accepted!</h1>
               <p className="text-gray-600 mb-6">
-                Thank you for accepting the invitation. 
+                Thank you for accepting the invitation to support <strong>{campaign?.title}</strong>. 
                 {user ? ' Redirecting you to the campaign...' : ' Redirecting you to create your account...'}
               </p>
+              <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+                <Clock className="w-4 h-4 animate-spin" />
+                <span>Redirecting in 2 seconds...</span>
+              </div>
             </>
           ) : (
             <>
@@ -277,31 +356,45 @@ export default function InvitationPage() {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button
-                  onClick={() => handleResponse('accepted')}
-                  disabled={responding}
-                  className="inline-flex items-center justify-center px-8 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
-                >
-                  {responding ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-5 h-5 mr-2" />
-                      Accept Invitation
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => handleResponse('declined')}
-                  disabled={responding}
-                  className="inline-flex items-center justify-center px-8 py-3 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
-                >
-                  <XCircle className="w-5 h-5 mr-2" />
-                  Decline
-                </button>
+                {user ? (
+                  // Authenticated user - show accept/decline buttons
+                  <>
+                    <button
+                      onClick={() => handleResponse('accepted')}
+                      disabled={responding}
+                      className="inline-flex items-center justify-center px-8 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
+                    >
+                      {responding ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-5 h-5 mr-2" />
+                          Accept Invitation
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleResponse('declined')}
+                      disabled={responding}
+                      className="inline-flex items-center justify-center px-8 py-3 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
+                    >
+                      <XCircle className="w-5 h-5 mr-2" />
+                      Decline
+                    </button>
+                  </>
+                ) : (
+                  // Unauthenticated user - show signup button
+                  <button
+                    onClick={() => handleResponse('accepted')}
+                    className="inline-flex items-center justify-center px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200"
+                  >
+                    <Heart className="w-5 h-5 mr-2" />
+                    Sign Up to Accept Invitation
+                  </button>
+                )}
               </div>
 
               {/* User Status Info */}

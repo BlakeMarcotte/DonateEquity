@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Eye, EyeOff, Loader2, ChevronDown, Mail, Heart } from 'lucide-react'
 import { signIn } from '@/lib/firebase/auth'
+import { auth } from '@/lib/firebase/config'
 import { useAuth } from '@/contexts/AuthContext'
 import { respondToInvitation } from '@/lib/firebase/invitations'
 
@@ -196,7 +197,29 @@ export default function RegisterForm({
           // If user registered via invitation, accept the invitation
           if (invitation) {
             try {
-              await respondToInvitation(invitation.id, 'accepted', data.user.uid)
+              // Get the user's auth token
+              const currentUser = auth.currentUser
+              if (currentUser) {
+                const idToken = await currentUser.getIdToken()
+                
+                // Call the API to accept the invitation
+                const response = await fetch('/api/invitations/accept', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                  },
+                  body: JSON.stringify({
+                    invitationId: invitation.id,
+                    invitationToken: invitation.invitationToken
+                  })
+                })
+                
+                if (!response.ok) {
+                  const error = await response.json()
+                  console.error('Error accepting invitation:', error)
+                }
+              }
             } catch (invitationError) {
               console.error('Error accepting invitation:', invitationError)
               // Continue with registration flow even if invitation acceptance fails

@@ -20,14 +20,19 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      // If user is already logged in and has an invitation, redirect to campaign
-      if (campaignId) {
+      // If user is already logged in and has an invitation, redirect to campaign with context
+      if (campaignId && invitationToken && invitation) {
+        const inviterName = encodeURIComponent(invitation.inviterName)
+        const message = invitation.message ? encodeURIComponent(invitation.message) : ''
+        const redirectUrl = `/campaigns/${campaignId}/donate?invitation=${invitationToken}&inviter=${inviterName}${message ? `&message=${message}` : ''}`
+        router.push(redirectUrl)
+      } else if (campaignId) {
         router.push(`/campaigns/${campaignId}/donate`)
       } else {
         router.push('/dashboard')
       }
     }
-  }, [user, loading, router, campaignId])
+  }, [user, loading, router, campaignId, invitationToken, invitation])
 
   useEffect(() => {
     if (invitationToken) {
@@ -40,9 +45,20 @@ export default function RegisterPage() {
 
     setInvitationLoading(true)
     try {
-      const invitationData = await getInvitationByToken(invitationToken)
-      if (invitationData) {
-        setInvitation(invitationData)
+      const response = await fetch(`/api/invitations/get-by-token?token=${invitationToken}`)
+      
+      if (response.ok) {
+        const { invitation: invitationData } = await response.json()
+        if (invitationData) {
+          // Convert date strings back to Date objects
+          const invitation = {
+            ...invitationData,
+            invitedAt: new Date(invitationData.invitedAt),
+            expiresAt: new Date(invitationData.expiresAt),
+            respondedAt: invitationData.respondedAt ? new Date(invitationData.respondedAt) : undefined
+          }
+          setInvitation(invitation)
+        }
       }
     } catch (error) {
       console.error('Error fetching invitation:', error)
@@ -67,7 +83,13 @@ export default function RegisterPage() {
     <AuthLayout mode="register">
       <RegisterForm 
         invitation={invitation}
-        onSuccessRedirect={campaignId ? `/campaigns/${campaignId}/donate` : '/dashboard'}
+        onSuccessRedirect={
+          campaignId && invitationToken && invitation
+            ? `/campaigns/${campaignId}/donate?invitation=${invitationToken}&inviter=${encodeURIComponent(invitation.inviterName)}${invitation.message ? `&message=${encodeURIComponent(invitation.message)}` : ''}`
+            : campaignId 
+              ? `/campaigns/${campaignId}/donate` 
+              : '/dashboard'
+        }
       />
     </AuthLayout>
   )

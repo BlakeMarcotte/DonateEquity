@@ -13,6 +13,7 @@ import {
   addDoc, 
   updateDoc, 
   doc,
+  getDoc,
   Timestamp 
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
@@ -36,9 +37,13 @@ interface Campaign {
   title: string
   description: string
   goal: number
-  raised: number
+  currentAmount: number
+  donorCount: number
   status: 'draft' | 'active' | 'paused' | 'completed'
+  visibility?: string
+  category?: string
   organizationId: string
+  organizationName?: string
   createdBy: string
   createdAt: Date
   updatedAt: Date
@@ -72,13 +77,19 @@ export default function CampaignsPage() {
       )
       
       const snapshot = await getDocs(campaignsQuery)
-      const campaignData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        endDate: doc.data().endDate?.toDate(),
-      })) as Campaign[]
+      const campaignData = snapshot.docs.map(doc => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          // Ensure we have currentAmount instead of raised
+          currentAmount: data.currentAmount || data.raised || 0,
+          donorCount: data.donorCount || 0,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          endDate: data.endDate?.toDate(),
+        }
+      }) as Campaign[]
       
       setCampaigns(campaignData)
     } catch (error) {
@@ -112,8 +123,8 @@ export default function CampaignsPage() {
     }).format(amount)
   }
 
-  const getProgressPercentage = (raised: number, goal: number) => {
-    return Math.min((raised / goal) * 100, 100)
+  const getProgressPercentage = (currentAmount: number, goal: number) => {
+    return Math.min((currentAmount / goal) * 100, 100)
   }
 
   if (loading) {
@@ -185,7 +196,7 @@ export default function CampaignsPage() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-500">Total Raised</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(campaigns.reduce((sum, c) => sum + c.raised, 0))}
+                    {formatCurrency(campaigns.reduce((sum, c) => sum + (c.currentAmount || 0), 0))}
                   </p>
                 </div>
               </div>
@@ -253,12 +264,12 @@ export default function CampaignsPage() {
                         <div className="mb-3">
                           <div className="flex justify-between text-sm text-gray-600 mb-1">
                             <span>Progress</span>
-                            <span>{Math.round(getProgressPercentage(campaign.raised, campaign.goal))}%</span>
+                            <span>{Math.round(getProgressPercentage(campaign.currentAmount || 0, campaign.goal))}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
                               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${getProgressPercentage(campaign.raised, campaign.goal)}%` }}
+                              style={{ width: `${getProgressPercentage(campaign.currentAmount || 0, campaign.goal)}%` }}
                             />
                           </div>
                         </div>
@@ -267,7 +278,7 @@ export default function CampaignsPage() {
                           <div className="flex items-center space-x-1">
                             <DollarSign className="w-4 h-4" />
                             <span>
-                              {formatCurrency(campaign.raised)} of {formatCurrency(campaign.goal)}
+                              {formatCurrency(campaign.currentAmount || 0)} of {formatCurrency(campaign.goal)}
                             </span>
                           </div>
                           <div className="flex items-center space-x-1">
@@ -383,6 +394,8 @@ function CreateCampaignModal({
     goal: '',
     endDate: '',
     tags: '',
+    category: '',
+    visibility: 'public' as 'public' | 'private' | 'unlisted',
   })
   const [saving, setSaving] = useState(false)
 
@@ -392,18 +405,41 @@ function CreateCampaignModal({
 
     setSaving(true)
     try {
+      // Fetch organization name
+      let organizationName = 'Unknown Organization'
+      try {
+        const orgDoc = await getDoc(doc(db, 'organizations', organizationId))
+        if (orgDoc.exists()) {
+          organizationName = orgDoc.data().name || 'Unknown Organization'
+        }
+      } catch (orgError) {
+        console.error('Error fetching organization:', orgError)
+      }
+
       const campaignData = {
         title: formData.title,
         description: formData.description,
         goal: parseInt(formData.goal),
-        raised: 0,
+        currentAmount: 0,
+        donorCount: 0,
         status: 'draft' as const,
+        visibility: formData.visibility,
+        category: formData.category,
         organizationId,
+        organizationName,
         createdBy: userId,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
+        startDate: Timestamp.now(),
         endDate: formData.endDate ? Timestamp.fromDate(new Date(formData.endDate)) : null,
         tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        images: {
+          hero: '',
+          gallery: []
+        },
+        settings: {
+          allowRecurring: true
+        }
       }
 
       await addDoc(collection(db, 'campaigns'), campaignData)
@@ -485,6 +521,47 @@ function CreateCampaignModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category
+              </label>
+              <select
+                required
+                value={formData.category}
+                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select a category</option>
+                <option value="Technology">Technology</option>
+                <option value="Education">Education</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Environment">Environment</option>
+                <option value="Arts & Culture">Arts & Culture</option>
+                <option value="Community">Community</option>
+                <option value="Social Impact">Social Impact</option>
+                <option value="Research">Research</option>
+                <option value="Emergency Relief">Emergency Relief</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Visibility
+              </label>
+              <select
+                value={formData.visibility}
+                onChange={(e) => setFormData(prev => ({ ...prev, visibility: e.target.value as 'public' | 'private' | 'unlisted' }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="public">Public - Visible to all donors</option>
+                <option value="private">Private - Only visible to invited donors</option>
+                <option value="unlisted">Unlisted - Accessible via direct link only</option>
+              </select>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tags (comma separated)
@@ -534,6 +611,8 @@ function EditCampaignModal({
     description: campaign.description,
     goal: campaign.goal.toString(),
     status: campaign.status,
+    visibility: campaign.visibility || 'public',
+    category: campaign.category || '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -547,6 +626,8 @@ function EditCampaignModal({
         description: formData.description,
         goal: parseInt(formData.goal),
         status: formData.status,
+        visibility: formData.visibility,
+        category: formData.category,
         updatedAt: Timestamp.now(),
       })
       onSuccess()
@@ -624,6 +705,47 @@ function EditCampaignModal({
                 <option value="active">Active</option>
                 <option value="paused">Paused</option>
                 <option value="completed">Completed</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category
+              </label>
+              <select
+                required
+                value={formData.category}
+                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select a category</option>
+                <option value="Technology">Technology</option>
+                <option value="Education">Education</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Environment">Environment</option>
+                <option value="Arts & Culture">Arts & Culture</option>
+                <option value="Community">Community</option>
+                <option value="Social Impact">Social Impact</option>
+                <option value="Research">Research</option>
+                <option value="Emergency Relief">Emergency Relief</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Visibility
+              </label>
+              <select
+                value={formData.visibility}
+                onChange={(e) => setFormData(prev => ({ ...prev, visibility: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="public">Public - Visible to all donors</option>
+                <option value="private">Private - Only visible to invited donors</option>
+                <option value="unlisted">Unlisted - Accessible via direct link only</option>
               </select>
             </div>
           </div>

@@ -152,38 +152,58 @@ export async function getCampaignInvitations(campaignId: string): Promise<Campai
 }
 
 // Get invitations for a user (by email or user ID)
-export async function getUserInvitations(userIdOrEmail: string): Promise<CampaignInvitation[]> {
+export async function getUserInvitations(userIdOrEmail: string, userEmail?: string): Promise<CampaignInvitation[]> {
   try {
-    // Try to get by user ID first, then by email
-    let invitationsQuery
+    const invitations: CampaignInvitation[] = []
     
-    if (userIdOrEmail.includes('@')) {
-      // It's an email
-      invitationsQuery = query(
-        collection(db, 'campaign_invitations'),
-        where('invitedEmail', '==', userIdOrEmail.toLowerCase()),
-        where('status', '==', 'pending'),
-        orderBy('invitedAt', 'desc')
-      )
-    } else {
-      // It's a user ID
-      invitationsQuery = query(
+    // Query by user ID
+    if (!userIdOrEmail.includes('@')) {
+      const userIdQuery = query(
         collection(db, 'campaign_invitations'),
         where('invitedUserId', '==', userIdOrEmail),
         where('status', '==', 'pending'),
         orderBy('invitedAt', 'desc')
       )
+      
+      const userIdSnapshot = await getDocs(userIdQuery)
+      userIdSnapshot.docs.forEach(doc => {
+        invitations.push({
+          id: doc.id,
+          ...doc.data(),
+          invitedAt: doc.data().invitedAt?.toDate() || new Date(),
+          expiresAt: doc.data().expiresAt?.toDate() || new Date(),
+          respondedAt: doc.data().respondedAt?.toDate(),
+        } as CampaignInvitation)
+      })
     }
     
-    const snapshot = await getDocs(invitationsQuery)
+    // Also query by email if provided or if userIdOrEmail is an email
+    const emailToQuery = userIdOrEmail.includes('@') ? userIdOrEmail : userEmail
+    if (emailToQuery) {
+      const emailQuery = query(
+        collection(db, 'campaign_invitations'),
+        where('invitedEmail', '==', emailToQuery.toLowerCase()),
+        where('status', '==', 'pending'),
+        orderBy('invitedAt', 'desc')
+      )
+      
+      const emailSnapshot = await getDocs(emailQuery)
+      emailSnapshot.docs.forEach(doc => {
+        // Avoid duplicates
+        if (!invitations.find(inv => inv.id === doc.id)) {
+          invitations.push({
+            id: doc.id,
+            ...doc.data(),
+            invitedAt: doc.data().invitedAt?.toDate() || new Date(),
+            expiresAt: doc.data().expiresAt?.toDate() || new Date(),
+            respondedAt: doc.data().respondedAt?.toDate(),
+          } as CampaignInvitation)
+        }
+      })
+    }
     
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      invitedAt: doc.data().invitedAt?.toDate() || new Date(),
-      expiresAt: doc.data().expiresAt?.toDate() || new Date(),
-      respondedAt: doc.data().respondedAt?.toDate(),
-    })) as CampaignInvitation[]
+    // Sort by invitation date (newest first)
+    return invitations.sort((a, b) => b.invitedAt.getTime() - a.invitedAt.getTime())
   } catch (error) {
     console.error('Error fetching user invitations:', error)
     return []

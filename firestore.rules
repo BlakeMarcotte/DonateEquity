@@ -269,8 +269,7 @@ service cloud.firestore {
         isAuthenticated() && (
           // Inviter can read their own invitations
           resource.data.inviterUserId == getUserId() ||
-          // Invited user can read invitations for them (by email or user ID)
-          resource.data.invitedEmail == request.auth.token.email ||
+          // Invited user can read invitations for them by user ID
           resource.data.invitedUserId == getUserId() ||
           // Nonprofit admins can read invitations for their organization's campaigns
           (hasRole('nonprofit_admin') && 
@@ -279,12 +278,16 @@ service cloud.firestore {
           isAdmin()
         )
       );
+      // Allow unauthenticated read for invitation tokens (public invitation links)
+      allow get: if true;
+      // Allow unauthenticated queries for invitation tokens (for public invitation links)
       allow list: if (
-        isAuthenticated() && (
+        // Allow authenticated users to list their invitations
+        (isAuthenticated() && (
           hasRole('nonprofit_admin') ||
           hasRole('donor') ||
           isAdmin()
-        )
+        ))
       );
       allow create: if (
         hasRole('nonprofit_admin') || 
@@ -294,9 +297,12 @@ service cloud.firestore {
         isAuthenticated() && (
           // Inviter can update their invitations
           resource.data.inviterUserId == getUserId() ||
-          // Invited user can update status (accept/decline) - match by email or user ID
-          (resource.data.invitedEmail == request.auth.token.email || 
-           resource.data.invitedUserId == getUserId()) ||
+          // Invited user can update status (accept/decline) - match by user ID
+          resource.data.invitedUserId == getUserId() ||
+          // Allow authenticated user to link themselves and respond to invitation
+          // This handles the case where user registers and needs to accept invitation
+          (request.resource.data.invitedUserId == getUserId() && 
+           request.resource.data.status in ['accepted', 'declined']) ||
           isAdmin()
         )
       );

@@ -40,7 +40,7 @@ export default function InvitationsPage() {
     if (!user) return
 
     try {
-      const userInvitations = await getUserInvitations(user.uid)
+      const userInvitations = await getUserInvitations(user.uid, user.email || undefined)
       
       // Fetch campaign details for each invitation
       const invitationsWithCampaigns = await Promise.all(
@@ -78,16 +78,48 @@ export default function InvitationsPage() {
     setResponding(invitationId)
 
     try {
-      const success = await respondToInvitation(invitationId, response, user?.uid)
-      
-      if (success) {
-        setInvitations(prev => 
-          prev.map(inv => 
-            inv.id === invitationId 
-              ? { ...inv, status: response, respondedAt: new Date() }
-              : inv
+      if (response === 'accepted') {
+        // Use the API endpoint for accepting
+        const idToken = await user?.getIdToken()
+        
+        const apiResponse = await fetch('/api/invitations/accept', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            invitationId: invitationId
+          })
+        })
+        
+        if (apiResponse.ok) {
+          setInvitations(prev => 
+            prev.map(inv => 
+              inv.id === invitationId 
+                ? { ...inv, status: response, respondedAt: new Date() }
+                : inv
+            )
           )
-        )
+        } else {
+          const error = await apiResponse.json()
+          console.error('Error accepting invitation:', error)
+          console.error('Response status:', apiResponse.status)
+          console.error('Response statusText:', apiResponse.statusText)
+        }
+      } else {
+        // For decline, use the original function
+        const success = await respondToInvitation(invitationId, response, user?.uid)
+        
+        if (success) {
+          setInvitations(prev => 
+            prev.map(inv => 
+              inv.id === invitationId 
+                ? { ...inv, status: response, respondedAt: new Date() }
+                : inv
+            )
+          )
+        }
       }
     } catch (error) {
       console.error('Error responding to invitation:', error)
