@@ -76,7 +76,7 @@ interface Donation {
 export default function CampaignDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { userProfile, customClaims } = useAuth()
+  const { user, userProfile, customClaims } = useAuth()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [donations, setDonations] = useState<Donation[]>([])
   const [invitations, setInvitations] = useState<CampaignInvitation[]>([])
@@ -692,6 +692,7 @@ export default function CampaignDetailPage() {
                 setShowInviteModal(false)
                 fetchInvitations()
               }}
+              user={user}
               userProfile={userProfile}
               customClaims={customClaims}
             />
@@ -707,12 +708,14 @@ function InviteModal({
   campaign,
   onClose,
   onSuccess,
+  user,
   userProfile,
   customClaims
 }: {
   campaign: Campaign | null
   onClose: () => void
   onSuccess: () => void
+  user: any
   userProfile: any
   customClaims: any
 }) {
@@ -739,10 +742,46 @@ function InviteModal({
         },
         userProfile.uid,
         userProfile.displayName || userProfile.email,
-        customClaims.organizationId
+        customClaims.organizationId,
+        {
+          title: campaign.title,
+          description: campaign.description,
+          goal: campaign.goal,
+          raised: campaign.raised,
+        }
       )
 
       if (invitation) {
+        // Send email via API
+        try {
+          const response = await fetch('/api/email/send-invitation', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${await user?.getIdToken()}`,
+            },
+            body: JSON.stringify({
+              inviterName: userProfile.displayName || userProfile.email,
+              invitedEmail: formData.email,
+              campaignTitle: campaign.title,
+              campaignDescription: campaign.description,
+              campaignGoal: campaign.goal,
+              campaignRaised: campaign.raised,
+              message: formData.message,
+              invitationToken: invitation.invitationToken,
+              isExistingUser: invitation.userExists,
+            }),
+          })
+
+          const emailResult = await response.json()
+          if (!emailResult.success) {
+            console.error('Email sending failed:', emailResult)
+          }
+        } catch (emailError) {
+          console.error('Failed to send email notification:', emailError)
+          // Continue even if email fails
+        }
+
         onSuccess()
       } else {
         setError('Failed to send invitation. Please try again.')

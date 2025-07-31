@@ -44,7 +44,13 @@ export async function createCampaignInvitation(
   invitation: CampaignInvitationCreate,
   inviterUserId: string,
   inviterName: string,
-  organizationId: string
+  organizationId: string,
+  campaignDetails?: {
+    title: string
+    description: string
+    goal: number
+    raised: number
+  }
 ): Promise<CampaignInvitation | null> {
   try {
     // Check if user already exists
@@ -96,6 +102,17 @@ export async function createCampaignInvitation(
           invitationId: docRef.id
         }
       })
+    }
+    
+    // Send email invitation
+    if (campaignDetails) {
+      try {
+        // We'll call the email API from the client side
+        // This is just a placeholder for the campaign details
+        console.log('Campaign details ready for email:', campaignDetails)
+      } catch (emailError) {
+        console.error('Note: Email sending will be handled client-side', emailError)
+      }
     }
     
     return {

@@ -151,6 +151,28 @@ export async function POST(request: NextRequest) {
 
     await adminDb.collection('users').doc(userRecord.uid).set(userProfileData)
 
+    // Send welcome email (non-blocking)
+    try {
+      const idToken = await adminAuth.createCustomToken(userRecord.uid)
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/email/send-welcome`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          userEmail: email,
+          userFirstName: displayName.split(' ')[0],
+          userRole: role,
+        }),
+      }).catch(emailError => {
+        console.error('Failed to send welcome email:', emailError)
+      })
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError)
+      // Don't block registration if email fails
+    }
+
     return NextResponse.json(
       {
         success: true,

@@ -16,8 +16,10 @@ import {
   Home,
   BarChart3,
   Users,
-  Settings
+  Settings,
+  Mail
 } from 'lucide-react'
+import NotificationBell from '@/components/notifications/NotificationBell'
 
 interface NavItem {
   name: string
@@ -32,6 +34,13 @@ const navigationItems: NavItem[] = [
     href: '/dashboard',
     icon: Home,
     roles: ['donor', 'nonprofit_admin', 'appraiser', 'admin']
+  },
+  // Donor specific pages
+  {
+    name: 'Invitations',
+    href: '/invitations',
+    icon: Mail,
+    roles: ['donor']
   },
   // Nonprofit Admin specific pages
   {
@@ -105,8 +114,8 @@ export default function Navbar() {
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
-  // Don't show navbar on auth pages
-  if (pathname?.startsWith('/auth/') || pathname === '/unauthorized') {
+  // Don't show navbar on auth pages or landing page
+  if (pathname?.startsWith('/auth/') || pathname === '/unauthorized' || pathname === '/') {
     return null
   }
 
@@ -202,6 +211,7 @@ export default function Navbar() {
                 {userRole?.replace('_', ' ')}
               </p>
             </div>
+            <NotificationBell />
           </div>
           
           <button
@@ -226,16 +236,19 @@ export default function Navbar() {
               <span className="font-bold text-lg text-gray-900">Donate Equity</span>
             </Link>
             
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200"
-            >
-              {isMobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </button>
+            <div className="flex items-center space-x-2">
+              <NotificationBell />
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-6 h-6" />
+                ) : (
+                  <Menu className="w-6 h-6" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 

@@ -32,4 +32,7 @@ export const adminAuth = getAuth(adminApp)
 export const adminDb = getFirestore(adminApp)
 export const adminStorage = getStorage(adminApp)
 
+// Export adminAuth as 'auth' for compatibility
+export { adminAuth as auth }
+
 export default adminApp

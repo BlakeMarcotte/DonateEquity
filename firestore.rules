@@ -47,6 +47,8 @@ service cloud.firestore {
       allow read: if belongsToUser(userId) || isAdmin();
       allow write: if belongsToUser(userId) || isAdmin();
       allow create: if belongsToUser(userId);
+      // Allow nonprofit admins to check if a user exists (for invitations)
+      allow list: if hasRole('nonprofit_admin');
     }
     
     // Organizations collection
@@ -259,6 +261,78 @@ service cloud.firestore {
     
     match /system_config/{configId} {
       allow read, write: if isAdmin();
+    }
+    
+    // Campaign invitations collection
+    match /campaign_invitations/{invitationId} {
+      allow read: if (
+        isAuthenticated() && (
+          // Inviter can read their own invitations
+          resource.data.inviterUserId == getUserId() ||
+          // Invited user can read invitations for them (by email or user ID)
+          resource.data.invitedEmail == request.auth.token.email ||
+          resource.data.invitedUserId == getUserId() ||
+          // Nonprofit admins can read invitations for their organization's campaigns
+          (hasRole('nonprofit_admin') && 
+           exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
+           get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.organizationId == request.auth.token.organizationId) ||
+          isAdmin()
+        )
+      );
+      allow list: if (
+        isAuthenticated() && (
+          hasRole('nonprofit_admin') ||
+          hasRole('donor') ||
+          isAdmin()
+        )
+      );
+      allow create: if (
+        hasRole('nonprofit_admin') || 
+        isAdmin()
+      );
+      allow update: if (
+        isAuthenticated() && (
+          // Inviter can update their invitations
+          resource.data.inviterUserId == getUserId() ||
+          // Invited user can update status (accept/decline) - match by email or user ID
+          (resource.data.invitedEmail == request.auth.token.email || 
+           resource.data.invitedUserId == getUserId()) ||
+          isAdmin()
+        )
+      );
+      allow delete: if isAdmin();
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if (
+        isAuthenticated() && (
+          resource.data.userId == getUserId() ||
+          isAdmin()
+        )
+      );
+      allow list: if (
+        isAuthenticated() && (
+          // Users can list their own notifications
+          request.auth.uid == resource.data.userId ||
+          isAdmin()
+        )
+      );
+      allow create: if (
+        hasAnyRole(['nonprofit_admin', 'appraiser', 'donor', 'admin'])
+      );
+      allow update: if (
+        isAuthenticated() && (
+          resource.data.userId == getUserId() ||
+          isAdmin()
+        )
+      );
+      allow delete: if (
+        isAuthenticated() && (
+          resource.data.userId == getUserId() ||
+          isAdmin()
+        )
+      );
     }
     
     // Default deny rule - blocks access to any other collections

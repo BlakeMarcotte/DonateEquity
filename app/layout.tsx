@@ -4,6 +4,7 @@ import './globals.css'
 import { APP_NAME, APP_DESCRIPTION } from '@/lib/constants'
 import { AuthProvider } from '@/contexts/AuthContext'
 import Navbar from '@/components/layout/Navbar'
+import LayoutWrapper from '@/components/layout/LayoutWrapper'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -34,12 +35,10 @@ export default function RootLayout({
     <html lang="en" className="h-full scroll-smooth">
       <body className={`${inter.className} h-full antialiased`}>
         <AuthProvider>
-          <div className="min-h-full">
-            <Navbar />
-            <main className="lg:pl-64">
-              {children}
-            </main>
-          </div>
+          <Navbar />
+          <LayoutWrapper>
+            {children}
+          </LayoutWrapper>
         </AuthProvider>
       </body>
     </html>

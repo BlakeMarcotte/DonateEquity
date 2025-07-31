@@ -1,6 +1,11 @@
-import { Metadata } from 'next'
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { Inter } from 'next/font/google'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle, DollarSign, Shield, Users } from 'lucide-react'
@@ -10,18 +15,38 @@ const inter = Inter({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
-  title: "Donate Equity - Pre-commit Equity Donations to Nonprofits",
-  description: "Empower charitable giving by pledging equity upon liquidity events. Connect donors, nonprofits, and appraisers in a secure donation workflow.",
-  keywords: "equity donation, charitable giving, nonprofit, equity pledge, liquidity events",
-  openGraph: {
-    title: "Donate Equity - Pre-commit Equity Donations to Nonprofits",
-    description: "Empower charitable giving by pledging equity upon liquidity events.",
-    type: "website",
-  }
-}
+// Note: Metadata must be exported from a server component
+// Consider creating a separate metadata.ts file or using generateMetadata
 
 export default function HomePage() {
+  const router = useRouter()
+  const { user, loading } = useAuth()
+
+  useEffect(() => {
+    // Redirect authenticated users to dashboard
+    if (!loading && user) {
+      router.push('/dashboard')
+    }
+  }, [user, loading, router])
+
+  // Show nothing while checking auth status
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  // Redirect is happening, show loading
+  if (user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
   return (
     <div className={`min-h-screen bg-gray-50 ${inter.className}`}>
       {/* Navigation Header */}
@@ -43,31 +68,31 @@ export default function HomePage() {
               </h1>
             </div>
             <div className="hidden md:flex items-center space-x-6">
-              <a 
+              <Link 
                 href="/campaigns" 
                 className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
                 aria-label="View available campaigns"
               >
                 Campaigns
-              </a>
-              <a 
+              </Link>
+              <Link 
                 href="/about" 
                 className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
                 aria-label="Learn how the platform works"
               >
                 How It Works
-              </a>
-              <a 
+              </Link>
+              <Link 
                 href="/auth/login" 
                 className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
                 aria-label="Sign in to your account"
               >
                 Sign In
-              </a>
+              </Link>
               <Button asChild>
-                <a href="/auth/register" aria-label="Create your account">
+                <Link href="/auth/register" aria-label="Create your account">
                   Get Started
-                </a>
+                </Link>
               </Button>
             </div>
             
@@ -103,17 +128,17 @@ export default function HomePage() {
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
                 <Button size="lg" asChild>
-                  <a href="/auth/register" aria-label="Start your equity donation journey">
+                  <Link href="/auth/register" aria-label="Start your equity donation journey">
                     Get Started Today
                     <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
-                  </a>
+                  </Link>
                 </Button>
                 <Button variant="outline" size="lg" asChild>
-                  <a href="/campaigns" aria-label="Explore current donation campaigns">
+                  <Link href="/campaigns" aria-label="Explore current donation campaigns">
                     Browse Campaigns
-                  </a>
+                  </Link>
                 </Button>
               </div>
 
@@ -207,14 +232,14 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Button size="lg" variant="outline" className="bg-white text-blue-600 border-white hover:bg-gray-50" asChild>
-                <a href="/auth/register" aria-label="Create your account to start donating equity">
+                <Link href="/auth/register" aria-label="Create your account to start donating equity">
                   Create Your Account
-                </a>
+                </Link>
               </Button>
               <Button size="lg" variant="ghost" className="border-2 border-white text-white hover:bg-white hover:text-blue-600" asChild>
-                <a href="/campaigns" aria-label="Browse available campaigns to support">
+                <Link href="/campaigns" aria-label="Browse available campaigns to support">
                   Explore Campaigns
-                </a>
+                </Link>
               </Button>
             </div>
           </div>
@@ -239,27 +264,27 @@ export default function HomePage() {
               Building the future of philanthropy, one commitment at a time.
             </p>
             <nav className="flex justify-center space-x-8 text-gray-300" aria-label="Footer navigation">
-              <a 
+              <Link 
                 href="/privacy" 
                 className="hover:text-white transition-colors font-medium"
                 aria-label="Read our privacy policy"
               >
                 Privacy Policy
-              </a>
-              <a 
+              </Link>
+              <Link 
                 href="/terms" 
                 className="hover:text-white transition-colors font-medium"
                 aria-label="Read our terms of service"
               >
                 Terms of Service
-              </a>
-              <a 
+              </Link>
+              <Link 
                 href="/contact" 
                 className="hover:text-white transition-colors font-medium"
                 aria-label="Contact our support team"
               >
                 Contact Us
-              </a>
+              </Link>
             </nav>
           </div>
         </div>

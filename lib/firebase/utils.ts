@@ -1,11 +1,23 @@
 // Firebase utility functions
 
-import { randomBytes } from 'crypto'
-
 // Generate a secure invitation token
 export function generateInvitationToken(): string {
-  return randomBytes(32).toString('hex')
+  // Use crypto.getRandomValues in browser environment
+  if (typeof window !== 'undefined') {
+    const array = new Uint8Array(32)
+    crypto.getRandomValues(array)
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
+  }
+  
+  // For server-side, we'll use a simple random string generator
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < 64; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
 }
+
 
 // Generate a short ID (for shorter URLs)
 export function generateShortId(length: number = 8): string {

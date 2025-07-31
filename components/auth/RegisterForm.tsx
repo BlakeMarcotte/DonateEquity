@@ -3,13 +3,15 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserRole } from '@/types/auth'
+import { CampaignInvitation } from '@/types/invitations'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Eye, EyeOff, Loader2, ChevronDown } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ChevronDown, Mail, Heart } from 'lucide-react'
 import { signIn } from '@/lib/firebase/auth'
 import { useAuth } from '@/contexts/AuthContext'
+import { respondToInvitation } from '@/lib/firebase/invitations'
 
 interface Organization {
   id: string
@@ -20,6 +22,8 @@ interface Organization {
 interface RegisterFormProps {
   onSuccess?: () => void
   redirectTo?: string
+  invitation?: CampaignInvitation | null
+  onSuccessRedirect?: string
 }
 
 const ROLES = [
@@ -40,7 +44,12 @@ const ROLES = [
   },
 ]
 
-export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: RegisterFormProps) {
+export default function RegisterForm({ 
+  onSuccess, 
+  redirectTo = '/dashboard', 
+  invitation,
+  onSuccessRedirect 
+}: RegisterFormProps) {
   const [step, setStep] = useState<'basic' | 'organization'>('basic')
   const [formData, setFormData] = useState({
     email: '',
@@ -60,6 +69,17 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
   const { refreshUserData } = useAuth()
+
+  // Pre-fill email if invitation exists
+  useEffect(() => {
+    if (invitation) {
+      setFormData(prev => ({
+        ...prev,
+        email: invitation.invitedEmail,
+        role: 'donor' // Default to donor for invitations
+      }))
+    }
+  }, [invitation])
 
   const fetchOrganizations = async (type: 'nonprofit' | 'appraiser' | 'donor') => {
     setLoadingOrgs(true)
@@ -172,11 +192,21 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
         try {
           await signIn(formData.email, formData.password)
           await refreshUserData()
+
+          // If user registered via invitation, accept the invitation
+          if (invitation) {
+            try {
+              await respondToInvitation(invitation.id, 'accepted', data.user.uid)
+            } catch (invitationError) {
+              console.error('Error accepting invitation:', invitationError)
+              // Continue with registration flow even if invitation acceptance fails
+            }
+          }
           
           if (onSuccess) {
             onSuccess()
           } else {
-            router.push(redirectTo)
+            router.push(onSuccessRedirect || redirectTo)
           }
         } catch (signInError) {
           console.error('Auto sign-in error after registration:', signInError)
@@ -199,6 +229,24 @@ export default function RegisterForm({ onSuccess, redirectTo = '/dashboard' }: R
       <Card className="border-0 shadow-none p-0">
         <CardContent className="p-0">
           <div className="space-y-6">
+            {/* Invitation Banner */}
+            {invitation && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900">
+                      You're invited to support a campaign!
+                    </h4>
+                    <p className="text-sm text-blue-800 mt-1">
+                      {invitation.inviterName} has invited you to join our platform and support their fundraising campaign.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <form onSubmit={(e) => { e.preventDefault(); handleNext(); }} className="space-y-5">
               {/* Full Name */}
