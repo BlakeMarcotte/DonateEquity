@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { 
   Search, 
-  Filter, 
   SlidersHorizontal,
   Grid3X3,
   List,
@@ -51,7 +50,7 @@ export default function BrowseCampaignsPage() {
   useEffect(() => {
     loadInitialData()
     loadCategories()
-  }, [])
+  }, [loadInitialData])
 
   // Debounced search
   useEffect(() => {
@@ -70,14 +69,14 @@ export default function BrowseCampaignsPage() {
     return () => {
       if (timer) clearTimeout(timer)
     }
-  }, [searchInput])
+  }, [searchInput, filters.searchTerm, searchDebounceTimer])
 
   // Reload campaigns when filters change
   useEffect(() => {
     loadInitialData()
-  }, [filters])
+  }, [filters, loadInitialData])
 
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -103,7 +102,7 @@ export default function BrowseCampaignsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters.category, filters.searchTerm, filters.minGoal, filters.maxGoal, filters.sortBy, filters.sortOrder])
 
   const loadMoreCampaigns = async () => {
     if (!hasMore || loadingMore || !lastDoc) return
@@ -144,7 +143,7 @@ export default function BrowseCampaignsPage() {
     }
   }
 
-  const handleFilterChange = (key: keyof FilterState, value: any) => {
+  const handleFilterChange = (key: keyof FilterState, value: string | number | undefined) => {
     setFilters(prev => ({ ...prev, [key]: value }))
   }
 

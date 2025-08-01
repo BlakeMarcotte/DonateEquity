@@ -2,7 +2,7 @@
 
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   collection, 
@@ -26,9 +26,7 @@ import {
   Target,
   Calendar,
   TrendingUp,
-  Users,
   X,
-  Save,
   DollarSign
 } from 'lucide-react'
 
@@ -64,9 +62,9 @@ export default function CampaignsPage() {
     if (customClaims?.organizationId) {
       fetchCampaigns()
     }
-  }, [customClaims?.organizationId])
+  }, [customClaims?.organizationId, fetchCampaigns])
 
-  const fetchCampaigns = async () => {
+  const fetchCampaigns = useCallback(async () => {
     if (!customClaims?.organizationId) return
 
     try {
@@ -97,7 +95,7 @@ export default function CampaignsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [customClaims?.organizationId])
 
   const getStatusColor = (status: string) => {
     switch (status) {

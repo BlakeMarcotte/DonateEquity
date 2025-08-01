@@ -437,7 +437,7 @@ export default function ResourcesPage() {
               <div>
                 <h3 className="text-lg font-medium text-blue-900 mb-2">Need More Help?</h3>
                 <p className="text-sm text-blue-800 mb-4">
-                  Can't find what you're looking for? Our support team is here to help you succeed.
+                  Can&apos;t find what you&apos;re looking for? Our support team is here to help you succeed.
                 </p>
                 <div className="flex items-center space-x-4">
                   <button className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200">

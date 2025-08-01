@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { getInvitationByToken } from '@/lib/firebase/invitations'
 import { CampaignInvitation } from '@/types/invitations'
 import AuthLayout from '@/components/auth/AuthLayout'
 import RegisterForm from '@/components/auth/RegisterForm'
@@ -38,9 +37,9 @@ export default function RegisterPage() {
     if (invitationToken) {
       fetchInvitation()
     }
-  }, [invitationToken])
+  }, [invitationToken, fetchInvitation])
 
-  const fetchInvitation = async () => {
+  const fetchInvitation = useCallback(async () => {
     if (!invitationToken) return
 
     setInvitationLoading(true)
@@ -65,7 +64,7 @@ export default function RegisterPage() {
     } finally {
       setInvitationLoading(false)
     }
-  }
+  }, [invitationToken])
 
   if (loading || invitationLoading) {
     return (

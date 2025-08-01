@@ -5,10 +5,11 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { Campaign } from '@/types/campaign'
 import { getCampaignById } from '@/lib/firebase/campaigns'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '@/lib/firebase/config'
 import { DonorRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { 
   ArrowLeft,
   Heart,
@@ -25,8 +26,6 @@ import {
   Info,
   Building2,
   Mail,
-  Phone,
-  Globe,
   Facebook,
   Twitter,
   Copy,
@@ -187,7 +186,7 @@ export default function DonateCampaignPage() {
               {error || 'Campaign not found'}
             </h2>
             <p className="text-gray-600 mb-6">
-              The campaign you're looking for may have been removed or is no longer available.
+              The campaign you&apos;re looking for may have been removed or is no longer available.
             </p>
             <div className="flex space-x-4 justify-center">
               <Button onClick={() => router.back()} variant="outline">
@@ -262,7 +261,7 @@ export default function DonateCampaignPage() {
                   {inviterMessage && (
                     <div className="bg-white border border-blue-200 rounded-lg p-3 mb-3">
                       <p className="text-gray-700 italic">
-                        "{decodeURIComponent(inviterMessage)}"
+                        &ldquo;{decodeURIComponent(inviterMessage)}&rdquo;
                       </p>
                     </div>
                   )}
@@ -457,7 +456,7 @@ export default function DonateCampaignPage() {
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 text-lg rounded-lg mb-4"
                 >
                   <Heart className="w-5 h-5 mr-2" />
-                  Donate Now
+                  Commit Equity
                 </Button>
 
                 {/* Quick Stats */}
@@ -567,7 +566,7 @@ export default function DonateCampaignPage() {
   )
 }
 
-// Donation Modal Component - Basic structure for now
+// Donation Modal Component
 function DonationModal({
   campaign,
   onClose,
@@ -580,37 +579,336 @@ function DonationModal({
   userProfile: any
 }) {
   const [step, setStep] = useState(1)
-  const [donationType, setDonationType] = useState<'equity' | 'cash'>('equity')
-  const [amount, setAmount] = useState('')
+  const [formData, setFormData] = useState({
+    amount: '',
+    message: '',
+    isAnonymous: false
+  })
+  
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [organizationName, setOrganizationName] = useState<string>('Individual Donor')
+
+  // Fetch organization name when modal opens
+  useEffect(() => {
+    const fetchOrganizationName = async () => {
+      if (userProfile?.organizationId) {
+        try {
+          const orgDoc = await getDoc(doc(db, 'organizations', userProfile.organizationId))
+          if (orgDoc.exists()) {
+            setOrganizationName(orgDoc.data().name || 'Unknown Organization')
+          }
+        } catch (error) {
+          console.error('Error fetching organization:', error)
+        }
+      }
+    }
+    
+    fetchOrganizationName()
+  }, [userProfile?.organizationId])
+
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    setError(null)
+  }
+
+  const validateStep1 = () => {
+    const amount = parseFloat(formData.amount)
+    if (!formData.amount || isNaN(amount) || amount <= 0) {
+      setError('Please enter a valid donation amount')
+      return false
+    }
+    if (amount < 100) {
+      setError('Minimum donation amount is $100')
+      return false
+    }
+    return true
+  }
+
+  const validateStep2 = () => {
+    // No additional validation needed for step 2 (review)
+    return true
+  }
+
+  const handleNext = () => {
+    if (step === 1 && validateStep1()) {
+      setStep(2)
+    }
+  }
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!validateStep1() || !validateStep2()) return
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const token = await user.getIdToken()
+      
+      const donationData = {
+        campaignId: campaign.id,
+        amount: parseFloat(formData.amount),
+        message: formData.message,
+        isAnonymous: formData.isAnonymous
+      }
+
+      const response = await fetch('/api/donations/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(donationData)
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setSuccess(true)
+        setStep(3) // Success step (now step 3 instead of 4)
+      } else {
+        setError(result.error || 'Failed to create donation')
+      }
+    } catch (err) {
+      setError('An error occurred while processing your donation')
+      console.error('Donation error:', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const formatAmount = (amount: string) => {
+    const num = parseFloat(amount)
+    return isNaN(num) ? '$0' : new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num)
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-semibold text-gray-900">
-            Donate to {campaign.title}
-          </h2>
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-900">
+              {success ? 'Equity Commitment Complete!' : `Commit Equity to ${campaign.title}`}
+            </h2>
+            {!success && (
+              <div className="flex items-center mt-2">
+                <div className="flex items-center space-x-2">
+                  {[1, 2].map((stepNum) => (
+                    <div key={stepNum} className="flex items-center">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                        step >= stepNum ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                      }`}>
+                        {stepNum}
+                      </div>
+                      {stepNum < 2 && (
+                        <div className={`w-8 h-0.5 ${step > stepNum ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <span className="ml-4 text-sm text-gray-600">
+                  Step {step} of 2
+                </span>
+              </div>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6">
-          <div className="text-center py-12">
-            <Heart className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Coming Soon
-            </h3>
-            <p className="text-gray-600 mb-6">
-              The donation workflow is being built. This will include equity commitment forms, cash donations, and document management.
-            </p>
-            <Button onClick={onClose}>
-              Close
-            </Button>
-          </div>
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
+                <p className="text-red-800">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 1: Commitment Amount */}
+          {step === 1 && (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <TrendingUp className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  Equity Commitment
+                </h3>
+                <p className="text-gray-600">
+                  Commit to donate equity upon a future liquidity event (IPO, acquisition, etc.)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Commitment Amount
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="number"
+                    min="100"
+                    step="100"
+                    value={formData.amount}
+                    onChange={(e) => handleInputChange('amount', e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="10000"
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Minimum amount: $100 • Current value: {formatAmount(formData.amount)}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Message (Optional)
+                </label>
+                <textarea
+                  value={formData.message}
+                  onChange={(e) => handleInputChange('message', e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Add a message of support for this campaign..."
+                />
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="anonymous"
+                  checked={formData.isAnonymous}
+                  onChange={(e) => handleInputChange('isAnonymous', e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="anonymous" className="ml-2 text-sm text-gray-700">
+                  Make this commitment anonymous
+                </label>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={handleNext} disabled={!formData.amount}>
+                  Next: Review
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Review and Confirm */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Review Your Equity Commitment</h3>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Campaign:</span>
+                    <span className="font-medium text-gray-900">{campaign.title}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Commitment Type:</span>
+                    <span className="font-medium text-gray-900">Equity Commitment</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Amount:</span>
+                    <span className="font-medium text-gray-900">{formatAmount(formData.amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Your Organization:</span>
+                    <span className="font-medium text-gray-900">
+                      {organizationName}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Anonymous:</span>
+                    <span className="font-medium text-gray-900">{formData.isAnonymous ? 'Yes' : 'No'}</span>
+                  </div>
+                  {formData.message && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <span className="text-gray-600 block mb-2">Message:</span>
+                      <p className="text-gray-900 italic">"{formData.message}"</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <h4 className="font-medium mb-1">What happens next?</h4>
+                    <p>
+                      Your equity commitment will be recorded and a professional appraiser will be assigned 
+                      to facilitate the process. You'll receive updates throughout the workflow.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={handleBack}>
+                  Back
+                </Button>
+                <Button 
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Commit Equity'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Success */}
+          {step === 3 && success && (
+            <div className="text-center py-8">
+              <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Equity Commitment Created!
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Your equity commitment has been recorded. You'll receive updates as we process your commitment through the appraisal and documentation workflow.
+              </p>
+              <div className="space-y-3">
+                <Button onClick={onClose} className="w-full">
+                  Close
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push('/donations')}
+                  className="w-full"
+                >
+                  View My Donations
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

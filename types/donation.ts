@@ -1,40 +1,37 @@
 export interface Donation {
   id: string
   campaignId: string
-  campaignTitle: string
+  campaignTitle?: string
   donorId: string
   donorName: string
   donorEmail: string
+  nonprofitAdminId: string
   amount: number
-  status: 'pending' | 'committed' | 'processing' | 'completed' | 'cancelled'
-  type: 'equity' | 'cash'
-  commitmentDetails: EquityCommitment | CashDonation
-  nonprofitAdminId?: string
-  appraiserId?: string
+  donationType: 'equity' | 'cash'
+  status: 'pending' | 'processing' | 'completed' | 'cancelled'
+  message?: string
+  isAnonymous: boolean
+  
+  // Equity-specific fields
+  commitmentDetails?: EquityCommitmentDetails
+  requiresAppraisal: boolean
+  appraiserId?: string | null
+  appraisalStatus: 'not_required' | 'pending' | 'in_progress' | 'completed'
+  
+  // Timestamps
   createdAt: Date
   updatedAt: Date
-  completedAt?: Date
-  notes?: string
-  metadata: {
-    ipAddress?: string
-    userAgent?: string
-    source?: 'web' | 'mobile' | 'api'
-  }
+  completedAt?: Date | null
+  
+  // Organization context
+  organizationId: string
+  organizationName: string
 }
 
-export interface EquityCommitment {
-  type: 'equity'
-  companyName: string
-  equityType: 'stock' | 'options' | 'rsus' | 'warrants' | 'other'
-  quantity: number
+export interface EquityCommitmentDetails {
+  donorOrganizationId?: string | null
+  donorOrganizationName: string
   estimatedValue: number
-  vestingSchedule?: VestingSchedule
-  liquidityEvent: {
-    type: 'ipo' | 'acquisition' | 'secondary_sale' | 'other'
-    expectedDate?: Date
-    conditions: string[]
-  }
-  restrictions?: string[]
 }
 
 export interface VestingSchedule {
@@ -53,4 +50,33 @@ export interface CashDonation {
   paymentMethod: 'credit_card' | 'bank_transfer' | 'check' | 'other'
   transactionId?: string
   processingFee?: number
+}
+
+// Form data types for donation creation
+export interface DonationFormData {
+  campaignId: string
+  amount: string
+  message?: string
+  isAnonymous: boolean
+}
+
+export interface CreateDonationRequest {
+  campaignId: string
+  amount: number
+  message?: string
+  isAnonymous?: boolean
+}
+
+export interface CreateDonationResponse {
+  success: boolean
+  donationId?: string
+  message: string
+  donation?: {
+    id: string
+    amount: number
+    donationType: 'equity'
+    status: string
+    requiresAppraisal: boolean
+  }
+  error?: string
 }

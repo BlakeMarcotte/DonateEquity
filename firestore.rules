@@ -211,6 +211,15 @@ service cloud.firestore {
         isAuthenticated() && (
           resource.data.assignedTo == getUserId() ||
           resource.data.createdBy == getUserId() ||
+          // Allow users to read tasks assigned to mock users of their role
+          (resource.data.assignedTo == 'mock-' + getUserRole() + '-user' && 
+           resource.data.assignedRole == getUserRole()) ||
+          // Allow donation participants to read all tasks for their donations
+          (resource.data.donationId != null && 
+           exists(/databases/$(database)/documents/donations/$(resource.data.donationId)) &&
+           (get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.donorId == getUserId() ||
+            get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.nonprofitAdminId == getUserId() ||
+            get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.appraiserId == getUserId())) ||
           isAdmin()
         )
       );
@@ -219,6 +228,15 @@ service cloud.firestore {
         isAuthenticated() && (
           resource.data.assignedTo == getUserId() ||
           resource.data.createdBy == getUserId() ||
+          // Allow users to update tasks assigned to mock users of their role
+          (resource.data.assignedTo == 'mock-' + getUserRole() + '-user' && 
+           resource.data.assignedRole == getUserRole()) ||
+          // Allow donation participants to update tasks for their donations
+          (resource.data.donationId != null && 
+           exists(/databases/$(database)/documents/donations/$(resource.data.donationId)) &&
+           (get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.donorId == getUserId() ||
+            get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.nonprofitAdminId == getUserId() ||
+            get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.appraiserId == getUserId())) ||
           isAdmin()
         )
       );

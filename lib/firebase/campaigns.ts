@@ -7,7 +7,6 @@ import {
   getDocs, 
   doc, 
   getDoc,
-  startAfter,
   QueryDocumentSnapshot,
   DocumentData
 } from 'firebase/firestore'
@@ -45,11 +44,11 @@ export async function getPublicCampaigns(options: CampaignQueryOptions = {}) {
     } = options
 
     // Start with a simple query to fetch all campaigns, then apply client-side filtering
-    let q = query(collection(db, 'campaigns'), limit(50))
+    const q = query(collection(db, 'campaigns'), limit(50))
 
     const snapshot = await getDocs(q)
     
-    let campaigns: Campaign[] = []
+    const campaigns: Campaign[] = []
     snapshot.forEach((doc) => {
       const data = doc.data()
       campaigns.push({
@@ -102,7 +101,7 @@ export async function getPublicCampaigns(options: CampaignQueryOptions = {}) {
 
     // Apply client-side sorting
     filteredCampaigns.sort((a, b) => {
-      let aVal: any, bVal: any
+      let aVal: string | number | Date, bVal: string | number | Date
       
       switch (sortBy) {
         case 'goal':
