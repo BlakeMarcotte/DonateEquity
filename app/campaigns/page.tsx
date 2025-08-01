@@ -396,6 +396,7 @@ function CreateCampaignModal({
     tags: '',
     category: '',
     visibility: 'public' as 'public' | 'private' | 'unlisted',
+    status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   })
   const [saving, setSaving] = useState(false)
 
@@ -422,7 +423,7 @@ function CreateCampaignModal({
         goal: parseInt(formData.goal),
         currentAmount: 0,
         donorCount: 0,
-        status: 'draft' as const,
+        status: formData.status,
         visibility: formData.visibility,
         category: formData.category,
         organizationId,
@@ -560,6 +561,25 @@ function CreateCampaignModal({
                 <option value="unlisted">Unlisted - Accessible via direct link only</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Campaign Status
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'draft' | 'active' | 'paused' | 'completed' }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="draft">Draft - Not visible to donors</option>
+              <option value="active">Active - Live and accepting donations</option>
+              <option value="paused">Paused - Temporarily hidden</option>
+              <option value="completed">Completed - Campaign has ended</option>
+            </select>
+            <p className="text-sm text-gray-500 mt-1">
+              Choose the initial status for your campaign. You can change this later.
+            </p>
           </div>
 
           <div>
