@@ -117,13 +117,14 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
     )
   }
 
+  // Tasks should always exist since they're created automatically with donations
   if (filteredTasks.length === 0) {
     return (
       <Card className="p-6">
         <div className="text-center text-gray-500">
           <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
-          <p>Tasks will appear here once the donation workflow begins.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Loading tasks...</h3>
+          <p>Your donation tasks are being loaded.</p>
         </div>
       </Card>
     )

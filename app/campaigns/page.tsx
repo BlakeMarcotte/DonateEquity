@@ -58,12 +58,6 @@ export default function CampaignsPage() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
 
-  useEffect(() => {
-    if (customClaims?.organizationId) {
-      fetchCampaigns()
-    }
-  }, [customClaims?.organizationId, fetchCampaigns])
-
   const fetchCampaigns = useCallback(async () => {
     if (!customClaims?.organizationId) return
 
@@ -96,6 +90,12 @@ export default function CampaignsPage() {
       setLoading(false)
     }
   }, [customClaims?.organizationId])
+
+  useEffect(() => {
+    if (customClaims?.organizationId) {
+      fetchCampaigns()
+    }
+  }, [customClaims?.organizationId, fetchCampaigns])
 
   const getStatusColor = (status: string) => {
     switch (status) {

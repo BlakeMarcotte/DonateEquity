@@ -46,36 +46,6 @@ export default function BrowseCampaignsPage() {
   const [searchInput, setSearchInput] = useState('')
   const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null)
 
-  // Load initial data
-  useEffect(() => {
-    loadInitialData()
-    loadCategories()
-  }, [loadInitialData])
-
-  // Debounced search
-  useEffect(() => {
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer)
-    }
-
-    const timer = setTimeout(() => {
-      if (searchInput !== filters.searchTerm) {
-        setFilters(prev => ({ ...prev, searchTerm: searchInput }))
-      }
-    }, 500)
-
-    setSearchDebounceTimer(timer)
-
-    return () => {
-      if (timer) clearTimeout(timer)
-    }
-  }, [searchInput, filters.searchTerm, searchDebounceTimer])
-
-  // Reload campaigns when filters change
-  useEffect(() => {
-    loadInitialData()
-  }, [filters, loadInitialData])
-
   const loadInitialData = useCallback(async () => {
     try {
       setLoading(true)
@@ -102,6 +72,38 @@ export default function BrowseCampaignsPage() {
     } finally {
       setLoading(false)
     }
+  }, [filters.category, filters.searchTerm, filters.minGoal, filters.maxGoal, filters.sortBy, filters.sortOrder])
+
+  // Load initial data on mount
+  useEffect(() => {
+    loadInitialData()
+    loadCategories()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount
+
+  // Debounced search
+  useEffect(() => {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer)
+    }
+
+    const timer = setTimeout(() => {
+      if (searchInput !== filters.searchTerm) {
+        setFilters(prev => ({ ...prev, searchTerm: searchInput }))
+      }
+    }, 500)
+
+    setSearchDebounceTimer(timer)
+
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [searchInput, filters.searchTerm]) // Remove searchDebounceTimer from dependencies
+
+  // Reload campaigns when filters change
+  useEffect(() => {
+    loadInitialData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.category, filters.searchTerm, filters.minGoal, filters.maxGoal, filters.sortBy, filters.sortOrder])
 
   const loadMoreCampaigns = async () => {
@@ -134,14 +136,14 @@ export default function BrowseCampaignsPage() {
     }
   }
 
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const categoryList = await getCampaignCategories()
       setCategories(categoryList)
     } catch (err) {
       console.error('Error loading categories:', err)
     }
-  }
+  }, [])
 
   const handleFilterChange = (key: keyof FilterState, value: string | number | undefined) => {
     setFilters(prev => ({ ...prev, [key]: value }))

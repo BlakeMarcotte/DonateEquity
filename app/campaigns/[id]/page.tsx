@@ -84,6 +84,7 @@ export default function CampaignDetailPage() {
   const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'invitations'>('donations')
   const [shareUrl, setShareUrl] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [syncingStats, setSyncingStats] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -237,6 +238,38 @@ export default function CampaignDetailPage() {
 
     if (shareLink) {
       window.open(shareLink, '_blank', 'width=600,height=400')
+    }
+  }
+
+  const syncCampaignStats = async () => {
+    if (!user || !params.id) return
+
+    setSyncingStats(true)
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/admin/sync-campaign-stats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ campaignId: params.id })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        // Refresh campaign data to show updated stats
+        await fetchCampaignDetails()
+        await fetchDonations()
+        console.log('Campaign stats synced:', result.stats)
+      } else {
+        console.error('Failed to sync campaign stats:', result.error)
+      }
+    } catch (error) {
+      console.error('Error syncing campaign stats:', error)
+    } finally {
+      setSyncingStats(false)
     }
   }
 
@@ -423,6 +456,23 @@ export default function CampaignDetailPage() {
                       Campaign Donations ({donations.length})
                     </h3>
                     <div className="flex items-center space-x-4">
+                      <button
+                        onClick={syncCampaignStats}
+                        disabled={syncingStats}
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors duration-200"
+                      >
+                        {syncingStats ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Syncing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <BarChart3 className="w-4 h-4" />
+                            <span>Sync Stats</span>
+                          </>
+                        )}
+                      </button>
                       <button className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200">
                         <BarChart3 className="w-4 h-4" />
                         <span>Export Data</span>
@@ -441,7 +491,11 @@ export default function CampaignDetailPage() {
                   ) : (
                     <div className="space-y-4">
                       {donations.map((donation) => (
-                        <div key={donation.id} className="bg-gray-50 rounded-lg p-4">
+                        <div 
+                          key={donation.id} 
+                          className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
+                          onClick={() => router.push(`/donations/${donation.id}/tasks`)}
+                        >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -468,6 +522,10 @@ export default function CampaignDetailPage() {
                                 <span className="text-sm text-gray-600 capitalize">
                                   {donation.status}
                                 </span>
+                              </div>
+
+                              <div className="text-sm text-gray-500">
+                                Click to view tasks →
                               </div>
                             </div>
                           </div>

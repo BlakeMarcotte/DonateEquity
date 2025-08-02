@@ -116,12 +116,23 @@ export default function DonationTasksPage() {
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <Link href="/donations">
-              <Button variant="ghost" className="mb-4">
+            {customClaims?.role === 'nonprofit_admin' && donation ? (
+              <Button 
+                variant="ghost" 
+                className="mb-4"
+                onClick={() => router.push(`/campaigns/${donation.campaignId}`)}
+              >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Donations
+                Back to Campaign
               </Button>
-            </Link>
+            ) : (
+              <Link href="/donations">
+                <Button variant="ghost" className="mb-4">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Donations
+                </Button>
+              </Link>
+            )}
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Donation Tasks</h1>

@@ -559,6 +559,7 @@ export default function DonateCampaignPage() {
             onClose={() => setShowDonationModal(false)}
             user={user}
             userProfile={userProfile}
+            router={router}
           />
         )}
       </div>
@@ -571,12 +572,14 @@ function DonationModal({
   campaign,
   onClose,
   user,
-  userProfile
+  userProfile,
+  router
 }: {
   campaign: Campaign
   onClose: () => void
   user: any
   userProfile: any
+  router: any
 }) {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
