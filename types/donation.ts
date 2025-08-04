@@ -16,7 +16,8 @@ export interface Donation {
   commitmentDetails?: EquityCommitmentDetails
   requiresAppraisal: boolean
   appraiserId?: string | null
-  appraisalStatus: 'not_required' | 'pending' | 'in_progress' | 'completed'
+  appraiserEmail?: string | null
+  appraisalStatus: 'not_required' | 'pending' | 'in_progress' | 'completed' | 'appraiser_assigned'
   
   // Timestamps
   createdAt: Date

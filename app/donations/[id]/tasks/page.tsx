@@ -125,6 +125,13 @@ export default function DonationTasksPage() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Campaign
               </Button>
+            ) : customClaims?.role === 'appraiser' ? (
+              <Link href="/appraiser/donations">
+                <Button variant="ghost" className="mb-4">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to My Donations
+                </Button>
+              </Link>
             ) : (
               <Link href="/donations">
                 <Button variant="ghost" className="mb-4">

@@ -6,9 +6,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Task } from '@/types/task'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature } from 'lucide-react'
 import { AppraiserInvitationForm } from './AppraiserInvitationForm'
 import { Modal } from '@/components/ui/modal'
+import { DocuSignModal } from '@/components/docusign/DocuSignModal'
 
 interface DonationTaskListProps {
   donationId: string
@@ -22,6 +23,8 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   const [completingTasks, setCompletingTasks] = useState<Set<string>>(new Set())
   const [showInvitationModal, setShowInvitationModal] = useState(false)
   const [resettingTasks, setResettingTasks] = useState(false)
+  const [showDocuSignModal, setShowDocuSignModal] = useState(false)
+  const [currentDocuSignTask, setCurrentDocuSignTask] = useState<{ taskId: string; donationId: string } | null>(null)
 
   if (loading) {
     return (
@@ -84,6 +87,13 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
       setShowInvitationModal(true)
       return
     }
+    
+    // Check if this is a DocuSign NDA task
+    if (task?.type === 'document_signing' || task?.title === 'Sign General NDA') {
+      setCurrentDocuSignTask({ taskId, donationId })
+      setShowDocuSignModal(true)
+      return
+    }
 
     setCompletingTasks(prev => new Set(prev).add(taskId))
     
@@ -104,6 +114,12 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   const handleInvitationSuccess = () => {
     setShowInvitationModal(false)
     // The useDonationTasks hook should automatically refresh and show the task as completed
+  }
+  
+  const handleDocuSignComplete = () => {
+    setShowDocuSignModal(false)
+    setCurrentDocuSignTask(null)
+    // The useDonationTasks hook should automatically refresh when the user returns from DocuSign
   }
 
   const handleResetTasks = async () => {
@@ -320,6 +336,11 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
                           <Mail className="h-4 w-4 mr-2" />
                           Send Invitation
                         </>
+                      ) : (task.type === 'document_signing' || task.title === 'Sign General NDA') ? (
+                        <>
+                          <FileSignature className="h-4 w-4 mr-2" />
+                          Sign Document
+                        </>
                       ) : (
                         'Complete Task'
                       )}
@@ -358,6 +379,20 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
           onSuccess={handleInvitationSuccess}
         />
       </Modal>
+      
+      {/* DocuSign Modal */}
+      {currentDocuSignTask && (
+        <DocuSignModal
+          isOpen={showDocuSignModal}
+          onClose={() => {
+            setShowDocuSignModal(false)
+            setCurrentDocuSignTask(null)
+          }}
+          taskId={currentDocuSignTask.taskId}
+          donationId={currentDocuSignTask.donationId}
+          onComplete={handleDocuSignComplete}
+        />
+      )}
     </div>
   )
 }

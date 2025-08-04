@@ -28,6 +28,7 @@ export type TaskType =
   | 'invitation'
   | 'document_upload'
   | 'document_review'
+  | 'document_signing'
   | 'signature_required'
   | 'appraisal_request'
   | 'appraisal_submission'

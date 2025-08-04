@@ -54,7 +54,7 @@ export async function POST(
     const campaignDoc = await campaignRef.get()
     const campaignData = campaignDoc.data()
 
-    // Recreate the 8-task workflow
+    // Recreate the 9-task workflow with NDA as Task 2
     const tasks = [
       // Task 1: Donor - Invite Appraiser to Platform
       {
@@ -81,12 +81,12 @@ export async function POST(
         comments: []
       },
       
-      // Task 2: Donor - Provide Company Information
+      // Task 2: Donor - Sign General NDA
       {
         donationId: donationId,
-        title: 'Provide Company Information',
-        description: 'Submit basic company information and documentation for equity valuation',
-        type: 'document_upload',
+        title: 'Sign General NDA',
+        description: 'Sign the Non-Disclosure Agreement to protect confidential information during the donation process',
+        type: 'document_signing',
         assignedTo: decodedToken.uid,
         assignedRole: 'donor',
         status: 'blocked', // Blocked until appraiser is invited
@@ -97,22 +97,23 @@ export async function POST(
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
         metadata: {
-          documentIds: [],
-          approvalRequired: false,
+          documentType: 'nda',
+          documentPath: '/nda-general.pdf',
+          signingRequired: true,
           automatedReminders: true
         },
         comments: []
       },
       
-      // Task 3: Appraiser - Initial Equity Assessment
+      // Task 3: Donor - Provide Company Information
       {
         donationId: donationId,
-        title: 'Initial Equity Assessment',
-        description: 'Review company information and assess equity valuation requirements',
-        type: 'appraisal_review',
-        assignedTo: null, // Will be set when appraiser accepts invitation
-        assignedRole: 'appraiser',
-        status: 'blocked', // Blocked until donor provides company info
+        title: 'Provide Company Information',
+        description: 'Submit basic company information and documentation for equity valuation',
+        type: 'document_upload',
+        assignedTo: decodedToken.uid,
+        assignedRole: 'donor',
+        status: 'blocked', // Blocked until NDA is signed
         priority: 'high',
         dependencies: [], // Will be set programmatically
         order: 3,
@@ -127,64 +128,18 @@ export async function POST(
         comments: []
       },
       
-      // Task 4: Donor - Review Initial Assessment
+      // Task 4: Appraiser - Initial Equity Assessment
       {
         donationId: donationId,
-        title: 'Review Initial Assessment',
-        description: 'Review and approve the initial equity assessment before full appraisal',
-        type: 'document_review',
-        assignedTo: decodedToken.uid,
-        assignedRole: 'donor',
-        status: 'blocked', // Blocked until appraiser completes initial assessment
-        priority: 'medium',
-        dependencies: [], // Will be set programmatically
-        order: 4,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        createdBy: decodedToken.uid,
-        metadata: {
-          documentIds: [],
-          approvalRequired: true,
-          automatedReminders: true
-        },
-        comments: []
-      },
-      
-      // Task 5: Appraiser - Conduct Equity Appraisal
-      {
-        donationId: donationId,
-        title: 'Conduct Equity Appraisal',
-        description: 'Perform professional appraisal of donated equity based on approved assessment',
-        type: 'appraisal_submission',
+        title: 'Initial Equity Assessment',
+        description: 'Review company information and assess equity valuation requirements',
+        type: 'appraisal_review',
         assignedTo: null, // Will be set when appraiser accepts invitation
         assignedRole: 'appraiser',
-        status: 'blocked', // Blocked until donor reviews initial assessment
+        status: 'blocked', // Blocked until donor provides company info
         priority: 'high',
         dependencies: [], // Will be set programmatically
-        order: 5,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        createdBy: decodedToken.uid,
-        metadata: {
-          documentIds: [],
-          signatureRequired: true,
-          automatedReminders: true
-        },
-        comments: []
-      },
-      
-      // Task 6: Nonprofit - Process Donation Request
-      {
-        donationId: donationId,
-        title: 'Process Donation Request',
-        description: 'Review donation request and coordinate documentation workflow',
-        type: 'document_review',
-        assignedTo: campaignData?.createdBy,
-        assignedRole: 'nonprofit_admin',
-        status: 'blocked', // Blocked until appraiser completes full appraisal
-        priority: 'high',
-        dependencies: [], // Will be set programmatically
-        order: 6,
+        order: 4,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -196,7 +151,76 @@ export async function POST(
         comments: []
       },
       
-      // Task 7: Donor - Review Final Documentation
+      // Task 5: Donor - Review Initial Assessment
+      {
+        donationId: donationId,
+        title: 'Review Initial Assessment',
+        description: 'Review and approve the initial equity assessment before full appraisal',
+        type: 'document_review',
+        assignedTo: decodedToken.uid,
+        assignedRole: 'donor',
+        status: 'blocked', // Blocked until appraiser completes initial assessment
+        priority: 'medium',
+        dependencies: [], // Will be set programmatically
+        order: 5,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdBy: decodedToken.uid,
+        metadata: {
+          documentIds: [],
+          approvalRequired: true,
+          automatedReminders: true
+        },
+        comments: []
+      },
+      
+      // Task 6: Appraiser - Conduct Equity Appraisal
+      {
+        donationId: donationId,
+        title: 'Conduct Equity Appraisal',
+        description: 'Perform professional appraisal of donated equity based on approved assessment',
+        type: 'appraisal_submission',
+        assignedTo: null, // Will be set when appraiser accepts invitation
+        assignedRole: 'appraiser',
+        status: 'blocked', // Blocked until donor reviews initial assessment
+        priority: 'high',
+        dependencies: [], // Will be set programmatically
+        order: 6,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdBy: decodedToken.uid,
+        metadata: {
+          documentIds: [],
+          signatureRequired: true,
+          automatedReminders: true
+        },
+        comments: []
+      },
+      
+      // Task 7: Nonprofit - Process Donation Request
+      {
+        donationId: donationId,
+        title: 'Process Donation Request',
+        description: 'Review donation request and coordinate documentation workflow',
+        type: 'document_review',
+        assignedTo: campaignData?.createdBy,
+        assignedRole: 'nonprofit_admin',
+        status: 'blocked', // Blocked until appraiser completes full appraisal
+        priority: 'high',
+        dependencies: [], // Will be set programmatically
+        order: 7,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdBy: decodedToken.uid,
+        metadata: {
+          documentIds: [],
+          approvalRequired: false,
+          automatedReminders: true
+        },
+        comments: []
+      },
+      
+      // Task 8: Donor - Review Final Documentation
       {
         donationId: donationId,
         title: 'Review Final Documentation',
@@ -207,7 +231,7 @@ export async function POST(
         status: 'blocked', // Blocked until nonprofit processes request
         priority: 'medium',
         dependencies: [], // Will be set programmatically
-        order: 7,
+        order: 8,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -219,7 +243,7 @@ export async function POST(
         comments: []
       },
 
-      // Task 8: Nonprofit - Finalize Donation Receipt
+      // Task 9: Nonprofit - Finalize Donation Receipt
       {
         donationId: donationId,
         title: 'Finalize Donation Receipt',
@@ -230,7 +254,7 @@ export async function POST(
         status: 'blocked', // Blocked until donor reviews final documentation
         priority: 'medium',
         dependencies: [], // Will be set programmatically
-        order: 8,
+        order: 9,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -255,43 +279,48 @@ export async function POST(
     
     await newBatch.commit()
 
-    // Set up sequential dependencies for the 8-task workflow
-    if (createdTasks.length === 8) {
+    // Set up sequential dependencies for the 9-task workflow
+    if (createdTasks.length === 9) {
       const depBatch = adminDb.batch()
       
-      // Task 2 depends on Task 1
+      // Task 2 depends on Task 1 (NDA depends on appraiser invitation)
       depBatch.update(adminDb.collection('tasks').doc(createdTasks[1].id), {
         dependencies: [createdTasks[0].id]
       })
       
-      // Task 3 depends on Task 2
+      // Task 3 depends on Task 2 (Company info depends on NDA)
       depBatch.update(adminDb.collection('tasks').doc(createdTasks[2].id), {
         dependencies: [createdTasks[1].id]
       })
       
-      // Task 4 depends on Task 3
+      // Task 4 depends on Task 3 (Appraiser assessment depends on company info)
       depBatch.update(adminDb.collection('tasks').doc(createdTasks[3].id), {
         dependencies: [createdTasks[2].id]
       })
       
-      // Task 5 depends on Task 4
+      // Task 5 depends on Task 4 (Donor review depends on initial assessment)
       depBatch.update(adminDb.collection('tasks').doc(createdTasks[4].id), {
         dependencies: [createdTasks[3].id]
       })
       
-      // Task 6 depends on Task 5
+      // Task 6 depends on Task 5 (Full appraisal depends on donor review)
       depBatch.update(adminDb.collection('tasks').doc(createdTasks[5].id), {
         dependencies: [createdTasks[4].id]
       })
       
-      // Task 7 depends on Task 6
+      // Task 7 depends on Task 6 (Nonprofit processing depends on appraisal)
       depBatch.update(adminDb.collection('tasks').doc(createdTasks[6].id), {
         dependencies: [createdTasks[5].id]
       })
       
-      // Task 8 depends on Task 7
+      // Task 8 depends on Task 7 (Final review depends on nonprofit processing)
       depBatch.update(adminDb.collection('tasks').doc(createdTasks[7].id), {
         dependencies: [createdTasks[6].id]
+      })
+      
+      // Task 9 depends on Task 8 (Receipt depends on final review)
+      depBatch.update(adminDb.collection('tasks').doc(createdTasks[8].id), {
+        dependencies: [createdTasks[7].id]
       })
       
       await depBatch.commit()

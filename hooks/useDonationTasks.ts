@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { collection, query, where, onSnapshot, doc, updateDoc, orderBy, addDoc, Timestamp, getDocs } from 'firebase/firestore'
-import { db } from '@/lib/firebase/config'
+import { db, auth } from '@/lib/firebase/config'
 import { Task } from '@/types/task'
 
 export interface DonationTaskWorkflowUser {
@@ -166,16 +166,22 @@ export function useDonationTasks(donationId: string | null) {
 
   const completeTask = async (taskId: string, completionData?: any) => {
     try {
-      const taskRef = doc(db, 'tasks', taskId)
-      await updateDoc(taskRef, {
-        status: 'completed',
-        completedAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-        ...(completionData && { completionData })
+      // Use API route for task completion to handle permissions and dependencies server-side
+      const response = await fetch(`/api/tasks/${taskId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await auth.currentUser?.getIdToken()}`
+        },
+        body: JSON.stringify({ completionData })
       })
 
-      // Check for dependent tasks and unblock them if all their dependencies are now completed
-      await updateDependentTasks(taskId, donationId)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to complete task')
+      }
+
+      // The real-time listener will automatically update the UI
     } catch (error) {
       console.error('Error completing task:', error)
       throw error
@@ -303,46 +309,3 @@ export function useDonationTaskWorkflow() {
   }
 }
 
-// Helper function to update dependent tasks when a task is completed
-async function updateDependentTasks(completedTaskId: string, donationId: string | null) {
-  if (!donationId) return
-
-  try {
-    // Get all tasks for this donation
-    const tasksRef = collection(db, 'tasks')
-    const q = query(tasksRef, where('donationId', '==', donationId))
-    const snapshot = await getDocs(q)
-    
-    const allTasks = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Task[]
-
-    // Find tasks that depend on the completed task
-    const dependentTasks = allTasks.filter(task => 
-      task.dependencies && task.dependencies.includes(completedTaskId)
-    )
-
-    // For each dependent task, check if all its dependencies are now completed
-    for (const task of dependentTasks) {
-      if (task.status === 'completed') continue // Skip already completed tasks
-
-      const allDependenciesCompleted = task.dependencies?.every(depId => {
-        const depTask = allTasks.find(t => t.id === depId)
-        return depTask?.status === 'completed'
-      })
-
-      if (allDependenciesCompleted && task.status === 'blocked') {
-        // Unblock the task
-        const taskRef = doc(db, 'tasks', task.id)
-        await updateDoc(taskRef, {
-          status: 'pending',
-          updatedAt: Timestamp.now()
-        })
-        console.log(`Unblocked task: ${task.title}`)
-      }
-    }
-  } catch (error) {
-    console.error('Error updating dependent tasks:', error)
-  }
-}

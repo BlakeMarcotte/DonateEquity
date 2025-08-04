@@ -88,6 +88,12 @@ const navigationItems: NavItem[] = [
     roles: ['appraiser']
   },
   {
+    name: 'My Donations',
+    href: '/appraiser/donations',
+    icon: Heart,
+    roles: ['appraiser']
+  },
+  {
     name: 'My Tasks',
     href: '/appraiser/tasks',
     icon: FileText,
