@@ -584,8 +584,7 @@ function DonationModal({
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     amount: '',
-    message: '',
-    isAnonymous: false
+    message: ''
   })
   
   const [submitting, setSubmitting] = useState(false)
@@ -658,8 +657,7 @@ function DonationModal({
       const donationData = {
         campaignId: campaign.id,
         amount: parseFloat(formData.amount),
-        message: formData.message,
-        isAnonymous: formData.isAnonymous
+        message: formData.message
       }
 
       const response = await fetch('/api/donations/create', {
@@ -792,18 +790,6 @@ function DonationModal({
                 />
               </div>
 
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="anonymous"
-                  checked={formData.isAnonymous}
-                  onChange={(e) => handleInputChange('isAnonymous', e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="anonymous" className="ml-2 text-sm text-gray-700">
-                  Make this commitment anonymous
-                </label>
-              </div>
 
               <div className="flex justify-end">
                 <Button onClick={handleNext} disabled={!formData.amount}>
@@ -839,10 +825,6 @@ function DonationModal({
                     <span className="font-medium text-gray-900">
                       {organizationName}
                     </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Anonymous:</span>
-                    <span className="font-medium text-gray-900">{formData.isAnonymous ? 'Yes' : 'No'}</span>
                   </div>
                   {formData.message && (
                     <div className="pt-4 border-t border-gray-200">

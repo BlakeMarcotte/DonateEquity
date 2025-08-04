@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
     const {
       campaignId,
       amount,
-      message,
-      isAnonymous = false
+      message
     } = await request.json()
 
     // Validate required fields
@@ -91,14 +90,13 @@ export async function POST(request: NextRequest) {
     const donationData = {
       campaignId,
       donorId: decodedToken.uid,
-      donorName: isAnonymous ? 'Anonymous' : userProfile?.displayName || 'Unknown Donor',
+      donorName: userProfile?.displayName || 'Unknown Donor',
       donorEmail: userProfile?.email || '',
       nonprofitAdminId: campaignData.createdBy,
       amount: donationAmount,
       donationType: 'equity',
       status: 'pending', // All equity donations start as pending
       message: message || '',
-      isAnonymous,
       
       // Simplified commitment details - just organization info
       commitmentDetails: {
@@ -134,9 +132,10 @@ export async function POST(request: NextRequest) {
       updatedAt: FieldValue.serverTimestamp()
     })
 
-    // Create initial shared task list for all three roles
+    // Create initial shared task list in specific workflow order
+    // Order: 1. Donor 2. Appraiser 3. Donor 4. Appraiser 5. Nonprofit 6. Donor 7. Nonprofit
     const tasks = [
-      // Donor tasks
+      // Task 1: Donor - Provide Company Information
       {
         donationId: donationRef.id,
         title: 'Provide Company Information',
@@ -144,7 +143,7 @@ export async function POST(request: NextRequest) {
         type: 'document_upload',
         assignedTo: decodedToken.uid,
         assignedRole: 'donor',
-        status: 'pending',
+        status: 'pending', // Can start immediately
         priority: 'high',
         dependencies: [],
         createdAt: FieldValue.serverTimestamp(),
@@ -157,16 +156,40 @@ export async function POST(request: NextRequest) {
         },
         comments: []
       },
+      
+      // Task 2: Appraiser - Initial Assessment
       {
         donationId: donationRef.id,
-        title: 'Review Final Documentation',
-        description: 'Review and approve all finalized donation documentation',
+        title: 'Initial Equity Assessment',
+        description: 'Review company information and assess equity valuation requirements',
+        type: 'appraisal_review',
+        assignedTo: 'mock-appraiser-user',
+        assignedRole: 'appraiser',
+        status: 'blocked', // Blocked until donor provides company info
+        priority: 'high',
+        dependencies: [], // Will be set programmatically
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdBy: decodedToken.uid,
+        metadata: {
+          documentIds: [],
+          approvalRequired: false,
+          automatedReminders: true
+        },
+        comments: []
+      },
+      
+      // Task 3: Donor - Review Initial Assessment
+      {
+        donationId: donationRef.id,
+        title: 'Review Initial Assessment',
+        description: 'Review and approve the initial equity assessment before full appraisal',
         type: 'document_review',
         assignedTo: decodedToken.uid,
         assignedRole: 'donor',
-        status: 'blocked',
+        status: 'blocked', // Blocked until appraiser completes initial assessment
         priority: 'medium',
-        dependencies: [], // Will be set after appraiser task is created
+        dependencies: [], // Will be set programmatically
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -178,37 +201,39 @@ export async function POST(request: NextRequest) {
         comments: []
       },
       
-      // Nonprofit Admin tasks
+      // Task 4: Appraiser - Conduct Full Appraisal
       {
         donationId: donationRef.id,
-        title: 'Process Donation Request',
-        description: 'Review donation request and coordinate with appraiser',
-        type: 'document_review',
-        assignedTo: campaignData.createdBy,
-        assignedRole: 'nonprofit_admin',
-        status: 'pending',
+        title: 'Conduct Equity Appraisal',
+        description: 'Perform professional appraisal of donated equity based on approved assessment',
+        type: 'appraisal_submission',
+        assignedTo: 'mock-appraiser-user',
+        assignedRole: 'appraiser',
+        status: 'blocked', // Blocked until donor reviews initial assessment
         priority: 'high',
-        dependencies: [],
+        dependencies: [], // Will be set programmatically
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
         metadata: {
           documentIds: [],
-          approvalRequired: false,
+          signatureRequired: true,
           automatedReminders: true
         },
         comments: []
       },
+      
+      // Task 5: Nonprofit - Process Donation Request
       {
         donationId: donationRef.id,
-        title: 'Finalize Donation Receipt',
-        description: 'Generate and send final donation receipt and acknowledgement',
-        type: 'other',
+        title: 'Process Donation Request',
+        description: 'Review donation request and coordinate documentation workflow',
+        type: 'document_review',
         assignedTo: campaignData.createdBy,
         assignedRole: 'nonprofit_admin',
-        status: 'blocked',
-        priority: 'medium',
-        dependencies: [], // Will be set after appraiser task is created
+        status: 'blocked', // Blocked until appraiser completes full appraisal
+        priority: 'high',
+        dependencies: [], // Will be set programmatically
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -220,23 +245,45 @@ export async function POST(request: NextRequest) {
         comments: []
       },
       
-      // Appraiser task
+      // Task 6: Donor - Review Final Documentation
       {
         donationId: donationRef.id,
-        title: 'Conduct Equity Appraisal',
-        description: 'Perform professional appraisal of donated equity',
-        type: 'appraisal_submission',
-        assignedTo: 'mock-appraiser-user', // Will be assigned to real appraiser later
-        assignedRole: 'appraiser',
-        status: 'pending',
-        priority: 'high',
-        dependencies: [],
+        title: 'Review Final Documentation',
+        description: 'Review and approve all finalized donation documentation',
+        type: 'document_review',
+        assignedTo: decodedToken.uid,
+        assignedRole: 'donor',
+        status: 'blocked', // Blocked until nonprofit processes request
+        priority: 'medium',
+        dependencies: [], // Will be set programmatically
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
         metadata: {
           documentIds: [],
-          signatureRequired: true,
+          approvalRequired: true,
+          automatedReminders: true
+        },
+        comments: []
+      },
+      
+      // Task 7: Nonprofit - Finalize Donation Receipt
+      {
+        donationId: donationRef.id,
+        title: 'Finalize Donation Receipt',
+        description: 'Generate and send final donation receipt and acknowledgement',
+        type: 'other',
+        assignedTo: campaignData.createdBy,
+        assignedRole: 'nonprofit_admin',
+        status: 'blocked', // Blocked until donor reviews final documentation
+        priority: 'medium',
+        dependencies: [], // Will be set programmatically
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdBy: decodedToken.uid,
+        metadata: {
+          documentIds: [],
+          approvalRequired: false,
           automatedReminders: true
         },
         comments: []
@@ -250,20 +297,44 @@ export async function POST(request: NextRequest) {
       createdTasks.push({ id: taskRef.id, ...task })
     }
 
-    // Set up dependencies - donor and nonprofit final tasks depend on appraiser task
-    const appraisalTask = createdTasks.find(t => t.type === 'appraisal_submission')
-    const donorReviewTask = createdTasks.find(t => t.assignedRole === 'donor' && t.type === 'document_review')
-    const nonprofitReceiptTask = createdTasks.find(t => t.assignedRole === 'nonprofit_admin' && t.title.includes('Receipt'))
+    // Set up sequential dependencies for the 7-task workflow
+    // Task 1: Appraiser (Initial Assessment) - no dependencies (can start immediately)
+    // Task 2: Donor (Company Info) - depends on Task 1
+    // Task 3: Appraiser (Full Appraisal) - depends on Task 2
+    // Task 4: Donor (Review Appraisal) - depends on Task 3
+    // Task 5: Nonprofit (Process Request) - depends on Task 4
+    // Task 6: Donor (Review Final Docs) - depends on Task 5
+    // Task 7: Nonprofit (Finalize Receipt) - depends on Task 6
 
-    if (appraisalTask && donorReviewTask) {
-      await adminDb.collection('tasks').doc(donorReviewTask.id).update({
-        dependencies: [appraisalTask.id]
+    if (createdTasks.length === 7) {
+      // Task 2 depends on Task 1
+      await adminDb.collection('tasks').doc(createdTasks[1].id).update({
+        dependencies: [createdTasks[0].id]
       })
-    }
-
-    if (appraisalTask && nonprofitReceiptTask) {
-      await adminDb.collection('tasks').doc(nonprofitReceiptTask.id).update({
-        dependencies: [appraisalTask.id]
+      
+      // Task 3 depends on Task 2
+      await adminDb.collection('tasks').doc(createdTasks[2].id).update({
+        dependencies: [createdTasks[1].id]
+      })
+      
+      // Task 4 depends on Task 3
+      await adminDb.collection('tasks').doc(createdTasks[3].id).update({
+        dependencies: [createdTasks[2].id]
+      })
+      
+      // Task 5 depends on Task 4
+      await adminDb.collection('tasks').doc(createdTasks[4].id).update({
+        dependencies: [createdTasks[3].id]
+      })
+      
+      // Task 6 depends on Task 5
+      await adminDb.collection('tasks').doc(createdTasks[5].id).update({
+        dependencies: [createdTasks[4].id]
+      })
+      
+      // Task 7 depends on Task 6
+      await adminDb.collection('tasks').doc(createdTasks[6].id).update({
+        dependencies: [createdTasks[5].id]
       })
     }
 

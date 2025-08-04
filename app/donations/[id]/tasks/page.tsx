@@ -172,21 +172,28 @@ export default function DonationTasksPage() {
           <Card className="p-6">
             <DonationTaskList
               donationId={donationId}
-              showAllTasks={customClaims?.role === 'nonprofit_admin'}
+              showAllTasks={true}
             />
           </Card>
 
           {/* Help Section */}
           <Card className="p-6 mt-8 bg-blue-50 border-blue-200">
             <h3 className="text-lg font-semibold text-blue-900 mb-3">
-              How the Task System Works
+              7-Step Donation Workflow
             </h3>
             <div className="space-y-2 text-sm text-blue-800">
-              <p>• <strong>Donor tasks:</strong> Provide company information and review final documentation</p>
-              <p>• <strong>Nonprofit tasks:</strong> Process the donation request and prepare final receipts</p>
-              <p>• <strong>Appraiser tasks:</strong> Conduct professional equity valuation</p>
-              <p>• Some tasks are blocked until previous tasks are completed</p>
-              <p>• Click &quot;Complete Task&quot; when you finish each step</p>
+              <p>• <strong>All participants can see all tasks</strong> to track the complete donation workflow</p>
+              <p>• <strong>Sequential process:</strong> Each task unlocks the next one in order</p>
+              <div className="mt-3 space-y-1 text-xs">
+                <p>1. <span className="font-semibold">Donor:</span> Provide Company Information</p>
+                <p>2. <span className="font-semibold">Appraiser:</span> Initial Equity Assessment</p>
+                <p>3. <span className="font-semibold">Donor:</span> Review Initial Assessment</p>
+                <p>4. <span className="font-semibold">Appraiser:</span> Conduct Equity Appraisal</p>
+                <p>5. <span className="font-semibold">Nonprofit:</span> Process Donation Request</p>
+                <p>6. <span className="font-semibold">Donor:</span> Review Final Documentation</p>
+                <p>7. <span className="font-semibold">Nonprofit:</span> Finalize Donation Receipt</p>
+              </div>
+              <p className="mt-3">• You can only complete tasks assigned to your role</p>
             </div>
           </Card>
 
@@ -247,10 +254,6 @@ export default function DonationTasksPage() {
                         <span className="font-medium text-gray-900">
                           {donation.commitmentDetails?.donorOrganizationName || 'Individual Donor'}
                         </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Anonymous:</span>
-                        <span className="font-medium text-gray-900">{donation.isAnonymous ? 'Yes' : 'No'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Requires Appraisal:</span>

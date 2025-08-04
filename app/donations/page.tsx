@@ -374,11 +374,6 @@ export default function DonationsPage() {
                               </span>
                             </div>
                           )}
-                          {donation.isAnonymous && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
-                              Anonymous
-                            </span>
-                          )}
                         </div>
 
                         {donation.message && (
@@ -504,10 +499,6 @@ function DonationDetailsModal({
                 <span className="font-medium text-gray-900">
                   {donation.donationDetails?.donorOrganizationName || 'Individual Donor'}
                 </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Anonymous:</span>
-                <span className="font-medium text-gray-900">{donation.isAnonymous ? 'Yes' : 'No'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Requires Appraisal:</span>
