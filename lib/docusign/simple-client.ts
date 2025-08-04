@@ -66,23 +66,13 @@ export async function createSimpleEnvelope(
         recipientId: '1',
         routingOrder: '1',
         clientUserId: '1000',
-        tabs: {
-          signHereTabs: [{
-            anchorString: 'Signature:',
-            anchorUnits: 'pixels',
-            anchorXOffset: '100',
-            anchorYOffset: '0'
-          }],
-          dateSignedTabs: [{
-            anchorString: 'Date:',
-            anchorUnits: 'pixels',
-            anchorXOffset: '100',
-            anchorYOffset: '0'
-          }]
-        }
+        canSignOffline: 'true',
+        requireIdLookup: 'false',
+        tabs: {}
       }]
     },
-    status: 'sent'
+    status: 'sent',
+    allowTagging: 'true'
   }
   
   const response = await fetch(`${baseUri}/restapi/v2.1/accounts/${accountId}/envelopes`, {
