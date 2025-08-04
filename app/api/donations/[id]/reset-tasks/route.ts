@@ -21,7 +21,8 @@ export async function POST(
       return NextResponse.json({ error: 'Only donors can reset task lists' }, { status: 403 })
     }
 
-    const donationId = params.id
+    const resolvedParams = await params
+    const donationId = resolvedParams.id
 
     // Verify donation exists and belongs to the user
     const donationRef = adminDb.collection('donations').doc(donationId)
@@ -66,6 +67,7 @@ export async function POST(
         status: 'pending', // Can start immediately
         priority: 'high',
         dependencies: [],
+        order: 1,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -90,6 +92,7 @@ export async function POST(
         status: 'blocked', // Blocked until appraiser is invited
         priority: 'high',
         dependencies: [], // Will be set programmatically
+        order: 2,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -112,6 +115,7 @@ export async function POST(
         status: 'blocked', // Blocked until donor provides company info
         priority: 'high',
         dependencies: [], // Will be set programmatically
+        order: 3,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -134,6 +138,7 @@ export async function POST(
         status: 'blocked', // Blocked until appraiser completes initial assessment
         priority: 'medium',
         dependencies: [], // Will be set programmatically
+        order: 4,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -156,6 +161,7 @@ export async function POST(
         status: 'blocked', // Blocked until donor reviews initial assessment
         priority: 'high',
         dependencies: [], // Will be set programmatically
+        order: 5,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -178,6 +184,7 @@ export async function POST(
         status: 'blocked', // Blocked until appraiser completes full appraisal
         priority: 'high',
         dependencies: [], // Will be set programmatically
+        order: 6,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -200,6 +207,7 @@ export async function POST(
         status: 'blocked', // Blocked until nonprofit processes request
         priority: 'medium',
         dependencies: [], // Will be set programmatically
+        order: 7,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
@@ -222,6 +230,7 @@ export async function POST(
         status: 'blocked', // Blocked until donor reviews final documentation
         priority: 'medium',
         dependencies: [], // Will be set programmatically
+        order: 8,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,

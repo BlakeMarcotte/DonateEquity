@@ -41,10 +41,35 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   // Filter tasks based on user role if not showing all tasks
   const filteredTasks = showAllTasks 
     ? tasks 
-    : tasks.filter(task => task.assignedTo === user?.uid || task.assignedRole === customClaims?.role)
+    : tasks.filter(task => {
+        // For appraisers, show tasks assigned to their role (including null assignedTo)
+        if (customClaims?.role === 'appraiser') {
+          return task.assignedRole === 'appraiser' || 
+                 task.assignedTo === user?.uid ||
+                 (task.assignedTo?.startsWith('mock-') && task.assignedRole === 'appraiser')
+        }
+        // For other roles, check direct assignment or role match
+        return task.assignedTo === user?.uid || task.assignedRole === customClaims?.role
+      })
 
-  // Sort tasks by creation date to maintain workflow order instead of grouping by role
+  console.log('Debug - Total tasks:', tasks.length)
+  console.log('Debug - User role:', customClaims?.role)
+  console.log('Debug - User ID:', user?.uid)
+  console.log('Debug - Filtered tasks:', filteredTasks.length)
+  console.log('Debug - Tasks:', tasks.map(t => ({ 
+    id: t.id, 
+    title: t.title, 
+    assignedTo: t.assignedTo, 
+    assignedRole: t.assignedRole 
+  })))
+
+  // Sort tasks by order field to maintain consistent workflow sequence
   const sortedTasks = [...filteredTasks].sort((a, b) => {
+    // Use order field if available, otherwise fall back to createdAt for older tasks
+    if (a.order && b.order) {
+      return a.order - b.order
+    }
+    // Fallback to creation date for backwards compatibility
     const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt).getTime()
     const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt).getTime()
     return aTime - bTime
@@ -162,11 +187,26 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   }
 
   const canCompleteTask = (task: Task) => {
-    return (
-      task.status !== 'completed' && 
-      task.status !== 'blocked' &&
-      (task.assignedTo === user?.uid || (task.assignedTo?.startsWith('mock-') && task.assignedRole === customClaims?.role))
-    )
+    if (task.status === 'completed' || task.status === 'blocked') {
+      return false
+    }
+
+    // Direct assignment to the user
+    if (task.assignedTo === user?.uid) {
+      return true
+    }
+
+    // Mock user assignment
+    if (task.assignedTo?.startsWith('mock-') && task.assignedRole === customClaims?.role) {
+      return true
+    }
+
+    // Role-based assignment (especially for appraiser tasks with null assignedTo)
+    if (task.assignedRole === customClaims?.role && (task.assignedTo === null || task.assignedTo === undefined)) {
+      return true
+    }
+
+    return false
   }
 
   // Tasks should always exist since they're created automatically with donations

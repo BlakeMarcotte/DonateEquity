@@ -121,6 +121,8 @@ service cloud.firestore {
           resource.data.donorId == getUserId() ||
           resource.data.nonprofitAdminId == getUserId() ||
           resource.data.appraiserId == getUserId() ||
+          // Allow appraisers to read donations if they have tasks assigned to them for this donation
+          hasRole('appraiser') ||
           // Allow nonprofit admins to read donations for campaigns in their organization
           (hasRole('nonprofit_admin') && 
            exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
@@ -214,6 +216,8 @@ service cloud.firestore {
           // Allow users to read tasks assigned to mock users of their role
           (resource.data.assignedTo == 'mock-' + getUserRole() + '-user' && 
            resource.data.assignedRole == getUserRole()) ||
+           // Allow users to read tasks assigned to their role (including null assignedTo for appraisers)
+          (resource.data.assignedRole == getUserRole()) ||
           // Allow donation participants to read all tasks for their donations
           (resource.data.donationId != null && 
            exists(/databases/$(database)/documents/donations/$(resource.data.donationId)) &&
@@ -221,6 +225,12 @@ service cloud.firestore {
             get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.nonprofitAdminId == getUserId() ||
             get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.appraiserId == getUserId())) ||
           isAdmin()
+        )
+      );
+      // Allow list/query operations for task collections - needed for real-time listeners
+      allow list: if (
+        isAuthenticated() && (
+          hasAnyRole(['donor', 'nonprofit_admin', 'appraiser', 'admin'])
         )
       );
       allow create: if hasAnyRole(['nonprofit_admin', 'appraiser', 'donor', 'admin']);
@@ -231,6 +241,8 @@ service cloud.firestore {
           // Allow users to update tasks assigned to mock users of their role
           (resource.data.assignedTo == 'mock-' + getUserRole() + '-user' && 
            resource.data.assignedRole == getUserRole()) ||
+          // Allow users to update tasks assigned to their role (including null assignedTo for appraisers)
+          (resource.data.assignedRole == getUserRole()) ||
           // Allow donation participants to update tasks for their donations
           (resource.data.donationId != null && 
            exists(/databases/$(database)/documents/donations/$(resource.data.donationId)) &&
@@ -320,6 +332,46 @@ service cloud.firestore {
           // Allow authenticated user to link themselves and respond to invitation
           // This handles the case where user registers and needs to accept invitation
           (request.resource.data.invitedUserId == getUserId() && 
+           request.resource.data.status in ['accepted', 'declined']) ||
+          isAdmin()
+        )
+      );
+      allow delete: if isAdmin();
+    }
+    
+    // Appraiser invitations collection
+    match /appraiser_invitations/{invitationId} {
+      allow read: if (
+        isAuthenticated() && (
+          // Inviter can read their own invitations
+          resource.data.inviterUserId == getUserId() ||
+          // Invited appraiser can read invitations for their email
+          (hasRole('appraiser') && resource.data.appraiserEmail == request.auth.token.email) ||
+          // Allow reading invitations by token (public invitation links)
+          isAdmin()
+        )
+      );
+      // Allow unauthenticated read for specific invitation tokens (public invitation links)
+      allow get: if true;
+      // Allow queries by invitation token (for public links)
+      allow list: if (
+        // Allow authenticated users to list their invitations
+        (isAuthenticated() && (
+          hasRole('donor') ||
+          hasRole('appraiser') ||
+          isAdmin()
+        ))
+      );
+      allow create: if (
+        hasRole('donor') || 
+        isAdmin()
+      );
+      allow update: if (
+        isAuthenticated() && (
+          // Inviter can update their invitations
+          resource.data.inviterUserId == getUserId() ||
+          // Invited appraiser can accept/decline invitations for their email
+          (hasRole('appraiser') && resource.data.appraiserEmail == request.auth.token.email &&
            request.resource.data.status in ['accepted', 'declined']) ||
           isAdmin()
         )

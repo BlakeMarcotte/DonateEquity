@@ -11,8 +11,15 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth/login')
+      return
     }
-  }, [user, loading, router])
+
+    // Redirect appraisers to their specific dashboard
+    if (!loading && user && customClaims?.role === 'appraiser') {
+      router.push('/appraiser')
+      return
+    }
+  }, [user, loading, customClaims, router])
 
   if (loading) {
     return (

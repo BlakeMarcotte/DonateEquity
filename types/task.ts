@@ -9,6 +9,7 @@ export interface Task {
   status: 'pending' | 'in_progress' | 'completed' | 'blocked' | 'cancelled'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   dependencies: string[] // Task IDs that must be completed first
+  order?: number // Explicit ordering for consistent display
   dueDate?: Date
   completedAt?: Date
   completedBy?: string
@@ -24,6 +25,7 @@ export interface Task {
 }
 
 export type TaskType = 
+  | 'invitation'
   | 'document_upload'
   | 'document_review'
   | 'signature_required'

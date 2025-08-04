@@ -33,7 +33,7 @@ const navigationItems: NavItem[] = [
     name: 'Dashboard',
     href: '/dashboard',
     icon: Home,
-    roles: ['donor', 'nonprofit_admin', 'appraiser', 'admin']
+    roles: ['donor', 'nonprofit_admin', 'admin']
   },
   // Donor specific pages
   {
@@ -82,14 +82,26 @@ const navigationItems: NavItem[] = [
   },
   // Appraiser specific pages
   {
-    name: 'Tasks',
-    href: '/tasks',
+    name: 'Dashboard',
+    href: '/appraiser',
+    icon: Home,
+    roles: ['appraiser']
+  },
+  {
+    name: 'My Tasks',
+    href: '/appraiser/tasks',
     icon: FileText,
     roles: ['appraiser']
   },
   {
-    name: 'Appraisals',
-    href: '/appraisals',
+    name: 'Assignments',
+    href: '/appraiser/assignments',
+    icon: Users,
+    roles: ['appraiser']
+  },
+  {
+    name: 'Reports',
+    href: '/appraiser/reports',
     icon: BarChart3,
     roles: ['appraiser']
   },
@@ -144,6 +156,9 @@ export default function Navbar() {
   const isActiveRoute = (href: string) => {
     if (href === '/dashboard') {
       return pathname === '/dashboard'
+    }
+    if (href === '/appraiser') {
+      return pathname === '/appraiser'
     }
     return pathname?.startsWith(href)
   }

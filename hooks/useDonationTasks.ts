@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, query, where, onSnapshot, doc, updateDoc, orderBy, addDoc, Timestamp } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, updateDoc, orderBy, addDoc, Timestamp, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import { Task } from '@/types/task'
 
@@ -173,6 +173,9 @@ export function useDonationTasks(donationId: string | null) {
         updatedAt: Timestamp.now(),
         ...(completionData && { completionData })
       })
+
+      // Check for dependent tasks and unblock them if all their dependencies are now completed
+      await updateDependentTasks(taskId, donationId)
     } catch (error) {
       console.error('Error completing task:', error)
       throw error
@@ -297,5 +300,49 @@ export function useDonationTaskWorkflow() {
     createDonationTasks,
     loading,
     error
+  }
+}
+
+// Helper function to update dependent tasks when a task is completed
+async function updateDependentTasks(completedTaskId: string, donationId: string | null) {
+  if (!donationId) return
+
+  try {
+    // Get all tasks for this donation
+    const tasksRef = collection(db, 'tasks')
+    const q = query(tasksRef, where('donationId', '==', donationId))
+    const snapshot = await getDocs(q)
+    
+    const allTasks = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Task[]
+
+    // Find tasks that depend on the completed task
+    const dependentTasks = allTasks.filter(task => 
+      task.dependencies && task.dependencies.includes(completedTaskId)
+    )
+
+    // For each dependent task, check if all its dependencies are now completed
+    for (const task of dependentTasks) {
+      if (task.status === 'completed') continue // Skip already completed tasks
+
+      const allDependenciesCompleted = task.dependencies?.every(depId => {
+        const depTask = allTasks.find(t => t.id === depId)
+        return depTask?.status === 'completed'
+      })
+
+      if (allDependenciesCompleted && task.status === 'blocked') {
+        // Unblock the task
+        const taskRef = doc(db, 'tasks', task.id)
+        await updateDoc(taskRef, {
+          status: 'pending',
+          updatedAt: Timestamp.now()
+        })
+        console.log(`Unblocked task: ${task.title}`)
+      }
+    }
+  } catch (error) {
+    console.error('Error updating dependent tasks:', error)
   }
 }
