@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     // Verify authentication
     const authHeader = request.headers.get('authorization')
@@ -13,131 +16,48 @@ export async function POST(request: NextRequest) {
     const token = authHeader.split('Bearer ')[1]
     const decodedToken = await adminAuth.verifyIdToken(token)
     
-    // Only donors can create donations
+    // Only donors can reset their own donation tasks
     if (decodedToken.role !== 'donor') {
-      return NextResponse.json({ error: 'Only donors can create donations' }, { status: 403 })
+      return NextResponse.json({ error: 'Only donors can reset task lists' }, { status: 403 })
     }
 
-    const {
-      campaignId,
-      amount,
-      message
-    } = await request.json()
+    const donationId = params.id
 
-    // Validate required fields
-    if (!campaignId || !amount) {
-      return NextResponse.json(
-        { error: 'Missing required fields: campaignId, amount' },
-        { status: 400 }
-      )
-    }
-
-    // Validate amount
-    const donationAmount = parseFloat(amount)
-    if (isNaN(donationAmount) || donationAmount <= 0) {
-      return NextResponse.json(
-        { error: 'Invalid donation amount' },
-        { status: 400 }
-      )
-    }
-
-    // Verify campaign exists and is active
-    const campaignRef = adminDb.collection('campaigns').doc(campaignId)
-    const campaignDoc = await campaignRef.get()
+    // Verify donation exists and belongs to the user
+    const donationRef = adminDb.collection('donations').doc(donationId)
+    const donationDoc = await donationRef.get()
     
-    if (!campaignDoc.exists) {
-      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+    if (!donationDoc.exists) {
+      return NextResponse.json({ error: 'Donation not found' }, { status: 404 })
     }
 
-    const campaignData = campaignDoc.data()
-    if (campaignData?.status !== 'active') {
-      return NextResponse.json({ error: 'Campaign is not accepting donations' }, { status: 400 })
+    const donationData = donationDoc.data()
+    if (donationData?.donorId !== decodedToken.uid) {
+      return NextResponse.json({ error: 'You can only reset tasks for your own donations' }, { status: 403 })
     }
 
-    // Get user profile and organization info
-    const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get()
-    const userProfile = userDoc.data()
-
-    console.log('User profile:', JSON.stringify(userProfile, null, 2))
-    console.log('Decoded token:', JSON.stringify(decodedToken, null, 2))
-
-    // Get donor's organization info - check multiple sources
-    let donorOrganizationName = 'Individual Donor'
-    let donorOrganizationId = null
+    // Delete all existing tasks for this donation
+    const tasksQuery = adminDb.collection('tasks').where('donationId', '==', donationId)
+    const tasksSnapshot = await tasksQuery.get()
     
-    // Priority order: custom claims -> user profile
-    if (decodedToken.organizationId) {
-      donorOrganizationId = decodedToken.organizationId
-    } else if (userProfile?.organizationId) {
-      donorOrganizationId = userProfile.organizationId
-    }
-    
-    if (donorOrganizationId) {
-      try {
-        const orgDoc = await adminDb.collection('organizations').doc(donorOrganizationId).get()
-        if (orgDoc.exists) {
-          donorOrganizationName = orgDoc.data()?.name || 'Unknown Organization'
-        }
-        console.log('Found organization:', donorOrganizationName)
-      } catch (orgError) {
-        console.error('Error fetching donor organization:', orgError)
-      }
-    } else {
-      console.log('No organizationId found for user:', decodedToken.uid)
-    }
-
-    // Create donation document - all donations are equity commitments
-    const donationData = {
-      campaignId,
-      donorId: decodedToken.uid,
-      donorName: userProfile?.displayName || 'Unknown Donor',
-      donorEmail: userProfile?.email || '',
-      nonprofitAdminId: campaignData.createdBy,
-      amount: donationAmount,
-      donationType: 'equity',
-      status: 'pending', // All equity donations start as pending
-      message: message || '',
-      
-      // Simplified commitment details - just organization info
-      commitmentDetails: {
-        donorOrganizationId: donorOrganizationId,
-        donorOrganizationName: donorOrganizationName,
-        estimatedValue: donationAmount
-      },
-      
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      completedAt: null,
-      
-      // All equity donations require appraisal
-      requiresAppraisal: true,
-      appraiserId: null,
-      appraisalStatus: 'pending',
-      
-      // Metadata
-      organizationId: campaignData.organizationId,
-      organizationName: campaignData.organizationName
-    }
-
-    // Create the donation
-    const donationRef = await adminDb.collection('donations').add(donationData)
-
-    // Update campaign statistics
-    const increment = FieldValue.increment(donationAmount)
-    const incrementDonor = FieldValue.increment(1)
-    
-    await campaignRef.update({
-      currentAmount: increment,
-      donorCount: incrementDonor,
-      updatedAt: FieldValue.serverTimestamp()
+    const batch = adminDb.batch()
+    tasksSnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref)
     })
+    
+    await batch.commit()
+    console.log(`Deleted ${tasksSnapshot.docs.length} existing tasks for donation ${donationId}`)
 
-    // Create initial shared task list in specific workflow order
-    // Order: 1. Donor 2. Appraiser 3. Donor 4. Appraiser 5. Nonprofit 6. Donor 7. Nonprofit
+    // Get campaign and user data for task recreation
+    const campaignRef = adminDb.collection('campaigns').doc(donationData.campaignId)
+    const campaignDoc = await campaignRef.get()
+    const campaignData = campaignDoc.data()
+
+    // Recreate the 8-task workflow
     const tasks = [
       // Task 1: Donor - Invite Appraiser to Platform
       {
-        donationId: donationRef.id,
+        donationId: donationId,
         title: 'Invite Appraiser to Platform',
         description: 'Send an invitation to a qualified appraiser to join the platform and assess your equity donation',
         type: 'invitation',
@@ -161,7 +81,7 @@ export async function POST(request: NextRequest) {
       
       // Task 2: Donor - Provide Company Information
       {
-        donationId: donationRef.id,
+        donationId: donationId,
         title: 'Provide Company Information',
         description: 'Submit basic company information and documentation for equity valuation',
         type: 'document_upload',
@@ -183,7 +103,7 @@ export async function POST(request: NextRequest) {
       
       // Task 3: Appraiser - Initial Equity Assessment
       {
-        donationId: donationRef.id,
+        donationId: donationId,
         title: 'Initial Equity Assessment',
         description: 'Review company information and assess equity valuation requirements',
         type: 'appraisal_review',
@@ -205,7 +125,7 @@ export async function POST(request: NextRequest) {
       
       // Task 4: Donor - Review Initial Assessment
       {
-        donationId: donationRef.id,
+        donationId: donationId,
         title: 'Review Initial Assessment',
         description: 'Review and approve the initial equity assessment before full appraisal',
         type: 'document_review',
@@ -227,7 +147,7 @@ export async function POST(request: NextRequest) {
       
       // Task 5: Appraiser - Conduct Equity Appraisal
       {
-        donationId: donationRef.id,
+        donationId: donationId,
         title: 'Conduct Equity Appraisal',
         description: 'Perform professional appraisal of donated equity based on approved assessment',
         type: 'appraisal_submission',
@@ -249,11 +169,11 @@ export async function POST(request: NextRequest) {
       
       // Task 6: Nonprofit - Process Donation Request
       {
-        donationId: donationRef.id,
+        donationId: donationId,
         title: 'Process Donation Request',
         description: 'Review donation request and coordinate documentation workflow',
         type: 'document_review',
-        assignedTo: campaignData.createdBy,
+        assignedTo: campaignData?.createdBy,
         assignedRole: 'nonprofit_admin',
         status: 'blocked', // Blocked until appraiser completes full appraisal
         priority: 'high',
@@ -271,7 +191,7 @@ export async function POST(request: NextRequest) {
       
       // Task 7: Donor - Review Final Documentation
       {
-        donationId: donationRef.id,
+        donationId: donationId,
         title: 'Review Final Documentation',
         description: 'Review and approve all finalized donation documentation',
         type: 'document_review',
@@ -293,11 +213,11 @@ export async function POST(request: NextRequest) {
 
       // Task 8: Nonprofit - Finalize Donation Receipt
       {
-        donationId: donationRef.id,
+        donationId: donationId,
         title: 'Finalize Donation Receipt',
         description: 'Generate and send final donation receipt and acknowledgement',
         type: 'other',
-        assignedTo: campaignData.createdBy,
+        assignedTo: campaignData?.createdBy,
         assignedRole: 'nonprofit_admin',
         status: 'blocked', // Blocked until donor reviews final documentation
         priority: 'medium',
@@ -314,77 +234,78 @@ export async function POST(request: NextRequest) {
       }
     ]
 
-    // Create tasks in global tasks collection
+    // Create new tasks
     const createdTasks = []
+    const newBatch = adminDb.batch()
+    
     for (const task of tasks) {
-      const taskRef = await adminDb.collection('tasks').add(task)
+      const taskRef = adminDb.collection('tasks').doc()
+      newBatch.set(taskRef, task)
       createdTasks.push({ id: taskRef.id, ...task })
     }
+    
+    await newBatch.commit()
 
     // Set up sequential dependencies for the 8-task workflow
-    // Task 1: Donor (Invite Appraiser) - no dependencies (can start immediately)
-    // Task 2: Donor (Company Info) - depends on Task 1
-    // Task 3: Appraiser (Initial Assessment) - depends on Task 2
-    // Task 4: Donor (Review Assessment) - depends on Task 3
-    // Task 5: Appraiser (Full Appraisal) - depends on Task 4
-    // Task 6: Nonprofit (Process Request) - depends on Task 5
-    // Task 7: Donor (Review Final Docs) - depends on Task 6
-    // Task 8: Nonprofit (Finalize Receipt) - depends on Task 7
-
     if (createdTasks.length === 8) {
+      const depBatch = adminDb.batch()
+      
       // Task 2 depends on Task 1
-      await adminDb.collection('tasks').doc(createdTasks[1].id).update({
+      depBatch.update(adminDb.collection('tasks').doc(createdTasks[1].id), {
         dependencies: [createdTasks[0].id]
       })
       
       // Task 3 depends on Task 2
-      await adminDb.collection('tasks').doc(createdTasks[2].id).update({
+      depBatch.update(adminDb.collection('tasks').doc(createdTasks[2].id), {
         dependencies: [createdTasks[1].id]
       })
       
       // Task 4 depends on Task 3
-      await adminDb.collection('tasks').doc(createdTasks[3].id).update({
+      depBatch.update(adminDb.collection('tasks').doc(createdTasks[3].id), {
         dependencies: [createdTasks[2].id]
       })
       
       // Task 5 depends on Task 4
-      await adminDb.collection('tasks').doc(createdTasks[4].id).update({
+      depBatch.update(adminDb.collection('tasks').doc(createdTasks[4].id), {
         dependencies: [createdTasks[3].id]
       })
       
       // Task 6 depends on Task 5
-      await adminDb.collection('tasks').doc(createdTasks[5].id).update({
+      depBatch.update(adminDb.collection('tasks').doc(createdTasks[5].id), {
         dependencies: [createdTasks[4].id]
       })
       
       // Task 7 depends on Task 6
-      await adminDb.collection('tasks').doc(createdTasks[6].id).update({
+      depBatch.update(adminDb.collection('tasks').doc(createdTasks[6].id), {
         dependencies: [createdTasks[5].id]
       })
       
       // Task 8 depends on Task 7
-      await adminDb.collection('tasks').doc(createdTasks[7].id).update({
+      depBatch.update(adminDb.collection('tasks').doc(createdTasks[7].id), {
         dependencies: [createdTasks[6].id]
       })
+      
+      await depBatch.commit()
     }
 
-    console.log('Created donation tasks:', createdTasks.length, 'tasks')
+    // Reset donation appraisal status
+    await donationRef.update({
+      appraiserId: null,
+      appraiserEmail: null,
+      appraisalStatus: 'pending',
+      updatedAt: FieldValue.serverTimestamp()
+    })
+
+    console.log('Created new donation tasks:', createdTasks.length, 'tasks')
 
     return NextResponse.json({
       success: true,
-      donationId: donationRef.id,
-      message: 'Equity commitment created successfully! An appraiser will be assigned to process your donation.',
-      donation: {
-        id: donationRef.id,
-        amount: donationAmount,
-        donationType: 'equity',
-        status: donationData.status,
-        requiresAppraisal: donationData.requiresAppraisal
-      }
+      message: 'Task list reset successfully! You can now start the workflow from the beginning.',
+      tasksCreated: createdTasks.length
     })
 
   } catch (error) {
-    console.error('Error creating donation:', error)
+    console.error('Error resetting donation tasks:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -25,6 +25,7 @@ interface RegisterFormProps {
   redirectTo?: string
   invitation?: CampaignInvitation | null
   onSuccessRedirect?: string
+  preselectedRole?: 'donor' | 'nonprofit_admin' | 'appraiser' | null
 }
 
 const ROLES = [
@@ -49,7 +50,8 @@ export default function RegisterForm({
   onSuccess, 
   redirectTo = '/dashboard', 
   invitation,
-  onSuccessRedirect 
+  onSuccessRedirect,
+  preselectedRole 
 }: RegisterFormProps) {
   const [step, setStep] = useState<'basic' | 'organization'>('basic')
   const [formData, setFormData] = useState({
@@ -57,7 +59,7 @@ export default function RegisterForm({
     password: '',
     confirmPassword: '',
     displayName: '',
-    role: '' as UserRole | '',
+    role: (preselectedRole || '') as UserRole | '',
     organizationId: '',
     organizationName: '',
     createNewOrg: false,
@@ -313,26 +315,48 @@ export default function RegisterForm({
                 <Label htmlFor="role" className="text-gray-700 font-medium">
                   I am a *
                 </Label>
-                <div className="relative">
-                  <select
-                    id="role"
-                    name="role"
-                    required
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    disabled={loading}
-                    className={`w-full h-12 px-4 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200 appearance-none bg-white pr-10 ${error ? 'form-error' : ''}`}
-                  >
-                    <option value="">Select your role</option>
-                    {ROLES.map((role) => (
-                      <option key={role.value} value={role.value}>
-                        {role.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
-                </div>
-                {formData.role && (
+                {preselectedRole ? (
+                  // Show preselected role as disabled field
+                  <div className="relative">
+                    <Input
+                      id="role"
+                      type="text"
+                      value={ROLES.find(r => r.value === preselectedRole)?.label || preselectedRole}
+                      disabled={true}
+                      className="text-base h-12 bg-gray-50 text-gray-600 cursor-not-allowed"
+                    />
+                    <p className="text-sm text-blue-600 mt-1">
+                      Role automatically set based on your invitation
+                    </p>
+                  </div>
+                ) : (
+                  // Show role selection dropdown
+                  <div className="relative">
+                    <select
+                      id="role"
+                      name="role"
+                      required
+                      value={formData.role}
+                      onChange={handleInputChange}
+                      disabled={loading}
+                      className={`w-full h-12 px-4 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200 appearance-none bg-white pr-10 ${error ? 'form-error' : ''}`}
+                    >
+                      <option value="">Select your role</option>
+                      {ROLES.map((role) => (
+                        <option key={role.value} value={role.value}>
+                          {role.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                  </div>
+                )}
+                {formData.role && !preselectedRole && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    {ROLES.find(r => r.value === formData.role)?.description}
+                  </p>
+                )}
+                {formData.role && preselectedRole && (
                   <p className="text-sm text-gray-600 mt-2">
                     {ROLES.find(r => r.value === formData.role)?.description}
                   </p>

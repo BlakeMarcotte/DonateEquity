@@ -16,11 +16,17 @@ export default function RegisterPage() {
 
   const invitationToken = searchParams.get('invitation')
   const campaignId = searchParams.get('campaign')
+  const roleParam = searchParams.get('role')
+  const redirectParam = searchParams.get('redirect')
 
   useEffect(() => {
     if (!loading && user) {
-      // If user is already logged in and has an invitation, redirect to campaign with context
-      if (campaignId && invitationToken && invitation) {
+      // If user is already logged in, handle redirects
+      if (redirectParam) {
+        // Appraiser invitation redirect
+        router.push(redirectParam)
+      } else if (campaignId && invitationToken && invitation) {
+        // Campaign invitation redirect
         const inviterName = encodeURIComponent(invitation.inviterName)
         const message = invitation.message ? encodeURIComponent(invitation.message) : ''
         const redirectUrl = `/campaigns/${campaignId}/donate?invitation=${invitationToken}&inviter=${inviterName}${message ? `&message=${message}` : ''}`
@@ -31,13 +37,7 @@ export default function RegisterPage() {
         router.push('/dashboard')
       }
     }
-  }, [user, loading, router, campaignId, invitationToken, invitation])
-
-  useEffect(() => {
-    if (invitationToken) {
-      fetchInvitation()
-    }
-  }, [invitationToken, fetchInvitation])
+  }, [user, loading, router, campaignId, invitationToken, invitation, redirectParam])
 
   const fetchInvitation = useCallback(async () => {
     if (!invitationToken) return
@@ -66,6 +66,12 @@ export default function RegisterPage() {
     }
   }, [invitationToken])
 
+  useEffect(() => {
+    if (invitationToken) {
+      fetchInvitation()
+    }
+  }, [invitationToken, fetchInvitation])
+
   if (loading || invitationLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -82,12 +88,15 @@ export default function RegisterPage() {
     <AuthLayout mode="register">
       <RegisterForm 
         invitation={invitation}
+        preselectedRole={roleParam as 'donor' | 'nonprofit_admin' | 'appraiser' | null}
         onSuccessRedirect={
-          campaignId && invitationToken && invitation
-            ? `/campaigns/${campaignId}/donate?invitation=${invitationToken}&inviter=${encodeURIComponent(invitation.inviterName)}${invitation.message ? `&message=${encodeURIComponent(invitation.message)}` : ''}`
-            : campaignId 
-              ? `/campaigns/${campaignId}/donate` 
-              : '/dashboard'
+          redirectParam 
+            ? redirectParam
+            : campaignId && invitationToken && invitation
+              ? `/campaigns/${campaignId}/donate?invitation=${invitationToken}&inviter=${encodeURIComponent(invitation.inviterName)}${invitation.message ? `&message=${encodeURIComponent(invitation.message)}` : ''}`
+              : campaignId 
+                ? `/campaigns/${campaignId}/donate` 
+                : '/dashboard'
         }
       />
     </AuthLayout>
