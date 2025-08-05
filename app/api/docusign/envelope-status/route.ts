@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { docuSignClient } from '@/lib/docusign/client'
+import { docuSignClient } from '@/lib/docusign/simple-client'
 import { verifyAuth } from '@/lib/auth/verify-auth'
 
 export async function GET(request: NextRequest) {
@@ -19,19 +19,8 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get DocuSign account ID from environment
-    const accountId = process.env.DOCUSIGN_ACCOUNT_ID
-    if (!accountId) {
-      return NextResponse.json({ 
-        error: 'DocuSign account ID not configured' 
-      }, { status: 500 })
-    }
-
-    // Authenticate with DocuSign
-    await docuSignClient.authenticateJWT()
-
     // Get envelope status
-    const envelope = await docuSignClient.getEnvelopeStatus(accountId, envelopeId)
+    const envelope = await docuSignClient.getEnvelopeStatus(envelopeId)
 
     return NextResponse.json({
       success: true,

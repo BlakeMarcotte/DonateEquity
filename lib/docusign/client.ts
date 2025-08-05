@@ -1,35 +1,35 @@
-import * as docusign from 'docusign-esign'
-
 // DocuSign client configuration following 2025 best practices
 export class DocuSignClient {
-  private apiClient: docusign.ApiClient
-  private envelopesApi: docusign.EnvelopesApi
+  private apiClient: any
+  private envelopesApi: any
+  private docusign: any
   
   constructor() {
-    this.apiClient = new docusign.ApiClient()
+    // Dynamic import to fix Next.js compatibility issues
+    this.docusign = require('docusign-esign')
+    this.apiClient = new this.docusign.ApiClient()
     
     // Set base path for DocuSign API (demo environment)
     // For production, use: https://na1.docusign.net/restapi
     this.apiClient.setBasePath('https://demo.docusign.net/restapi')
     
-    this.envelopesApi = new docusign.EnvelopesApi(this.apiClient)
+    this.envelopesApi = new this.docusign.EnvelopesApi(this.apiClient)
   }
 
   /**
    * Authenticate using JWT (recommended for server-side applications)
    */
-  async authenticateJWT(): Promise<string> {
+  async authenticateJWT(): Promise<{ accessToken: string; accountId: string }> {
     const integrationKey = process.env.DOCUSIGN_INTEGRATION_KEY
     const userId = process.env.DOCUSIGN_USER_ID
     const privateKey = process.env.DOCUSIGN_PRIVATE_KEY
-    const accountId = process.env.DOCUSIGN_ACCOUNT_ID
 
-    if (!integrationKey || !userId || !privateKey || !accountId) {
+    if (!integrationKey || !userId || !privateKey) {
       throw new Error('Missing required DocuSign environment variables')
     }
 
     try {
-      // Configure JWT authentication
+      // Configure JWT authentication for demo environment
       this.apiClient.setOAuthBasePath('https://account-d.docusign.com')
       
       // Get access token using JWT
@@ -46,7 +46,21 @@ export class DocuSignClient {
       // Set access token for API calls
       this.apiClient.addDefaultHeader('Authorization', `Bearer ${accessToken}`)
       
-      return accessToken
+      // Get user info to find account ID
+      const userInfo = await this.apiClient.getUserInfo(accessToken)
+      const accounts = userInfo.accounts
+      
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No DocuSign accounts found')
+      }
+      
+      // Use the first account (demo account)
+      const accountId = accounts[0].accountId
+      
+      // Set the base path for API calls using the demo environment
+      this.apiClient.setBasePath(`https://demo.docusign.net/restapi`)
+      
+      return { accessToken, accountId }
     } catch (error) {
       console.error('DocuSign JWT authentication failed:', error)
       throw new Error('Failed to authenticate with DocuSign')
@@ -63,7 +77,7 @@ export class DocuSignClient {
     documentName: string
     emailSubject: string
     accountId: string
-  }): Promise<docusign.EnvelopeSummary> {
+  }): Promise<any> {
     const { signerEmail, signerName, documentPath, documentName, emailSubject, accountId } = params
 
     try {
@@ -73,7 +87,7 @@ export class DocuSignClient {
       const documentBase64 = documentBytes.toString('base64')
 
       // Create the envelope definition
-      const envelopeDefinition: docusign.EnvelopeDefinition = {
+      const envelopeDefinition = {
         emailSubject,
         documents: [{
           documentBase64,
@@ -117,7 +131,7 @@ export class DocuSignClient {
   /**
    * Get envelope status
    */
-  async getEnvelopeStatus(accountId: string, envelopeId: string): Promise<docusign.Envelope> {
+  async getEnvelopeStatus(accountId: string, envelopeId: string): Promise<any> {
     try {
       const result = await this.envelopesApi.getEnvelope(accountId, envelopeId)
       return result
@@ -137,11 +151,11 @@ export class DocuSignClient {
     recipientName: string
     recipientId: string
     returnUrl: string
-  }): Promise<docusign.ViewUrl> {
+  }): Promise<any> {
     const { accountId, envelopeId, recipientEmail, recipientName, recipientId, returnUrl } = params
 
     try {
-      const viewRequest: docusign.RecipientViewRequest = {
+      const viewRequest: any = {
         authenticationMethod: 'none',
         email: recipientEmail,
         userName: recipientName,

@@ -39,12 +39,16 @@ export async function uploadDonationFile(
   const storageRef = ref(storage, filePath)
 
   return new Promise((resolve, reject) => {
+    console.log('Starting upload to path:', filePath)
+    console.log('File details:', { name: file.name, size: file.size, type: file.type })
+    
     const uploadTask = uploadBytesResumable(storageRef, file)
 
     uploadTask.on(
       'state_changed',
       (snapshot) => {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+        console.log('Upload progress:', progress + '%')
         onProgress?.({
           bytesTransferred: snapshot.bytesTransferred,
           totalBytes: snapshot.totalBytes,
@@ -54,11 +58,15 @@ export async function uploadDonationFile(
       },
       (error) => {
         console.error('Upload failed:', error)
+        console.error('Error code:', error.code)
+        console.error('Error message:', error.message)
         reject(error)
       },
       async () => {
         try {
+          console.log('Upload completed, getting download URL...')
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+          console.log('Download URL obtained:', downloadURL)
           resolve({
             url: downloadURL,
             path: filePath,
@@ -68,6 +76,7 @@ export async function uploadDonationFile(
             uploadedAt: new Date()
           })
         } catch (error) {
+          console.error('Error getting download URL:', error)
           reject(error)
         }
       }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { docuSignClient } from '@/lib/docusign/client'
+import { docuSignClient } from '@/lib/docusign/simple-client'
 import { verifyAuth } from '@/lib/auth/verify-auth'
 import path from 'path'
 
@@ -29,17 +29,6 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get DocuSign account ID from environment
-    const accountId = process.env.DOCUSIGN_ACCOUNT_ID
-    if (!accountId) {
-      return NextResponse.json({ 
-        error: 'DocuSign account ID not configured' 
-      }, { status: 500 })
-    }
-
-    // Authenticate with DocuSign
-    await docuSignClient.authenticateJWT()
-
     // Path to the NDA document
     const documentPath = path.join(process.cwd(), 'public', 'nda-general.pdf')
 
@@ -49,8 +38,7 @@ export async function POST(request: NextRequest) {
       signerName,
       documentPath,
       documentName,
-      emailSubject,
-      accountId
+      emailSubject
     })
 
     // Return the envelope information

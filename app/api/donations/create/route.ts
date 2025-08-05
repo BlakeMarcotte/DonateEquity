@@ -133,14 +133,14 @@ export async function POST(request: NextRequest) {
     })
 
     // Create initial shared task list in specific workflow order
-    // Order: 1. Donor 2. Appraiser 3. Donor 4. Appraiser 5. Nonprofit 6. Donor 7. Nonprofit
+    // Order: 1. Sign NDA 2. Invite Appraiser 3. Company Info 4. Upload Docs 5. etc.
     const tasks = [
-      // Task 1: Donor - Invite Appraiser to Platform
+      // Task 1: Donor - Sign General NDA (moved to first for easier testing)
       {
         donationId: donationRef.id,
-        title: 'Invite Appraiser to Platform',
-        description: 'Send an invitation to a qualified appraiser to join the platform and assess your equity donation',
-        type: 'invitation',
+        title: 'Sign General NDA',
+        description: 'Review and digitally sign the general Non-Disclosure Agreement before proceeding with the donation process',
+        type: 'docusign_signature',
         assignedTo: decodedToken.uid,
         assignedRole: 'donor',
         status: 'pending', // Can start immediately
@@ -151,24 +151,25 @@ export async function POST(request: NextRequest) {
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
         metadata: {
-          invitationSent: false,
-          appraiserEmail: null,
-          appraiserInvited: null,
-          invitationToken: null,
+          documentPath: '/public/nda-general.pdf',
+          documentName: 'General NDA',
+          envelopeId: null,
+          signedAt: null,
+          signingUrl: null,
           automatedReminders: true
         },
         comments: []
       },
       
-      // Task 2: Donor - Sign General NDA
+      // Task 2: Donor - Invite Appraiser to Platform
       {
         donationId: donationRef.id,
-        title: 'Sign General NDA',
-        description: 'Review and digitally sign the general Non-Disclosure Agreement before proceeding with the donation process',
-        type: 'docusign_signature',
+        title: 'Invite Appraiser to Platform',
+        description: 'Send an invitation to a qualified appraiser to join the platform and assess your equity donation',
+        type: 'invitation',
         assignedTo: decodedToken.uid,
         assignedRole: 'donor',
-        status: 'blocked', // Blocked until appraiser is invited
+        status: 'blocked', // Blocked until NDA is signed
         priority: 'high',
         dependencies: [], // Will be set programmatically
         order: 2,
@@ -176,11 +177,10 @@ export async function POST(request: NextRequest) {
         updatedAt: FieldValue.serverTimestamp(),
         createdBy: decodedToken.uid,
         metadata: {
-          documentPath: '/public/nda-general.pdf',
-          documentName: 'General NDA',
-          envelopeId: null,
-          signedAt: null,
-          signingUrl: null,
+          invitationSent: false,
+          appraiserEmail: null,
+          appraiserInvited: null,
+          invitationToken: null,
           automatedReminders: true
         },
         comments: []
@@ -380,8 +380,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Set up sequential dependencies for the 10-task workflow
-    // Task 1: Donor (Invite Appraiser) - no dependencies (can start immediately)
-    // Task 2: Donor (Sign NDA) - depends on Task 1
+    // Task 1: Donor (Sign NDA) - no dependencies (can start immediately)
+    // Task 2: Donor (Invite Appraiser) - depends on Task 1
     // Task 3: Donor (Company Info) - depends on Task 2
     // Task 4: Donor (Upload Documents) - depends on Task 3
     // Task 5: Appraiser (Initial Assessment) - depends on Task 4

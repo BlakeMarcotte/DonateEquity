@@ -20,6 +20,19 @@ export interface Task {
     signatureRequired?: boolean
     approvalRequired?: boolean
     automatedReminders?: boolean
+    // DocuSign specific fields
+    documentPath?: string
+    documentName?: string
+    envelopeId?: string | null
+    signedAt?: string | null
+    signingUrl?: string | null
+    // Document upload specific fields
+    uploadFolders?: string[]
+    // Invitation specific fields
+    invitationSent?: boolean
+    appraiserEmail?: string | null
+    appraiserInvited?: string | null
+    invitationToken?: string | null
   }
   comments: TaskComment[]
 }
@@ -29,6 +42,7 @@ export type TaskType =
   | 'document_upload'
   | 'document_review'
   | 'document_signing'
+  | 'docusign_signature'
   | 'signature_required'
   | 'appraisal_request'
   | 'appraisal_submission'

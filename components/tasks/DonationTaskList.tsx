@@ -26,6 +26,7 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [currentUploadTask, setCurrentUploadTask] = useState<Task | null>(null)
   const [resettingTasks, setResettingTasks] = useState(false)
+  const [docuSignLoading, setDocuSignLoading] = useState(false)
   const { uploadFile } = useDonationFiles(donationId)
 
   if (loading) {
@@ -64,6 +65,7 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   console.log('Debug - Tasks:', tasks.map(t => ({ 
     id: t.id, 
     title: t.title, 
+    type: t.type,
     assignedTo: t.assignedTo, 
     assignedRole: t.assignedRole 
   })))
@@ -85,15 +87,26 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
 
     // Check if this is an invitation task
     const task = tasks.find(t => t.id === taskId)
+    console.log('🔥 handleCompleteTask called for task:', { id: taskId, title: task?.title, type: task?.type })
+    
     if (task?.type === 'invitation') {
+      console.log('🔥 Showing invitation modal')
       setShowInvitationModal(true)
       return
     }
     
     // Check if this is a document upload task
     if (task?.type === 'document_upload') {
+      console.log('🔥 Showing upload modal')
       setCurrentUploadTask(task)
       setShowUploadModal(true)
+      return
+    }
+    
+    // Check if this is a DocuSign signature task
+    if (task?.type === 'docusign_signature') {
+      console.log('🔥 Calling DocuSign handler')
+      handleDocuSignTask(taskId)
       return
     }
     
@@ -133,6 +146,100 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
     setShowUploadModal(false)
     setCurrentUploadTask(null)
     // The useDonationTasks hook should automatically refresh
+  }
+  
+  const handleDocuSignTask = async (taskId: string) => {
+    console.log('🔥 DocuSign task handler called for task:', taskId)
+    if (docuSignLoading) return
+    
+    setDocuSignLoading(true)
+    
+    try {
+      const token = await user?.getIdToken()
+      
+      // Create DocuSign envelope
+      const envelopeResponse = await fetch('/api/docusign/create-envelope', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          signerEmail: user?.email,
+          signerName: user?.displayName || user?.email?.split('@')[0] || 'User',
+          donationId,
+          documentName: 'General NDA',
+          emailSubject: 'Please sign the General NDA for your donation'
+        })
+      })
+      
+      const envelopeResult = await envelopeResponse.json()
+      
+      if (!envelopeResponse.ok) {
+        throw new Error(envelopeResult.error || 'Failed to create DocuSign envelope')
+      }
+      
+      // Get signing URL for embedded signing
+      const signingResponse = await fetch('/api/docusign/signing-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          envelopeId: envelopeResult.envelopeId,
+          recipientEmail: user?.email,
+          recipientName: user?.displayName || user?.email?.split('@')[0] || 'User',
+          donationId
+        })
+      })
+      
+      const signingResult = await signingResponse.json()
+      
+      if (!signingResponse.ok) {
+        throw new Error(signingResult.error || 'Failed to get signing URL')
+      }
+      
+      // Open DocuSign signing interface in new window
+      const signingWindow = window.open(
+        signingResult.signingUrl,
+        'docusign-signing',
+        'width=800,height=600,scrollbars=yes,resizable=yes'
+      )
+      
+      // Check if signing is complete periodically
+      const checkSigning = setInterval(async () => {
+        if (signingWindow?.closed) {
+          clearInterval(checkSigning)
+          // Check envelope status to see if it was signed
+          try {
+            const statusResponse = await fetch(`/api/docusign/envelope-status?envelopeId=${envelopeResult.envelopeId}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            })
+            
+            const statusResult = await statusResponse.json()
+            
+            if (statusResponse.ok && statusResult.status === 'completed') {
+              // Mark task as completed
+              await completeTask(taskId)
+            }
+          } catch (error) {
+            console.error('Error checking envelope status:', error)
+          }
+        }
+      }, 2000)
+      
+      // Clean up interval after 5 minutes
+      setTimeout(() => clearInterval(checkSigning), 300000)
+      
+    } catch (error) {
+      console.error('DocuSign error:', error)
+      alert(error instanceof Error ? error.message : 'Failed to initiate document signing')
+    } finally {
+      setDocuSignLoading(false)
+    }
   }
   
 
@@ -355,8 +462,17 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
                           <Upload className="h-4 w-4 mr-2" />
                           Upload Documents
                         </>
+                      ) : task.type === 'docusign_signature' ? (
+                        <>
+                          <FileSignature className="h-4 w-4 mr-2" />
+                          {docuSignLoading ? 'Preparing...' : 'Sign Document'}
+                        </>
                       ) : (
-                        'Complete Task'
+                        <>
+                          Complete Task
+                          {/* Debug: Show task type */}
+                          <span className="ml-1 text-xs opacity-50">({task.type})</span>
+                        </>
                       )}
                     </Button>
                   ) : task.status === 'completed' ? (
