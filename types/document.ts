@@ -49,7 +49,7 @@ export type DocumentCategory =
 export interface SignatureStatus {
   required: boolean
   signers: Signer[]
-  envelopeId?: string // DocuSign envelope ID
+  envelopeId?: string // External signature service envelope ID
   completedAt?: Date
   expiresAt?: Date
 }

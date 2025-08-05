@@ -6,10 +6,11 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Task } from '@/types/task'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload } from 'lucide-react'
 import { AppraiserInvitationForm } from './AppraiserInvitationForm'
+import { FileUpload } from '@/components/files/FileUpload'
+import { useDonationFiles } from '@/hooks/useDonationFiles'
 import { Modal } from '@/components/ui/modal'
-import { DocuSignModal } from '@/components/docusign/DocuSignModal'
 
 interface DonationTaskListProps {
   donationId: string
@@ -22,9 +23,10 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   const { tasks, loading, completeTask, updateTaskStatus } = useDonationTasks(donationId)
   const [completingTasks, setCompletingTasks] = useState<Set<string>>(new Set())
   const [showInvitationModal, setShowInvitationModal] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [currentUploadTask, setCurrentUploadTask] = useState<Task | null>(null)
   const [resettingTasks, setResettingTasks] = useState(false)
-  const [showDocuSignModal, setShowDocuSignModal] = useState(false)
-  const [currentDocuSignTask, setCurrentDocuSignTask] = useState<{ taskId: string; donationId: string } | null>(null)
+  const { uploadFile } = useDonationFiles(donationId)
 
   if (loading) {
     return (
@@ -88,12 +90,13 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
       return
     }
     
-    // Check if this is a DocuSign NDA task
-    if (task?.type === 'document_signing' || task?.title === 'Sign General NDA') {
-      setCurrentDocuSignTask({ taskId, donationId })
-      setShowDocuSignModal(true)
+    // Check if this is a document upload task
+    if (task?.type === 'document_upload') {
+      setCurrentUploadTask(task)
+      setShowUploadModal(true)
       return
     }
+    
 
     setCompletingTasks(prev => new Set(prev).add(taskId))
     
@@ -116,11 +119,22 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
     // The useDonationTasks hook should automatically refresh and show the task as completed
   }
   
-  const handleDocuSignComplete = () => {
-    setShowDocuSignModal(false)
-    setCurrentDocuSignTask(null)
-    // The useDonationTasks hook should automatically refresh when the user returns from DocuSign
+  const handleUploadSuccess = async (file: File, folder: string) => {
+    try {
+      await uploadFile(file, folder as any)
+      // After successful upload, we can mark the task as completed or let the user choose when to complete
+    } catch (error) {
+      console.error('Upload failed:', error)
+      throw error
+    }
   }
+  
+  const handleUploadComplete = () => {
+    setShowUploadModal(false)
+    setCurrentUploadTask(null)
+    // The useDonationTasks hook should automatically refresh
+  }
+  
 
   const handleResetTasks = async () => {
     if (resettingTasks) return
@@ -336,10 +350,10 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
                           <Mail className="h-4 w-4 mr-2" />
                           Send Invitation
                         </>
-                      ) : (task.type === 'document_signing' || task.title === 'Sign General NDA') ? (
+                      ) : task.type === 'document_upload' ? (
                         <>
-                          <FileSignature className="h-4 w-4 mr-2" />
-                          Sign Document
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload Documents
                         </>
                       ) : (
                         'Complete Task'
@@ -380,19 +394,38 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
         />
       </Modal>
       
-      {/* DocuSign Modal */}
-      {currentDocuSignTask && (
-        <DocuSignModal
-          isOpen={showDocuSignModal}
-          onClose={() => {
-            setShowDocuSignModal(false)
-            setCurrentDocuSignTask(null)
-          }}
-          taskId={currentDocuSignTask.taskId}
-          donationId={currentDocuSignTask.donationId}
-          onComplete={handleDocuSignComplete}
-        />
-      )}
+      {/* Upload Modal */}
+      <Modal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        title={currentUploadTask?.title || 'Upload Documents'}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            {currentUploadTask?.description}
+          </p>
+          <FileUpload
+            onUpload={handleUploadSuccess}
+            className="max-h-96 overflow-y-auto"
+          />
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <Button
+              onClick={() => setShowUploadModal(false)}
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUploadComplete}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Done Uploading
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      
     </div>
   )
 }

@@ -20,6 +20,7 @@ import {
   Mail
 } from 'lucide-react'
 import NotificationBell from '@/components/notifications/NotificationBell'
+import { useDonorCampaign } from '@/hooks/useDonorCampaign'
 
 interface NavItem {
   name: string
@@ -131,6 +132,7 @@ export default function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { campaign } = useDonorCampaign()
 
   // Don't show navbar on auth pages or landing page
   if (pathname?.startsWith('/auth/') || pathname === '/unauthorized' || pathname === '/') {
@@ -182,6 +184,36 @@ export default function Navbar() {
             <span className="font-bold text-xl text-gray-900">Donate Equity</span>
           </Link>
         </div>
+
+        {/* Campaign Info for Donors */}
+        {userRole === 'donor' && campaign && (
+          <div className="px-4 py-4 border-b border-gray-200">
+            <Link
+              href="/my-campaign"
+              className={`flex flex-col space-y-1 px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                pathname === '/my-campaign'
+                  ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="text-xs font-medium text-blue-600 uppercase tracking-wide">
+                Your Campaign
+              </div>
+              <div className={`font-semibold truncate ${
+                pathname === '/my-campaign' ? 'text-blue-600' : 'text-gray-900'
+              }`}>
+                {campaign.title}
+              </div>
+              {campaign.organizationName && (
+                <div className={`text-xs truncate ${
+                  pathname === '/my-campaign' ? 'text-blue-500' : 'text-gray-500'
+                }`}>
+                  {campaign.organizationName}
+                </div>
+              )}
+            </Link>
+          </div>
+        )}
 
         {/* Navigation */}
         <div className="flex-1 flex flex-col px-4 py-6 space-y-2">
@@ -286,6 +318,37 @@ export default function Navbar() {
                   <span className="font-bold text-xl text-gray-900">Donate Equity</span>
                 </Link>
               </div>
+              
+              {/* Campaign Info for Donors - Mobile */}
+              {userRole === 'donor' && campaign && (
+                <div className="px-4 py-4 border-b border-gray-200">
+                  <Link
+                    href="/my-campaign"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex flex-col space-y-1 px-4 py-3 rounded-lg text-base font-medium transition-colors duration-200 ${
+                      pathname === '/my-campaign'
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="text-xs font-medium text-blue-600 uppercase tracking-wide">
+                      Your Campaign
+                    </div>
+                    <div className={`font-semibold truncate ${
+                      pathname === '/my-campaign' ? 'text-blue-600' : 'text-gray-900'
+                    }`}>
+                      {campaign.title}
+                    </div>
+                    {campaign.organizationName && (
+                      <div className={`text-xs truncate ${
+                        pathname === '/my-campaign' ? 'text-blue-500' : 'text-gray-500'
+                      }`}>
+                        {campaign.organizationName}
+                      </div>
+                    )}
+                  </Link>
+                </div>
+              )}
               
               <div className="flex flex-col px-4 py-6 space-y-2">
                 {filteredNavItems.map((item) => {
