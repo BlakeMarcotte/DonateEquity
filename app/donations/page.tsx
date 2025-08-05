@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { DonorRoute } from '@/components/auth/ProtectedRoute'
+import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { 
   collection, 
@@ -162,19 +162,19 @@ export default function DonationsPage() {
 
   if (loading) {
     return (
-      <DonorRoute>
+      <NonprofitAdminRoute>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your donations...</p>
+            <p className="text-gray-600">Loading donations...</p>
           </div>
         </div>
-      </DonorRoute>
+      </NonprofitAdminRoute>
     )
   }
 
   return (
-    <DonorRoute>
+    <NonprofitAdminRoute>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-white shadow-sm">
@@ -407,7 +407,7 @@ export default function DonationsPage() {
           />
         )}
       </div>
-    </DonorRoute>
+    </NonprofitAdminRoute>
   )
 }
 

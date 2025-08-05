@@ -127,8 +127,11 @@ export class DocuSignSimpleClient {
       const documentBytes = await fs.readFile(documentPath)
       const documentBase64 = documentBytes.toString('base64')
 
-      // Create the envelope definition following 2025 API specification
-      const envelopeDefinition = {
+      // Get webhook URL from environment - only use if HTTPS is available
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const isHttps = baseUrl.startsWith('https://')
+      
+      const envelopeDefinition: any = {
         emailSubject,
         documents: [{
           documentBase64,
@@ -148,6 +151,32 @@ export class DocuSignSimpleClient {
           }]
         },
         status: 'created' // Use 'created' to allow sender to add fields, or 'sent' for immediate sending
+      }
+
+      // Only add webhook configuration if running on HTTPS (production)
+      if (isHttps) {
+        const webhookUrl = `${baseUrl}/api/docusign/webhook`
+        envelopeDefinition.eventNotification = {
+          url: webhookUrl,
+          loggingEnabled: 'true',
+          requireAcknowledgment: 'true',
+          envelopeEvents: [
+            { envelopeEventStatusCode: 'sent' },
+            { envelopeEventStatusCode: 'delivered' },
+            { envelopeEventStatusCode: 'completed' },
+            { envelopeEventStatusCode: 'declined' },
+            { envelopeEventStatusCode: 'voided' }
+          ],
+          recipientEvents: [
+            { recipientEventStatusCode: 'sent' },
+            { recipientEventStatusCode: 'delivered' },
+            { recipientEventStatusCode: 'completed' },
+            { recipientEventStatusCode: 'declined' }
+          ]
+        }
+        console.log('DocuSign webhook configured for:', webhookUrl)
+      } else {
+        console.log('DocuSign webhook disabled - HTTPS required, running on:', baseUrl)
       }
 
       // Create the envelope
@@ -266,8 +295,11 @@ export class DocuSignSimpleClient {
       const documentBytes = await fs.readFile(documentPath)
       const documentBase64 = documentBytes.toString('base64')
 
-      // Create the envelope definition with immediate sending for free-form signing
-      const envelopeDefinition = {
+      // Get webhook URL from environment - only use if HTTPS is available
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const isHttps = baseUrl.startsWith('https://')
+      
+      const envelopeDefinition: any = {
         emailSubject,
         documents: [{
           documentBase64,
@@ -287,6 +319,32 @@ export class DocuSignSimpleClient {
           }]
         },
         status: 'sent' // Send immediately for free-form signing
+      }
+
+      // Only add webhook configuration if running on HTTPS (production)
+      if (isHttps) {
+        const webhookUrl = `${baseUrl}/api/docusign/webhook`
+        envelopeDefinition.eventNotification = {
+          url: webhookUrl,
+          loggingEnabled: 'true',
+          requireAcknowledgment: 'true',
+          envelopeEvents: [
+            { envelopeEventStatusCode: 'sent' },
+            { envelopeEventStatusCode: 'delivered' },
+            { envelopeEventStatusCode: 'completed' },
+            { envelopeEventStatusCode: 'declined' },
+            { envelopeEventStatusCode: 'voided' }
+          ],
+          recipientEvents: [
+            { recipientEventStatusCode: 'sent' },
+            { recipientEventStatusCode: 'delivered' },
+            { recipientEventStatusCode: 'completed' },
+            { recipientEventStatusCode: 'declined' }
+          ]
+        }
+        console.log('DocuSign webhook configured for:', webhookUrl)
+      } else {
+        console.log('DocuSign webhook disabled - HTTPS required, running on:', baseUrl)
       }
 
       // Create the envelope

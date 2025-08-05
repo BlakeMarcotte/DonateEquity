@@ -76,53 +76,51 @@ export default function MyCampaignPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      {/* Enhanced Header with Gradient */}
+      <div className="bg-gradient-to-r from-white to-blue-50/30 border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-10">
           <div className="py-6">
-            <h1 className="text-3xl font-bold text-gray-900">My Campaign</h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Your campaign overview and donation progress
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                <Heart className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  {campaign?.title || 'Loading Campaign...'}
+                </h1>
+                {campaign?.organizationName && (
+                  <p className="mt-1 text-sm text-gray-600 font-medium">
+                    {campaign.organizationName}
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="mt-3 text-gray-600 text-base">
+              Track your donation progress and complete required steps
             </p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Campaign Overview Card */}
-        <div className="bg-white rounded-lg shadow mb-8">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Heart className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">{campaign.title}</h2>
-                {campaign.organizationName && (
-                  <p className="text-sm text-gray-600">{campaign.organizationName}</p>
-                )}
-              </div>
-            </div>
-          </div>
-          
-        </div>
+      <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-10 py-6">
 
         {/* Timeline Section */}
         {donation && tasks.length > 0 && (
           <TaskTimeline tasks={tasks} />
         )}
 
-        {/* Tab Navigation */}
+        {/* Enhanced Tab Navigation */}
         {donation && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="border-b border-gray-200">
-              <nav className="flex space-x-8 px-6" aria-label="Tabs">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 overflow-hidden">
+            <div className="border-b border-gray-100/50 bg-gradient-to-r from-gray-50/50 to-white/50">
+              <nav className="flex space-x-1 px-6 py-2" aria-label="Tabs">
                 <button
                   onClick={() => setActiveTab('tasks')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 ${
                     activeTab === 'tasks'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/25'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
                   }`}
                 >
                   <div className="flex items-center space-x-2">
@@ -132,10 +130,10 @@ export default function MyCampaignPage() {
                 </button>
                 <button
                   onClick={() => setActiveTab('files')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 ${
                     activeTab === 'files'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/25'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
                   }`}
                 >
                   <div className="flex items-center space-x-2">
@@ -146,23 +144,27 @@ export default function MyCampaignPage() {
               </nav>
             </div>
 
-            {/* Tab Content */}
+            {/* Enhanced Tab Content */}
             <div className="p-6">
               {activeTab === 'tasks' && (
-                <DonationTaskList 
-                  donationId={donation.id} 
-                  campaignId={donation.campaignId}
-                  showAllTasks={false}
-                />
+                <div className="animate-in fade-in duration-300">
+                  <DonationTaskList 
+                    donationId={donation.id} 
+                    campaignId={donation.campaignId}
+                    showAllTasks={false}
+                  />
+                </div>
               )}
               
               {activeTab === 'files' && (
-                <DonationFiles 
-                  donationId={donation.id}
-                  title="Shared Documents"
-                  showUpload={false}
-                  className="border-0 shadow-none p-0"
-                />
+                <div className="animate-in fade-in duration-300">
+                  <DonationFiles 
+                    donationId={donation.id}
+                    title="Shared Documents"
+                    showUpload={false}
+                    className="border-0 shadow-none p-0"
+                  />
+                </div>
               )}
             </div>
           </div>

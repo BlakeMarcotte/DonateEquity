@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Campaign } from '@/types/campaign'
 import { getPublicCampaigns, getCampaignCategories, CampaignFilters } from '@/lib/firebase/campaigns'
 import CampaignCard from '@/components/campaigns/CampaignCard'
-import { DonorRoute } from '@/components/auth/ProtectedRoute'
+import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { 
@@ -24,9 +25,24 @@ interface FilterState extends CampaignFilters {
 }
 
 export default function BrowseCampaignsPage() {
+  const { user, customClaims, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Redirect donors away from browse page
+  useEffect(() => {
+    if (!authLoading && user && customClaims?.role === 'donor') {
+      router.push('/my-campaign')
+      return
+    }
+    
+    if (!authLoading && !user) {
+      router.push('/auth/login')
+      return
+    }
+  }, [user, customClaims, authLoading, router])
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
@@ -168,25 +184,31 @@ export default function BrowseCampaignsPage() {
     filters.maxGoal
   ].filter(Boolean).length
 
+  // Don't render anything if being redirected
+  if (authLoading || (user && customClaims?.role === 'donor')) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
-      <DonorRoute>
-        <div className="min-h-screen bg-gray-50">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex items-center justify-center min-h-96">
-              <div className="text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-                <p className="text-gray-600">Loading campaigns...</p>
-              </div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center min-h-96">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600">Loading campaigns...</p>
             </div>
           </div>
         </div>
-      </DonorRoute>
+      </div>
     )
   }
 
   return (
-    <DonorRoute>
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
@@ -419,6 +441,5 @@ export default function BrowseCampaignsPage() {
           )}
         </div>
       </div>
-    </DonorRoute>
   )
 }

@@ -30,20 +30,13 @@ interface NavItem {
 }
 
 const navigationItems: NavItem[] = [
+  // Nonprofit Admin specific pages
   {
     name: 'Dashboard',
     href: '/dashboard',
     icon: Home,
-    roles: ['donor', 'nonprofit_admin', 'admin']
+    roles: ['nonprofit_admin', 'admin']
   },
-  // Donor specific pages
-  {
-    name: 'Invitations',
-    href: '/invitations',
-    icon: Mail,
-    roles: ['donor']
-  },
-  // Nonprofit Admin specific pages
   {
     name: 'Organization',
     href: '/organization',
@@ -67,19 +60,6 @@ const navigationItems: NavItem[] = [
     href: '/resources',
     icon: FileText,
     roles: ['nonprofit_admin']
-  },
-  // Donor specific pages
-  {
-    name: 'Browse Campaigns',
-    href: '/browse',
-    icon: Heart,
-    roles: ['donor']
-  },
-  {
-    name: 'My Donations',
-    href: '/donations',
-    icon: BarChart3,
-    roles: ['donor']
   },
   // Appraiser specific pages
   {
@@ -177,7 +157,7 @@ export default function Navbar() {
       <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg border-r border-gray-200 hidden lg:flex lg:flex-col">
         {/* Logo */}
         <div className="flex items-center px-6 py-4 border-b border-gray-200">
-          <Link href="/dashboard" className="flex items-center space-x-3">
+          <Link href={userRole === 'donor' ? '/my-campaign' : '/dashboard'} className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Heart className="w-5 h-5 text-white" />
             </div>
@@ -282,7 +262,7 @@ export default function Navbar() {
         {/* Mobile Header */}
         <div className="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
           <div className="flex items-center justify-between">
-            <Link href="/dashboard" className="flex items-center space-x-2">
+            <Link href={userRole === 'donor' ? '/my-campaign' : '/dashboard'} className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Heart className="w-5 h-5 text-white" />
               </div>
@@ -311,7 +291,7 @@ export default function Navbar() {
             <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setIsMobileMenuOpen(false)} />
             <div className="fixed inset-y-0 left-0 max-w-xs w-full bg-white shadow-xl">
               <div className="flex items-center px-4 py-4 border-b border-gray-200">
-                <Link href="/dashboard" className="flex items-center space-x-3">
+                <Link href={userRole === 'donor' ? '/my-campaign' : '/dashboard'} className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                     <Heart className="w-5 h-5 text-white" />
                   </div>

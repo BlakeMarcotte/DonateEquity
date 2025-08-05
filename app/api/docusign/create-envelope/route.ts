@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { docuSignClient } from '@/lib/docusign/simple-client'
 import { verifyAuth } from '@/lib/auth/verify-auth'
+import { adminDb } from '@/lib/firebase/admin'
 import path from 'path'
 
 export async function POST(request: NextRequest) {
@@ -40,6 +41,33 @@ export async function POST(request: NextRequest) {
       documentName,
       emailSubject
     })
+
+    // Find and update the DocuSign signature task with the envelope ID
+    try {
+      const tasksQuery = await adminDb
+        .collection('tasks')
+        .where('donationId', '==', donationId)
+        .where('type', '==', 'docusign_signature')
+        .where('assignedTo', '==', user.uid)
+        .get()
+
+      if (!tasksQuery.empty) {
+        const taskDoc = tasksQuery.docs[0]
+        await adminDb.collection('tasks').doc(taskDoc.id).update({
+          'metadata.docuSignEnvelopeId': envelope.envelopeId,
+          'metadata.envelopeStatus': envelope.status,
+          'metadata.envelopeSentAt': envelope.statusDateTime,
+          updatedAt: new Date()
+        })
+        
+        console.log(`Updated task ${taskDoc.id} with envelope ID: ${envelope.envelopeId}`)
+      } else {
+        console.log(`No DocuSign signature task found for donation ${donationId} and user ${user.uid}`)
+      }
+    } catch (taskUpdateError) {
+      console.error('Failed to update task with envelope ID:', taskUpdateError)
+      // Continue anyway - the envelope was created successfully
+    }
 
     // Return the envelope information
     return NextResponse.json({

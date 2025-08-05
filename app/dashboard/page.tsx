@@ -14,6 +14,12 @@ export default function DashboardPage() {
       return
     }
 
+    // Redirect donors to their campaign page - no dashboard access
+    if (!loading && user && customClaims?.role === 'donor') {
+      router.push('/my-campaign')
+      return
+    }
+
     // Redirect appraisers to their specific dashboard
     if (!loading && user && customClaims?.role === 'appraiser') {
       router.push('/appraiser')

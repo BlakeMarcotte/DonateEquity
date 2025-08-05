@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Create return URL for after signing
+    // Create return URL for after signing - redirect donors to their campaign page
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const returnUrl = `${baseUrl}/donations/${donationId}/tasks?signed=true`
+    const returnUrl = `${baseUrl}/my-campaign?signed=true&donationId=${donationId}`
 
     // Get recipient view URL for embedded signing
     const viewUrl = await docuSignClient.getRecipientView({

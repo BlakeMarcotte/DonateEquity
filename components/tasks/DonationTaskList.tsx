@@ -31,12 +31,12 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="space-y-3">
+          <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded-lg w-1/3 mb-6"></div>
+          <div className="space-y-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-16 bg-gray-100 rounded-lg"></div>
+              <div key={i} className="h-20 bg-gradient-to-r from-gray-50 via-white to-gray-50 rounded-2xl shadow-sm border border-gray-100"></div>
             ))}
           </div>
         </div>
@@ -298,15 +298,15 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   const getStatusColor = (status: Task['status']) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-50 border-green-200'
+        return 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200/70 shadow-sm hover:shadow-md'
       case 'in_progress':
-        return 'bg-blue-50 border-blue-200'
+        return 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200/70 shadow-sm hover:shadow-md'
       case 'blocked':
-        return 'bg-gray-50 border-gray-200'
+        return 'bg-gradient-to-br from-gray-50 to-slate-50 border-gray-200/70 shadow-sm'
       case 'pending':
-        return 'bg-yellow-50 border-yellow-200'
+        return 'bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200/70 shadow-sm hover:shadow-md'
       default:
-        return 'bg-white border-gray-200'
+        return 'bg-gradient-to-br from-white to-gray-50 border-gray-200/70 shadow-sm hover:shadow-md'
     }
   }
 
@@ -349,25 +349,29 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   // Tasks should always exist since they're created automatically with donations
   if (filteredTasks.length === 0) {
     return (
-      <Card className="p-6">
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-md border border-gray-100/50 p-6">
         <div className="text-center text-gray-500">
-          <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Loading tasks...</h3>
-          <p>Your donation tasks are being loaded.</p>
+          <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock className="h-6 w-6 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading tasks...</h3>
+          <p className="text-sm text-gray-600">Your donation tasks are being loaded.</p>
         </div>
-      </Card>
+      </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
           {showAllTasks ? 'Donation Workflow Tasks' : 'Your Tasks'}
         </h2>
-        <div className="flex items-center space-x-4">
-          <div className="text-sm text-gray-500">
-            {sortedTasks.filter(t => t.status === 'completed').length} of {sortedTasks.length} completed
+        <div className="flex items-center space-x-3">
+          <div className="px-2 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full border border-blue-100">
+            <span className="text-xs font-medium text-blue-700">
+              {sortedTasks.filter(t => t.status === 'completed').length} of {sortedTasks.length} completed
+            </span>
           </div>
           {/* Reset button - only show for donors */}
           {customClaims?.role === 'donor' && (
@@ -376,7 +380,7 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
               disabled={resettingTasks}
               variant="outline"
               size="sm"
-              className="text-red-600 border-red-200 hover:bg-red-50"
+              className="text-red-600 border-red-200 hover:bg-red-50 rounded-xl transition-all duration-200"
             >
               {resettingTasks ? (
                 <>
@@ -396,44 +400,50 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
 
       <div className="space-y-3">
         {sortedTasks.map((task, index) => (
-          <div key={task.id}>
-            <Card className={`p-4 ${getStatusColor(task.status)}`}>
+          <div key={task.id} className="group">
+            <div className={`p-4 rounded-xl transition-all duration-300 ${getStatusColor(task.status)}`}>
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-3 flex-1">
                   <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-semibold text-gray-600 mb-2">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white mb-2 shadow-md">
                       {index + 1}
                     </div>
-                    {getStatusIcon(task.status)}
+                    <div className="p-1 rounded-full bg-white/80 shadow-sm">
+                      {getStatusIcon(task.status)}
+                    </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2 mb-1">
-                      <h4 className="text-sm font-semibold text-gray-900">
+                      <h4 className="text-base font-bold text-gray-900">
                         {task.title}
                       </h4>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        task.assignedRole === 'donor' ? 'bg-blue-100 text-blue-800' :
-                        task.assignedRole === 'nonprofit_admin' ? 'bg-green-100 text-green-800' :
-                        'bg-purple-100 text-purple-800'
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm ${
+                        task.assignedRole === 'donor' ? 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800' :
+                        task.assignedRole === 'nonprofit_admin' ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-800' :
+                        'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800'
                       }`}>
                         {getRoleDisplayName(task.assignedRole).replace(' Tasks', '')}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">
+                    <p className="text-sm text-gray-700 mb-2 leading-relaxed">
                       {task.description}
                     </p>
-                    <div className="flex items-center space-x-4 text-xs text-gray-500">
-                      <span className="flex items-center">
-                        Priority: <span className={`ml-1 font-medium ${
+                    <div className="flex items-center space-x-4 text-xs">
+                      <span className="flex items-center bg-white/60 px-2 py-1 rounded-full">
+                        <span className="text-gray-600">Priority:</span>
+                        <span className={`ml-1 font-semibold ${
                           task.priority === 'high' ? 'text-red-600' :
-                          task.priority === 'medium' ? 'text-yellow-600' :
-                          'text-green-600'
+                          task.priority === 'medium' ? 'text-amber-600' :
+                          'text-emerald-600'
                         }`}>
-                          {task.priority}
+                          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                         </span>
                       </span>
                       {task.status === 'blocked' && (
-                        <span className="text-gray-400">Waiting for previous task</span>
+                        <span className="flex items-center text-gray-500 bg-gray-100/60 px-2 py-1 rounded-full">
+                          <Lock className="w-3 h-3 mr-1" />
+                          Waiting for previous task
+                        </span>
                       )}
                     </div>
                   </div>
@@ -441,58 +451,80 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
                 
                 <div className="ml-4">
                   {canCompleteTask(task) ? (
-                    <Button
-                      size="sm"
-                      onClick={() => handleCompleteTask(task.id)}
-                      disabled={completingTasks.has(task.id)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      {completingTasks.has(task.id) ? (
-                        <>
-                          <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                          Completing...
-                        </>
-                      ) : task.type === 'invitation' ? (
-                        <>
-                          <Mail className="h-4 w-4 mr-2" />
-                          Send Invitation
-                        </>
-                      ) : task.type === 'document_upload' ? (
-                        <>
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload Documents
-                        </>
-                      ) : task.type === 'docusign_signature' ? (
-                        <>
-                          <FileSignature className="h-4 w-4 mr-2" />
-                          {docuSignLoading ? 'Preparing...' : 'Sign Document'}
-                        </>
-                      ) : (
-                        <>
-                          Complete Task
-                          {/* Debug: Show task type */}
-                          <span className="ml-1 text-xs opacity-50">({task.type})</span>
-                        </>
+                    <div className="flex flex-col gap-1.5">
+                      <Button
+                        size="sm"
+                        onClick={() => handleCompleteTask(task.id)}
+                        disabled={completingTasks.has(task.id)}
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-lg px-4 py-2"
+                      >
+                        {completingTasks.has(task.id) ? (
+                          <>
+                            <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                            Completing...
+                          </>
+                        ) : task.type === 'invitation' ? (
+                          <>
+                            <Mail className="h-4 w-4 mr-2" />
+                            Send Invitation
+                          </>
+                        ) : task.type === 'document_upload' ? (
+                          <>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload Documents
+                          </>
+                        ) : task.type === 'docusign_signature' ? (
+                          <>
+                            <FileSignature className="h-4 w-4 mr-2" />
+                            {docuSignLoading ? 'Preparing...' : 'Sign Document'}
+                          </>
+                        ) : (
+                          <>
+                            Complete Task
+                            {/* Debug: Show task type */}
+                            <span className="ml-1 text-xs opacity-50">({task.type})</span>
+                          </>
+                        )}
+                      </Button>
+                      
+                      {/* Development: Manual completion button for DocuSign tasks */}
+                      {task.type === 'docusign_signature' && process.env.NODE_ENV === 'development' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            if (confirm('Mark this DocuSign task as complete? (Development only)')) {
+                              await completeTask(task.id)
+                            }
+                          }}
+                          disabled={completingTasks.has(task.id)}
+                          className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Mark Complete
+                        </Button>
                       )}
-                    </Button>
+                    </div>
                   ) : task.status === 'completed' ? (
-                    <div className="flex items-center text-green-600 text-sm font-medium">
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Completed
+                    <div className="flex items-center bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-2 rounded-lg shadow-sm border border-emerald-200">
+                      <CheckCircle className="h-4 w-4 mr-1.5 text-emerald-600" />
+                      <span className="text-emerald-700 font-medium text-sm">Completed</span>
                     </div>
                   ) : task.status === 'blocked' ? (
-                    <div className="flex items-center text-gray-400 text-sm">
-                      <Lock className="h-4 w-4 mr-1" />
-                      Blocked
+                    <div className="flex items-center bg-gray-100/60 px-3 py-2 rounded-lg">
+                      <Lock className="h-4 w-4 mr-1.5 text-gray-400" />
+                      <span className="text-gray-500 font-medium text-sm">Blocked</span>
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-500">
-                      Assigned to {getRoleDisplayName(task.assignedRole).replace(' Tasks', '')}
+                    <div className="px-3 py-2 bg-white/60 rounded-lg">
+                      <span className="text-xs text-gray-600 font-medium">
+                        Assigned to {getRoleDisplayName(task.assignedRole).replace(' Tasks', '')}
+                      </span>
                     </div>
                   )}
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
         ))}
       </div>
