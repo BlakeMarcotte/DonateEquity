@@ -22,8 +22,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has nonprofit admin role
-    const userClaims = authResult.decodedToken.customClaims as CustomClaims
-    if (!userClaims || userClaims.role !== 'nonprofit_admin') {
+    const decodedToken = authResult.decodedToken
+    // Custom claims are stored directly on the token, not in a customClaims property
+    const userClaims = {
+      role: decodedToken.role,
+      subrole: decodedToken.subrole,
+      organizationId: decodedToken.organizationId,
+      permissions: decodedToken.permissions
+    } as CustomClaims
+    
+    if (!userClaims.role || userClaims.role !== 'nonprofit_admin') {
       return NextResponse.json(
         { error: 'Only nonprofit admins can invite team members' },
         { status: 403 }
@@ -164,14 +172,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has nonprofit admin role
-    const userClaims = authResult.decodedToken.customClaims as CustomClaims
+    const decodedToken = authResult.decodedToken
+    // Custom claims are stored directly on the token, not in a customClaims property
+    const userClaims = {
+      role: decodedToken.role,
+      subrole: decodedToken.subrole,
+      organizationId: decodedToken.organizationId,
+      permissions: decodedToken.permissions
+    } as CustomClaims
     
-    // Debug logging
-    console.log('DEBUG: User claims in invite API:', userClaims)
-    console.log('DEBUG: User role:', userClaims?.role)
-    console.log('DEBUG: User subrole:', userClaims?.subrole)
+    console.log('DEBUG: Fixed GET - User role:', userClaims.role)
+    console.log('DEBUG: Fixed GET - User organization ID:', userClaims.organizationId)
     
-    if (!userClaims || userClaims.role !== 'nonprofit_admin') {
+    if (!userClaims.role || userClaims.role !== 'nonprofit_admin') {
       return NextResponse.json(
         { error: 'Only nonprofit admins can view invitations' },
         { status: 403 }

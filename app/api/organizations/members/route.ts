@@ -25,15 +25,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has nonprofit admin role
-    const userClaims = authResult.decodedToken.customClaims as CustomClaims
+    const decodedToken = authResult.decodedToken
+    // Custom claims are stored directly on the token, not in a customClaims property
+    const userClaims = {
+      role: decodedToken.role,
+      subrole: decodedToken.subrole,
+      organizationId: decodedToken.organizationId,
+      permissions: decodedToken.permissions
+    } as CustomClaims
     
-    // Debug logging
-    console.log('DEBUG: User claims in API:', userClaims)
-    console.log('DEBUG: User role:', userClaims?.role)
-    console.log('DEBUG: User subrole:', userClaims?.subrole)
-    console.log('DEBUG: User organization ID:', userClaims?.organizationId)
+    console.log('DEBUG: Fixed - User role:', userClaims.role)
+    console.log('DEBUG: Fixed - User subrole:', userClaims.subrole)
+    console.log('DEBUG: Fixed - User organization ID:', userClaims.organizationId)
     
-    if (!userClaims || userClaims.role !== 'nonprofit_admin') {
+    if (!userClaims.role || userClaims.role !== 'nonprofit_admin') {
       return NextResponse.json(
         { error: 'Only nonprofit admins can view team members' },
         { status: 403 }
@@ -124,8 +129,15 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if user has nonprofit admin role with admin subrole
-    const userClaims = authResult.decodedToken.customClaims as CustomClaims
-    if (!userClaims || userClaims.role !== 'nonprofit_admin' || userClaims.subrole !== 'admin') {
+    const decodedToken = authResult.decodedToken
+    const userClaims = {
+      role: decodedToken.role,
+      subrole: decodedToken.subrole,
+      organizationId: decodedToken.organizationId,
+      permissions: decodedToken.permissions
+    } as CustomClaims
+    
+    if (!userClaims.role || userClaims.role !== 'nonprofit_admin' || userClaims.subrole !== 'admin') {
       return NextResponse.json(
         { error: 'Only organization admins can update member roles' },
         { status: 403 }
@@ -268,8 +280,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if user has nonprofit admin role with admin subrole
-    const userClaims = authResult.decodedToken.customClaims as CustomClaims
-    if (!userClaims || userClaims.role !== 'nonprofit_admin' || userClaims.subrole !== 'admin') {
+    const decodedToken = authResult.decodedToken
+    const userClaims = {
+      role: decodedToken.role,
+      subrole: decodedToken.subrole,
+      organizationId: decodedToken.organizationId,
+      permissions: decodedToken.permissions
+    } as CustomClaims
+    
+    if (!userClaims.role || userClaims.role !== 'nonprofit_admin' || userClaims.subrole !== 'admin') {
       return NextResponse.json(
         { error: 'Only organization admins can remove members' },
         { status: 403 }
