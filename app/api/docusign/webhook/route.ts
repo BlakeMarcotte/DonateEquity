@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
+import { docuSignClient } from '@/lib/docusign/simple-client'
+import { uploadDonationBufferAdmin } from '@/lib/firebase/storage-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,6 +51,35 @@ export async function POST(request: NextRequest) {
         // Only complete the task if the envelope is actually completed
         if (envelopeStatus === 'completed' && task.status !== 'completed') {
           try {
+            let signedDocumentUrl = null
+            
+            // Download and store the signed document
+            try {
+              console.log(`Downloading signed document for envelope ${envelopeId}`)
+              const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(envelopeId)
+              
+              // Extract donation ID from task
+              const donationId = task.donationId
+              if (donationId) {
+                console.log(`Uploading signed document to storage for donation ${donationId}`)
+                const uploadResult = await uploadDonationBufferAdmin(
+                  donationId,
+                  'signed-documents',
+                  documentBuffer,
+                  `signed-nda-${envelopeId}.pdf`,
+                  'application/pdf'
+                )
+                
+                signedDocumentUrl = uploadResult.url
+                console.log(`Signed document stored at: ${signedDocumentUrl}`)
+              } else {
+                console.warn(`No donationId found in task ${taskDoc.id} metadata`)
+              }
+            } catch (downloadError) {
+              console.error(`Failed to download/store signed document for envelope ${envelopeId}:`, downloadError)
+              // Continue with task completion even if document download fails
+            }
+
             // Update the task status to completed
             await adminDb.collection('tasks').doc(taskDoc.id).update({
               status: 'completed',
@@ -57,7 +88,8 @@ export async function POST(request: NextRequest) {
               metadata: {
                 ...task.metadata,
                 docuSignStatus: envelopeStatus,
-                docuSignCompletedAt: new Date().toISOString()
+                docuSignCompletedAt: new Date().toISOString(),
+                signedDocumentUrl: signedDocumentUrl || null
               }
             })
 

@@ -95,7 +95,7 @@ export function AppraiserInvitationForm({
 
   if (success) {
     return (
-      <div className={`p-6 ${className}`}>
+      <div className={className}>
         <div className="text-center">
           <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -113,14 +113,7 @@ export function AppraiserInvitationForm({
   }
 
   return (
-    <div className={`p-6 ${className}`}>
-      <div className="flex items-center space-x-2 mb-6">
-        <Mail className="h-5 w-5 text-blue-600" />
-        <h3 className="text-lg font-semibold text-gray-900">
-          Invite Appraiser to Platform
-        </h3>
-      </div>
-
+    <div className={className}>
       <div className="mb-6">
         <p className="text-gray-600 text-sm leading-relaxed">
           To proceed with your equity donation, you'll need to invite a qualified appraiser to assess the value of your equity. 

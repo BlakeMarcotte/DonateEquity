@@ -29,13 +29,11 @@ export function Modal({
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscape)
-      // Prevent body scroll
-      document.body.style.overflow = 'hidden'
+      // Allow background scrolling - don't prevent body scroll
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape)
-      document.body.style.overflow = 'unset'
     }
   }, [isOpen, onClose])
 
@@ -63,8 +61,8 @@ export function Modal({
       `}>
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-2xl font-semibold text-gray-900">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900">
               {title}
             </h2>
             <button
@@ -77,7 +75,7 @@ export function Modal({
         )}
         
         {/* Content */}
-        <div className="overflow-y-auto">
+        <div className="p-6 overflow-y-auto">
           {children}
         </div>
       </div>

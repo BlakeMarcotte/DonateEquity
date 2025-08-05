@@ -53,11 +53,11 @@ service firebase.storage {
     }
     
     function isValidFileType(allowedTypes) {
-      return resource.contentType in allowedTypes;
+      return request.resource.contentType in allowedTypes;
     }
     
     function isValidFileSize(maxSizeBytes) {
-      return resource.size <= maxSizeBytes;
+      return request.resource.size <= maxSizeBytes;
     }
 
     // User profile images
@@ -89,23 +89,11 @@ service firebase.storage {
       );
     }
     
-    // Donation-specific documents - Temporary permissive rules for debugging
+    // Donation-specific documents - Debug mode - very permissive
     match /donations/{donationId}/{folder}/{fileName} {
       allow read: if isAuthenticated();
-      allow write: if (
-        isAuthenticated() &&
-        hasAnyRole(['donor', 'nonprofit_admin', 'appraiser', 'admin']) &&
-        isValidFileSize(50 * 1024 * 1024) && // 50MB limit for legal/financial docs
-        isValidFileType([
-          'application/pdf',
-          'image/jpeg', 
-          'image/png',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'text/plain'
-        ])
-      );
-      allow delete: if isAuthenticated() && hasAnyRole(['donor', 'nonprofit_admin', 'appraiser', 'admin']);
+      allow write: if isAuthenticated(); // Temporary: allow any authenticated user
+      allow delete: if isAuthenticated();
     }
     
     // Campaign shared materials

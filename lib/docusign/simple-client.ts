@@ -439,6 +439,35 @@ export class DocuSignSimpleClient {
       throw new Error('Failed to get sender view URL')
     }
   }
+
+  /**
+   * Download completed/signed envelope documents
+   */
+  async downloadEnvelopeDocuments(envelopeId: string): Promise<Buffer> {
+    try {
+      const { accessToken, accountId } = await this.ensureAuthenticated()
+
+      const response = await fetch(`${this.baseUrl}/v2.1/accounts/${accountId}/envelopes/${envelopeId}/documents/combined`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/pdf'
+        }
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('DocuSign download documents error:', errorText)
+        throw new Error(`Failed to download documents: ${response.status}`)
+      }
+
+      // Return the PDF as a buffer
+      const arrayBuffer = await response.arrayBuffer()
+      return Buffer.from(arrayBuffer)
+    } catch (error) {
+      console.error('Failed to download DocuSign documents:', error)
+      throw new Error('Failed to download signed documents')
+    }
+  }
 }
 
 // Export a singleton instance

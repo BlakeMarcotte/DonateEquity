@@ -32,8 +32,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="h-full scroll-smooth">
-      <body className={`${inter.className} h-full antialiased`}>
+    <html lang="en" className="scroll-smooth">
+      <body className={`${inter.className} antialiased`}>
         <AuthProvider>
           <Navbar />
           <LayoutWrapper>

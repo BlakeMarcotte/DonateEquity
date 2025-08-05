@@ -26,6 +26,51 @@ export interface FileUploadResult {
 }
 
 /**
+ * Upload a buffer to Firebase Storage for a specific donation (server-side)
+ */
+export async function uploadDonationBuffer(
+  donationId: string,
+  folder: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general',
+  buffer: Buffer,
+  fileName: string,
+  contentType: string = 'application/pdf'
+): Promise<FileUploadResult> {
+  const fullFileName = `${Date.now()}_${fileName}`
+  const filePath = `donations/${donationId}/${folder}/${fullFileName}`
+  const storageRef = ref(storage, filePath)
+
+  try {
+    console.log('Uploading buffer to path:', filePath)
+    console.log('Buffer size:', buffer.length, 'bytes')
+    
+    // Upload the buffer directly
+    const snapshot = await uploadBytesResumable(storageRef, buffer, {
+      contentType,
+      customMetadata: {
+        uploadedBy: 'system',
+        source: 'docusign'
+      }
+    })
+    
+    console.log('Buffer upload completed, getting download URL...')
+    const downloadURL = await getDownloadURL(snapshot.ref)
+    console.log('Download URL obtained:', downloadURL)
+    
+    return {
+      url: downloadURL,
+      path: filePath,
+      name: fileName,
+      size: buffer.length,
+      type: contentType,
+      uploadedAt: new Date()
+    }
+  } catch (error) {
+    console.error('Buffer upload failed:', error)
+    throw error
+  }
+}
+
+/**
  * Upload a file to Firebase Storage for a specific donation
  */
 export async function uploadDonationFile(

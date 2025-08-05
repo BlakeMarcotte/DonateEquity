@@ -76,7 +76,7 @@ export default function MyCampaignPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="bg-gradient-to-br from-gray-50 to-blue-50">
       {/* Enhanced Header with Gradient */}
       <div className="bg-gradient-to-r from-white to-blue-50/30 border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-10">
@@ -103,7 +103,7 @@ export default function MyCampaignPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-10 py-6">
+      <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-10 py-6 pb-20">
 
         {/* Timeline Section */}
         {donation && tasks.length > 0 && (

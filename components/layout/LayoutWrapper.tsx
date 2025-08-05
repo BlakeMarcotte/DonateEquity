@@ -20,7 +20,7 @@ export default function LayoutWrapper({
     pathname !== '/'
 
   return (
-    <div className="min-h-full">
+    <div className="min-h-screen">
       <main className={showSidebarPadding ? 'lg:pl-64' : ''}>
         {children}
       </main>

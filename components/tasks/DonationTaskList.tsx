@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useDonationTasks } from '@/hooks/useDonationTasks'
 import { useAuth } from '@/contexts/AuthContext'
 import { Task } from '@/types/task'
@@ -28,6 +28,8 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   const [resettingTasks, setResettingTasks] = useState(false)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const { uploadFile } = useDonationFiles(donationId)
+  const fileUploadRef = useRef<any>(null)
+  const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
   if (loading) {
     return (
@@ -135,17 +137,18 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
   const handleUploadSuccess = async (file: File, folder: string) => {
     try {
       await uploadFile(file, folder as any)
-      // After successful upload, we can mark the task as completed or let the user choose when to complete
+      // After all files are uploaded, close modal and mark task complete
+      setShowUploadModal(false)
+      setCurrentUploadTask(null)
+      setHasFilesSelected(false)
+      // Mark the upload task as completed
+      if (currentUploadTask) {
+        await completeTask(currentUploadTask.id)
+      }
     } catch (error) {
       console.error('Upload failed:', error)
       throw error
     }
-  }
-  
-  const handleUploadComplete = () => {
-    setShowUploadModal(false)
-    setCurrentUploadTask(null)
-    // The useDonationTasks hook should automatically refresh
   }
   
   const handleDocuSignTask = async (taskId: string) => {
@@ -549,26 +552,36 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
         title={currentUploadTask?.title || 'Upload Documents'}
         size="lg"
       >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+        <div className="space-y-6">
+          <p className="text-gray-600 leading-relaxed">
             {currentUploadTask?.description}
           </p>
           <FileUpload
             onUpload={handleUploadSuccess}
             className="max-h-96 overflow-y-auto"
+            showUploadButton={false}
+            ref={fileUploadRef}
+            onFilesChange={setHasFilesSelected}
           />
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex justify-between items-center pt-4 border-t border-gray-100">
             <Button
-              onClick={() => setShowUploadModal(false)}
+              onClick={() => {
+                setShowUploadModal(false)
+                setCurrentUploadTask(null)
+                setHasFilesSelected(false)
+              }}
               variant="outline"
+              className="rounded-xl"
             >
               Cancel
             </Button>
             <Button
-              onClick={handleUploadComplete}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => fileUploadRef.current?.triggerUpload()}
+              disabled={!hasFilesSelected}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl px-6 py-3 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Done Uploading
+              <Upload className="h-4 w-4 mr-2" />
+              Upload & Complete
             </Button>
           </div>
         </div>
