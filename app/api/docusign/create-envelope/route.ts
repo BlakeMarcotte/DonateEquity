@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
     // Path to the NDA document
     const documentPath = path.join(process.cwd(), 'public', 'nda-general.pdf')
 
-    // Create envelope
-    const envelope = await docuSignClient.createEnvelope({
+    // Create and send envelope for immediate free-form signing
+    const envelope = await docuSignClient.createAndSendEnvelope({
       signerEmail,
       signerName,
       documentPath,

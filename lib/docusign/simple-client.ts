@@ -107,6 +107,7 @@ export class DocuSignSimpleClient {
 
   /**
    * Create an envelope with a document for signing
+   * Uses free-form signing - signers can place signatures/dates anywhere
    */
   async createEnvelope(params: {
     signerEmail: string
@@ -114,6 +115,7 @@ export class DocuSignSimpleClient {
     documentPath: string
     documentName: string
     emailSubject: string
+    allowFreeFormSigning?: boolean
   }): Promise<any> {
     const { signerEmail, signerName, documentPath, documentName, emailSubject } = params
 
@@ -140,19 +142,12 @@ export class DocuSignSimpleClient {
             name: signerName,
             recipientId: '1',
             routingOrder: '1',
-            tabs: {
-              signHereTabs: [{
-                documentId: '1',
-                pageNumber: '1',
-                recipientId: '1',
-                tabLabel: 'SignHereTab',
-                xPosition: '195',
-                yPosition: '147'
-              }]
-            }
+            clientUserId: '1' // Required for embedded signing with free-form
+            // No tabs defined - enables free-form signing where signers can place
+            // their signatures and dates anywhere on the document
           }]
         },
-        status: 'sent'
+        status: 'created' // Use 'created' to allow sender to add fields, or 'sent' for immediate sending
       }
 
       // Create the envelope
@@ -163,7 +158,7 @@ export class DocuSignSimpleClient {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({ envelopeDefinition })
+        body: JSON.stringify(envelopeDefinition)
       })
 
       if (!response.ok) {
@@ -224,7 +219,8 @@ export class DocuSignSimpleClient {
         email: recipientEmail,
         userName: recipientName,
         recipientId,
-        returnUrl
+        returnUrl,
+        clientUserId: '1' // Must match the clientUserId from envelope creation
       }
 
       const response = await fetch(`${this.baseUrl}/v2.1/accounts/${accountId}/envelopes/${envelopeId}/views/recipient`, {
@@ -247,6 +243,142 @@ export class DocuSignSimpleClient {
     } catch (error) {
       console.error('Failed to get DocuSign recipient view:', error)
       throw new Error('Failed to get recipient view URL')
+    }
+  }
+
+  /**
+   * Create and immediately send an envelope for free-form signing
+   */
+  async createAndSendEnvelope(params: {
+    signerEmail: string
+    signerName: string
+    documentPath: string
+    documentName: string
+    emailSubject: string
+  }): Promise<any> {
+    const { signerEmail, signerName, documentPath, documentName, emailSubject } = params
+
+    try {
+      const { accessToken, accountId } = await this.ensureAuthenticated()
+
+      // Read the document file
+      const fs = await import('fs/promises')
+      const documentBytes = await fs.readFile(documentPath)
+      const documentBase64 = documentBytes.toString('base64')
+
+      // Create the envelope definition with immediate sending for free-form signing
+      const envelopeDefinition = {
+        emailSubject,
+        documents: [{
+          documentBase64,
+          name: documentName,
+          fileExtension: 'pdf',
+          documentId: '1'
+        }],
+        recipients: {
+          signers: [{
+            email: signerEmail,
+            name: signerName,
+            recipientId: '1',
+            routingOrder: '1',
+            clientUserId: '1' // Required for embedded signing with free-form
+            // No tabs defined - enables free-form signing where signers can place
+            // their signatures and dates anywhere on the document
+          }]
+        },
+        status: 'sent' // Send immediately for free-form signing
+      }
+
+      // Create the envelope
+      const response = await fetch(`${this.baseUrl}/v2.1/accounts/${accountId}/envelopes`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(envelopeDefinition)
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('DocuSign create and send envelope error:', errorText)
+        throw new Error(`Failed to create and send envelope: ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Failed to create and send DocuSign envelope:', error)
+      throw new Error('Failed to create and send envelope for signing')
+    }
+  }
+
+  /**
+   * Send an envelope (change status from created to sent)
+   */
+  async sendEnvelope(envelopeId: string): Promise<any> {
+    try {
+      const { accessToken, accountId } = await this.ensureAuthenticated()
+
+      const response = await fetch(`${this.baseUrl}/v2.1/accounts/${accountId}/envelopes/${envelopeId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ status: 'sent' })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('DocuSign send envelope error:', errorText)
+        throw new Error(`Failed to send envelope: ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Failed to send DocuSign envelope:', error)
+      throw new Error('Failed to send envelope')
+    }
+  }
+
+  /**
+   * Get sender view URL for tagging/placing fields
+   */
+  async getSenderView(params: {
+    envelopeId: string
+    returnUrl: string
+  }): Promise<any> {
+    const { envelopeId, returnUrl } = params
+
+    try {
+      const { accessToken, accountId } = await this.ensureAuthenticated()
+
+      const viewRequest = {
+        returnUrl
+      }
+
+      const response = await fetch(`${this.baseUrl}/v2.1/accounts/${accountId}/envelopes/${envelopeId}/views/sender`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(viewRequest)
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('DocuSign sender view error:', errorText)
+        throw new Error(`Failed to get sender view: ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Failed to get DocuSign sender view:', error)
+      throw new Error('Failed to get sender view URL')
     }
   }
 }
