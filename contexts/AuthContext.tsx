@@ -5,7 +5,7 @@ import { User } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { onAuthChange, getCurrentUser } from '@/lib/firebase/auth'
 import { db } from '@/lib/firebase/config'
-import { UserProfile, UserRole, CustomClaims } from '@/types/auth'
+import { UserProfile, UserRole, CustomClaims, NonprofitSubrole } from '@/types/auth'
 
 interface AuthContextType {
   user: User | null
@@ -39,6 +39,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           email: user.email || '',
           displayName: user.displayName || '',
           role: data.role,
+          subrole: data.subrole,
           organizationId: data.organizationId,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
@@ -62,11 +63,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const fetchCustomClaims = async (user: User): Promise<CustomClaims | null> => {
     try {
       const idTokenResult = await user.getIdTokenResult()
-      const { role, organizationId, permissions } = idTokenResult.claims
+      const { role, subrole, organizationId, permissions } = idTokenResult.claims
       
       if (role) {
         return {
           role: role as UserRole,
+          subrole: subrole as NonprofitSubrole | undefined,
           organizationId: organizationId as string,
           permissions: (permissions as string[]) || [],
         }

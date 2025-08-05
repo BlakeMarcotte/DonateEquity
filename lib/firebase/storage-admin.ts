@@ -1,5 +1,5 @@
 import { getStorage } from 'firebase-admin/storage'
-import { adminApp } from './admin'
+import adminApp from './admin'
 
 export interface ServerFileUploadResult {
   url: string

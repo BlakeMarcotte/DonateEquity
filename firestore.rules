@@ -22,8 +22,16 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() in roles;
     }
     
-    function isAdmin() {
-      return hasRole('admin');
+    function isNonprofitAdmin() {
+      return hasRole('nonprofit_admin');
+    }
+    
+    function hasAdminSubrole() {
+      return isAuthenticated() && request.auth.token.subrole == 'admin';
+    }
+    
+    function isOrganizationAdmin() {
+      return isNonprofitAdmin() && hasAdminSubrole();
     }
     
     function belongsToUser(userId) {
@@ -44,8 +52,8 @@ service cloud.firestore {
 
     // Users collection - users can only access their own profile
     match /users/{userId} {
-      allow read: if belongsToUser(userId) || isAdmin();
-      allow write: if belongsToUser(userId) || isAdmin();
+      allow read: if belongsToUser(userId) || isOrganizationAdmin();
+      allow write: if belongsToUser(userId) || isOrganizationAdmin();
       allow create: if belongsToUser(userId);
       // Allow nonprofit admins to check if a user exists (for invitations)
       allow list: if hasRole('nonprofit_admin');
@@ -54,22 +62,22 @@ service cloud.firestore {
     // Organizations collection
     match /organizations/{orgId} {
       allow read: if isAuthenticated();
-      allow create: if hasAnyRole(['nonprofit_admin', 'appraiser', 'admin']);
-      allow update: if isOrganizationMember(orgId) || isAdmin();
-      allow delete: if isAdmin();
+      allow create: if hasAnyRole(['nonprofit_admin', 'appraiser']);
+      allow update: if isOrganizationMember(orgId) || (isOrganizationAdmin() && isOrganizationMember(orgId));
+      allow delete: if isOrganizationAdmin() && isOrganizationMember(orgId);
     }
     
     // Campaigns collection
     match /campaigns/{campaignId} {
       allow read: if isAuthenticated();
-      allow create: if hasRole('nonprofit_admin') || isAdmin();
+      allow create: if hasRole('nonprofit_admin');
       allow update: if (
         isAuthenticated() && (
           resource.data.createdBy == getUserId() ||
-          isAdmin()
+          (isOrganizationAdmin() && resource.data.organizationId == request.auth.token.organizationId)
         )
       );
-      allow delete: if isAdmin();
+      allow delete: if isOrganizationAdmin() && resource.data.organizationId == request.auth.token.organizationId;
       
       // Campaign donations subcollection
       match /donations/{donationId} {
@@ -78,19 +86,19 @@ service cloud.firestore {
             resource.data.donorId == getUserId() ||
             resource.data.nonprofitAdminId == getUserId() ||
             resource.data.appraiserId == getUserId() ||
-            isAdmin()
+            (isOrganizationAdmin() && resource.data.organizationId == request.auth.token.organizationId)
           )
         );
-        allow create: if hasRole('donor') || isAdmin();
+        allow create: if hasRole('donor');
         allow update: if (
           isAuthenticated() && (
             resource.data.donorId == getUserId() ||
             resource.data.nonprofitAdminId == getUserId() ||
             resource.data.appraiserId == getUserId() ||
-            isAdmin()
+            (isOrganizationAdmin() && resource.data.organizationId == request.auth.token.organizationId)
           )
         );
-        allow delete: if isAdmin();
+        allow delete: if isOrganizationAdmin() && resource.data.organizationId == request.auth.token.organizationId;
       }
       
       // Campaign tasks subcollection
@@ -99,18 +107,18 @@ service cloud.firestore {
           isAuthenticated() && (
             resource.data.assignedTo == getUserId() ||
             resource.data.createdBy == getUserId() ||
-            isAdmin()
+            isOrganizationAdmin()
           )
         );
-        allow create: if hasAnyRole(['nonprofit_admin', 'appraiser', 'admin']);
+        allow create: if hasAnyRole(['nonprofit_admin', 'appraiser']);
         allow update: if (
           isAuthenticated() && (
             resource.data.assignedTo == getUserId() ||
             resource.data.createdBy == getUserId() ||
-            isAdmin()
+            isOrganizationAdmin()
           )
         );
-        allow delete: if isAdmin();
+        allow delete: if isOrganizationAdmin();
       }
     }
     
@@ -127,7 +135,7 @@ service cloud.firestore {
           (hasRole('nonprofit_admin') && 
            exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
            get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.organizationId == request.auth.token.organizationId) ||
-          isAdmin()
+          isOrganizationAdmin()
         )
       );
       // Allow list/query operations for nonprofit admins to see donations for their campaigns
@@ -136,19 +144,19 @@ service cloud.firestore {
           hasRole('nonprofit_admin') ||
           hasRole('donor') ||
           hasRole('appraiser') ||
-          isAdmin()
+          isOrganizationAdmin()
         )
       );
-      allow create: if hasRole('donor') || isAdmin();
+      allow create: if hasRole('donor') || isOrganizationAdmin();
       allow update: if (
         isAuthenticated() && (
           resource.data.donorId == getUserId() ||
           resource.data.nonprofitAdminId == getUserId() ||
           resource.data.appraiserId == getUserId() ||
-          isAdmin()
+          isOrganizationAdmin()
         )
       );
-      allow delete: if isAdmin();
+      allow delete: if isOrganizationAdmin();
       
       // Donation tasks subcollection
       match /tasks/{taskId} {
@@ -157,13 +165,13 @@ service cloud.firestore {
             resource.data.assignedTo == getUserId() ||
             resource.data.createdBy == getUserId() ||
             isDonationParticipant(get(/databases/$(database)/documents/donations/$(donationId)).data) ||
-            isAdmin()
+            isOrganizationAdmin()
           )
         );
         allow create: if (
           isAuthenticated() && (
             hasAnyRole(['nonprofit_admin', 'appraiser', 'donor']) ||
-            isAdmin()
+            isOrganizationAdmin()
           )
         );
         allow update: if (
@@ -171,10 +179,10 @@ service cloud.firestore {
             resource.data.assignedTo == getUserId() ||
             resource.data.createdBy == getUserId() ||
             isDonationParticipant(get(/databases/$(database)/documents/donations/$(donationId)).data) ||
-            isAdmin()
+            isOrganizationAdmin()
           )
         );
-        allow delete: if isAdmin();
+        allow delete: if isOrganizationAdmin();
       }
       
       // Donation documents subcollection
@@ -182,26 +190,26 @@ service cloud.firestore {
         allow read: if (
           isAuthenticated() && (
             isDonationParticipant(get(/databases/$(database)/documents/donations/$(donationId)).data) ||
-            isAdmin()
+            isOrganizationAdmin()
           )
         );
         allow create: if (
           isAuthenticated() && (
             hasAnyRole(['nonprofit_admin', 'appraiser', 'donor']) ||
-            isAdmin()
+            isOrganizationAdmin()
           )
         );
         allow update: if (
           isAuthenticated() && (
             resource.data.uploadedBy == getUserId() ||
             isDonationParticipant(get(/databases/$(database)/documents/donations/$(donationId)).data) ||
-            isAdmin()
+            isOrganizationAdmin()
           )
         );
         allow delete: if (
           isAuthenticated() && (
             resource.data.uploadedBy == getUserId() ||
-            isAdmin()
+            isOrganizationAdmin()
           )
         );
       }
@@ -224,16 +232,16 @@ service cloud.firestore {
            (get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.donorId == getUserId() ||
             get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.nonprofitAdminId == getUserId() ||
             get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.appraiserId == getUserId())) ||
-          isAdmin()
+          isOrganizationAdmin()
         )
       );
       // Allow list/query operations for task collections - needed for real-time listeners
       allow list: if (
         isAuthenticated() && (
-          hasAnyRole(['donor', 'nonprofit_admin', 'appraiser', 'admin'])
+          hasAnyRole(['donor', 'nonprofit_admin', 'appraiser'])
         )
       );
-      allow create: if hasAnyRole(['nonprofit_admin', 'appraiser', 'donor', 'admin']);
+      allow create: if hasAnyRole(['nonprofit_admin', 'appraiser', 'donor']);
       allow update: if (
         isAuthenticated() && (
           resource.data.assignedTo == getUserId() ||
@@ -249,13 +257,13 @@ service cloud.firestore {
            (get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.donorId == getUserId() ||
             get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.nonprofitAdminId == getUserId() ||
             get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.appraiserId == getUserId())) ||
-          isAdmin()
+          isOrganizationAdmin()
         )
       );
       allow delete: if (
         isAuthenticated() && (
           resource.data.createdBy == getUserId() ||
-          isAdmin()
+          isOrganizationAdmin()
         )
       );
     }
@@ -266,32 +274,24 @@ service cloud.firestore {
         isAuthenticated() && (
           resource.data.uploadedBy == getUserId() ||
           resource.data.sharedWith[getUserId()] == true ||
-          isAdmin()
+          isOrganizationAdmin()
         )
       );
       allow create: if isAuthenticated();
       allow update: if (
         isAuthenticated() && (
           resource.data.uploadedBy == getUserId() ||
-          isAdmin()
+          isOrganizationAdmin()
         )
       );
       allow delete: if (
         isAuthenticated() && (
           resource.data.uploadedBy == getUserId() ||
-          isAdmin()
+          isOrganizationAdmin()
         )
       );
     }
     
-    // Admin-only collections
-    match /audit_logs/{logId} {
-      allow read, write: if isAdmin();
-    }
-    
-    match /system_config/{configId} {
-      allow read, write: if isAdmin();
-    }
     
     // Campaign invitations collection
     match /campaign_invitations/{invitationId} {
@@ -304,8 +304,7 @@ service cloud.firestore {
           // Nonprofit admins can read invitations for their organization's campaigns
           (hasRole('nonprofit_admin') && 
            exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
-           get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.organizationId == request.auth.token.organizationId) ||
-          isAdmin()
+           get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.organizationId == request.auth.token.organizationId)
         )
       );
       // Allow unauthenticated read for invitation tokens (public invitation links)
@@ -315,13 +314,11 @@ service cloud.firestore {
         // Allow authenticated users to list their invitations
         (isAuthenticated() && (
           hasRole('nonprofit_admin') ||
-          hasRole('donor') ||
-          isAdmin()
+          hasRole('donor')
         ))
       );
       allow create: if (
-        hasRole('nonprofit_admin') || 
-        isAdmin()
+        hasRole('nonprofit_admin')
       );
       allow update: if (
         isAuthenticated() && (
@@ -332,11 +329,10 @@ service cloud.firestore {
           // Allow authenticated user to link themselves and respond to invitation
           // This handles the case where user registers and needs to accept invitation
           (request.resource.data.invitedUserId == getUserId() && 
-           request.resource.data.status in ['accepted', 'declined']) ||
-          isAdmin()
+           request.resource.data.status in ['accepted', 'declined'])
         )
       );
-      allow delete: if isAdmin();
+      allow delete: if hasRole('nonprofit_admin');
     }
     
     // Appraiser invitations collection
@@ -346,9 +342,7 @@ service cloud.firestore {
           // Inviter can read their own invitations
           resource.data.inviterUserId == getUserId() ||
           // Invited appraiser can read invitations for their email
-          (hasRole('appraiser') && resource.data.appraiserEmail == request.auth.token.email) ||
-          // Allow reading invitations by token (public invitation links)
-          isAdmin()
+          (hasRole('appraiser') && resource.data.appraiserEmail == request.auth.token.email)
         )
       );
       // Allow unauthenticated read for specific invitation tokens (public invitation links)
@@ -358,13 +352,11 @@ service cloud.firestore {
         // Allow authenticated users to list their invitations
         (isAuthenticated() && (
           hasRole('donor') ||
-          hasRole('appraiser') ||
-          isAdmin()
+          hasRole('appraiser')
         ))
       );
       allow create: if (
-        hasRole('donor') || 
-        isAdmin()
+        hasRole('donor')
       );
       allow update: if (
         isAuthenticated() && (
@@ -372,41 +364,36 @@ service cloud.firestore {
           resource.data.inviterUserId == getUserId() ||
           // Invited appraiser can accept/decline invitations for their email
           (hasRole('appraiser') && resource.data.appraiserEmail == request.auth.token.email &&
-           request.resource.data.status in ['accepted', 'declined']) ||
-          isAdmin()
+           request.resource.data.status in ['accepted', 'declined'])
         )
       );
-      allow delete: if isAdmin();
+      allow delete: if hasRole('donor');
     }
     
     // Notifications collection
     match /notifications/{notificationId} {
       allow read: if (
         isAuthenticated() && (
-          resource.data.userId == getUserId() ||
-          isAdmin()
+          resource.data.userId == getUserId()
         )
       );
       allow list: if (
         isAuthenticated() && (
           // Users can list their own notifications
-          request.auth.uid == resource.data.userId ||
-          isAdmin()
+          request.auth.uid == resource.data.userId
         )
       );
       allow create: if (
-        hasAnyRole(['nonprofit_admin', 'appraiser', 'donor', 'admin'])
+        hasAnyRole(['nonprofit_admin', 'appraiser', 'donor'])
       );
       allow update: if (
         isAuthenticated() && (
-          resource.data.userId == getUserId() ||
-          isAdmin()
+          resource.data.userId == getUserId()
         )
       );
       allow delete: if (
         isAuthenticated() && (
-          resource.data.userId == getUserId() ||
-          isAdmin()
+          resource.data.userId == getUserId()
         )
       );
     }

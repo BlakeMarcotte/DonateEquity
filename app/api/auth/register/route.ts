@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
-import { UserRole } from '@/types/auth'
+import { UserRole, NonprofitSubrole } from '@/types/auth'
 
 interface RegisterRequest {
   email: string
   password: string
   displayName: string
   role: UserRole
+  subrole?: NonprofitSubrole
   organizationId?: string
   organizationName?: string
   phoneNumber?: string
@@ -25,14 +26,14 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'view_assigned_tasks',
     'submit_appraisals',
     'manage_own_profile'
-  ],
-  admin: [
-    'manage_all_users',
-    'manage_all_campaigns',
-    'manage_all_donations',
-    'view_analytics',
-    'system_admin'
   ]
+}
+
+const SUBROLE_PERMISSIONS: Record<NonprofitSubrole, string[]> = {
+  admin: ['manage_organization_users', 'manage_all_campaigns', 'approve_donations'],
+  member: [],
+  marketer: ['create_marketing_content', 'manage_social_media'],
+  signatory: ['sign_documents', 'approve_legal_documents']
 }
 
 export async function POST(request: NextRequest) {
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     const body: RegisterRequest = await request.json()
     
     // Validate required fields
-    const { email, password, displayName, role, organizationId, organizationName, phoneNumber } = body
+    const { email, password, displayName, role, subrole, organizationId, organizationName, phoneNumber } = body
     
     if (!email || !password || !displayName || !role) {
       return NextResponse.json(
@@ -50,9 +51,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate role
-    if (!['donor', 'nonprofit_admin', 'appraiser', 'admin'].includes(role)) {
+    if (!['donor', 'nonprofit_admin', 'appraiser'].includes(role)) {
       return NextResponse.json(
         { error: 'Invalid role specified' },
+        { status: 400 }
+      )
+    }
+
+    // Validate subrole if provided
+    if (subrole && role !== 'nonprofit_admin') {
+      return NextResponse.json(
+        { error: 'Subroles are only valid for nonprofit_admin role' },
+        { status: 400 }
+      )
+    }
+
+    if (subrole && !['admin', 'member', 'marketer', 'signatory'].includes(subrole)) {
+      return NextResponse.json(
+        { error: 'Invalid subrole specified' },
         { status: 400 }
       )
     }
@@ -115,9 +131,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Set custom claims
+    let permissions = [...ROLE_PERMISSIONS[role]]
+    if (subrole && role === 'nonprofit_admin') {
+      permissions = [...permissions, ...SUBROLE_PERMISSIONS[subrole]]
+    }
+
     const customClaims: Record<string, unknown> = {
       role,
-      permissions: ROLE_PERMISSIONS[role],
+      permissions,
+    }
+
+    if (subrole) {
+      customClaims.subrole = subrole
     }
 
     // All users now have an organization
@@ -141,6 +166,10 @@ export async function POST(request: NextRequest) {
       },
     }
 
+    if (subrole) {
+      userProfileData.subrole = subrole
+    }
+
     // All users now have an organization
     userProfileData.organizationId = finalOrganizationId
 
@@ -159,6 +188,7 @@ export async function POST(request: NextRequest) {
           email: userRecord.email,
           displayName: userRecord.displayName,
           role,
+          subrole,
           organizationId: finalOrganizationId,
         },
       },

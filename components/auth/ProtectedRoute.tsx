@@ -110,10 +110,3 @@ export function AppraiserRoute({ children, ...props }: Omit<ProtectedRouteProps,
   )
 }
 
-export function AdminRoute({ children, ...props }: Omit<ProtectedRouteProps, 'requiredRoles'>) {
-  return (
-    <ProtectedRoute requiredRoles={['admin']} {...props}>
-      {children}
-    </ProtectedRoute>
-  )
-}

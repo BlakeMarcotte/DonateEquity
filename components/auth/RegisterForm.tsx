@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { UserRole } from '@/types/auth'
+import { UserRole, NonprofitSubrole } from '@/types/auth'
 import { CampaignInvitation } from '@/types/invitations'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,6 +60,7 @@ export default function RegisterForm({
     confirmPassword: '',
     displayName: '',
     role: (preselectedRole || '') as UserRole | '',
+    subrole: 'admin' as NonprofitSubrole,
     organizationId: '',
     organizationName: '',
     createNewOrg: false,
@@ -183,6 +184,7 @@ export default function RegisterForm({
           password: formData.password,
           displayName: formData.displayName,
           role: formData.role,
+          subrole: formData.role === 'nonprofit_admin' ? formData.subrole : undefined,
           organizationId: formData.createNewOrg ? undefined : formData.organizationId || undefined,
           organizationName: formData.createNewOrg ? formData.organizationName : undefined,
         }),
@@ -362,6 +364,35 @@ export default function RegisterForm({
                   </p>
                 )}
               </div>
+
+              {/* Subrole Selection for Nonprofit Admins */}
+              {formData.role === 'nonprofit_admin' && (
+                <div className="space-y-2">
+                  <Label htmlFor="subrole" className="text-gray-700 font-medium">
+                    Your Role in the Organization *
+                  </Label>
+                  <div className="relative">
+                    <select
+                      id="subrole"
+                      name="subrole"
+                      required
+                      value={formData.subrole}
+                      onChange={handleInputChange}
+                      disabled={loading}
+                      className={`w-full h-12 px-4 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200 appearance-none bg-white pr-10 ${error ? 'form-error' : ''}`}
+                    >
+                      <option value="admin">Admin - Full organization management</option>
+                      <option value="member">Member - Basic nonprofit permissions</option>
+                      <option value="marketer">Marketer - Marketing and social media</option>
+                      <option value="signatory">Signatory - Document signing authority</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Choose your specific role within the nonprofit organization
+                  </p>
+                </div>
+              )}
 
               {/* Password Fields */}
               <div className="space-y-4">

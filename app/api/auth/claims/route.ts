@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
-import { UserRole, CustomClaims } from '@/types/auth'
+import { UserRole, CustomClaims, NonprofitSubrole } from '@/types/auth'
 import { verifyAuthToken } from '@/lib/auth/middleware'
 
 interface UpdateClaimsRequest {
   targetUserId: string
   role?: UserRole
+  subrole?: NonprofitSubrole
   organizationId?: string
   permissions?: string[]
 }
@@ -23,14 +24,14 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'view_assigned_tasks',
     'submit_appraisals',
     'manage_own_profile'
-  ],
-  admin: [
-    'manage_all_users',
-    'manage_all_campaigns',
-    'manage_all_donations',
-    'view_analytics',
-    'system_admin'
   ]
+}
+
+const SUBROLE_PERMISSIONS: Record<NonprofitSubrole, string[]> = {
+  admin: ['manage_organization_users', 'manage_all_campaigns', 'approve_donations'],
+  member: [],
+  marketer: ['create_marketing_content', 'manage_social_media'],
+  signatory: ['sign_documents', 'approve_legal_documents']
 }
 
 export async function PUT(request: NextRequest) {
@@ -44,9 +45,9 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Check if user has admin role
+    // Check if user has nonprofit admin role with admin subrole
     const userClaims = authResult.decodedToken.customClaims as CustomClaims
-    if (!userClaims || userClaims.role !== 'admin') {
+    if (!userClaims || userClaims.role !== 'nonprofit_admin' || userClaims.subrole !== 'admin') {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
@@ -54,7 +55,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body: UpdateClaimsRequest = await request.json()
-    const { targetUserId, role, organizationId, permissions } = body
+    const { targetUserId, role, subrole, organizationId, permissions } = body
 
     if (!targetUserId) {
       return NextResponse.json(
@@ -68,10 +69,22 @@ export async function PUT(request: NextRequest) {
     const currentClaims = targetUser.customClaims as CustomClaims || {}
 
     // Build updated claims
+    const newRole = role || currentClaims.role
+    const newSubrole = subrole !== undefined ? subrole : currentClaims.subrole
+    
+    let newPermissions = permissions
+    if (!newPermissions) {
+      newPermissions = [...ROLE_PERMISSIONS[newRole]]
+      if (newSubrole && newRole === 'nonprofit_admin') {
+        newPermissions = [...newPermissions, ...SUBROLE_PERMISSIONS[newSubrole]]
+      }
+    }
+
     const updatedClaims: CustomClaims = {
-      role: role || currentClaims.role,
+      role: newRole,
+      subrole: newSubrole,
       organizationId: organizationId !== undefined ? organizationId : currentClaims.organizationId,
-      permissions: permissions || (role ? ROLE_PERMISSIONS[role] : currentClaims.permissions),
+      permissions: newPermissions,
     }
 
     // Set custom claims
@@ -79,11 +92,15 @@ export async function PUT(request: NextRequest) {
 
     // Update user profile in Firestore
     const userRef = adminDb.collection('users').doc(targetUserId)
-    await userRef.update({
+    const updateData: any = {
       role: updatedClaims.role,
       organizationId: updatedClaims.organizationId,
       updatedAt: new Date(),
-    })
+    }
+    if (updatedClaims.subrole) {
+      updateData.subrole = updatedClaims.subrole
+    }
+    await userRef.update(updateData)
 
     return NextResponse.json({
       success: true,
