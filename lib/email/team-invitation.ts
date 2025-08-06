@@ -1,4 +1,4 @@
-import { render } from '@react-email/components'
+import { renderAsync } from '@react-email/components'
 import { resend, EMAIL_CONFIG, EMAIL_SUBJECTS } from './resend'
 import TeamInvitationEmail from './templates/team-invitation'
 
@@ -34,7 +34,7 @@ export async function sendTeamInvitationEmail({
     })
 
     // Render the email template
-    const emailHtml = render(TeamInvitationEmail({
+    const emailHtml = await renderAsync(TeamInvitationEmail({
       inviterName,
       organizationName,
       subrole,
@@ -42,6 +42,13 @@ export async function sendTeamInvitationEmail({
       invitationUrl,
       expiresAt: formattedExpiresAt,
     }))
+
+    // Ensure emailHtml is a string
+    if (typeof emailHtml !== 'string' || !emailHtml) {
+      throw new Error('Failed to render email template - HTML content is not a valid string')
+    }
+
+    console.log('Rendered email HTML length:', emailHtml.length)
 
     // Send the email
     const result = await resend.emails.send({
@@ -52,7 +59,7 @@ export async function sendTeamInvitationEmail({
       replyTo: EMAIL_CONFIG.replyTo,
       tags: [
         { name: 'category', value: 'team-invitation' },
-        { name: 'organization', value: organizationName },
+        { name: 'organization', value: organizationName.replace(/[^a-zA-Z0-9_-]/g, '_') },
       ],
     })
 

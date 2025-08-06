@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Eye, EyeOff, Loader2, ChevronDown, Mail, Heart } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ChevronDown, Mail, Heart, Users } from 'lucide-react'
 import { signIn } from '@/lib/firebase/auth'
 import { auth } from '@/lib/firebase/config'
 import { useAuth } from '@/contexts/AuthContext'
@@ -26,6 +26,8 @@ interface RegisterFormProps {
   invitation?: CampaignInvitation | null
   onSuccessRedirect?: string
   preselectedRole?: 'donor' | 'nonprofit_admin' | 'appraiser' | null
+  teamInvitation?: any
+  teamInviteToken?: string | null
 }
 
 const ROLES = [
@@ -36,7 +38,7 @@ const ROLES = [
   },
   {
     value: 'nonprofit_admin' as UserRole,
-    label: 'Nonprofit Administrator',
+    label: 'Nonprofit',
     description: 'Managing campaigns and donation workflows for a nonprofit',
   },
   {
@@ -51,7 +53,9 @@ export default function RegisterForm({
   redirectTo = '/organization', 
   invitation,
   onSuccessRedirect,
-  preselectedRole 
+  preselectedRole,
+  teamInvitation,
+  teamInviteToken
 }: RegisterFormProps) {
   const [step, setStep] = useState<'basic' | 'organization'>('basic')
   const [formData, setFormData] = useState({
@@ -82,8 +86,18 @@ export default function RegisterForm({
         email: invitation.invitedEmail,
         role: 'donor' // Default to donor for invitations
       }))
+    } else if (teamInvitation) {
+      // Pre-fill for team invitation
+      setFormData(prev => ({
+        ...prev,
+        email: teamInvitation.invitedEmail,
+        role: 'nonprofit_admin', // Always nonprofit_admin for team invites
+        subrole: teamInvitation.subrole,
+        organizationId: teamInvitation.organizationId,
+        createNewOrg: false, // They're joining an existing org
+      }))
     }
-  }, [invitation])
+  }, [invitation, teamInvitation])
 
   const fetchOrganizations = async (type: 'nonprofit' | 'appraiser' | 'donor') => {
     setLoadingOrgs(true)
@@ -144,8 +158,13 @@ export default function RegisterForm({
         return
       }
       
-      // All roles now require organization setup
-      setStep('organization')
+      // Skip organization step for team invitations
+      if (teamInvitation) {
+        handleSubmit()
+      } else {
+        // All roles now require organization setup
+        setStep('organization')
+      }
     } else if (step === 'organization') {
       if (!formData.createNewOrg && !formData.organizationId) {
         setError('Please select an organization or choose to create a new one')
@@ -187,6 +206,7 @@ export default function RegisterForm({
           subrole: formData.role === 'nonprofit_admin' ? formData.subrole : undefined,
           organizationId: formData.createNewOrg ? undefined : formData.organizationId || undefined,
           organizationName: formData.createNewOrg ? formData.organizationName : undefined,
+          teamInviteToken: teamInviteToken || undefined,
         }),
       })
 
@@ -275,6 +295,30 @@ export default function RegisterForm({
               </div>
             )}
 
+            {/* Team Invitation Banner */}
+            {teamInvitation && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <Users className="w-5 h-5 text-green-600 mt-0.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-green-900">
+                      You're invited to join {teamInvitation.organizationName}!
+                    </h4>
+                    <p className="text-sm text-green-800 mt-1">
+                      {teamInvitation.inviterName} has invited you to join their nonprofit organization as a {teamInvitation.subrole}.
+                    </p>
+                    {teamInvitation.personalMessage && (
+                      <p className="text-sm text-green-700 mt-2 italic">
+                        "{teamInvitation.personalMessage}"
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={(e) => { e.preventDefault(); handleNext(); }} className="space-y-5">
               {/* Full Name */}
               <div className="space-y-2">
@@ -317,13 +361,13 @@ export default function RegisterForm({
                 <Label htmlFor="role" className="text-gray-700 font-medium">
                   I am a *
                 </Label>
-                {preselectedRole ? (
+                {preselectedRole || teamInvitation ? (
                   // Show preselected role as disabled field
                   <div className="relative">
                     <Input
                       id="role"
                       type="text"
-                      value={ROLES.find(r => r.value === preselectedRole)?.label || preselectedRole}
+                      value={teamInvitation ? 'Nonprofit' : ROLES.find(r => r.value === preselectedRole)?.label || preselectedRole}
                       disabled={true}
                       className="text-base h-12 bg-gray-50 text-gray-600 cursor-not-allowed"
                     />
@@ -371,26 +415,44 @@ export default function RegisterForm({
                   <Label htmlFor="subrole" className="text-gray-700 font-medium">
                     Your Role in the Organization *
                   </Label>
-                  <div className="relative">
-                    <select
-                      id="subrole"
-                      name="subrole"
-                      required
-                      value={formData.subrole}
-                      onChange={handleInputChange}
-                      disabled={loading}
-                      className={`w-full h-12 px-4 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200 appearance-none bg-white pr-10 ${error ? 'form-error' : ''}`}
-                    >
-                      <option value="admin">Admin - Full organization management</option>
-                      <option value="member">Member - Basic nonprofit permissions</option>
-                      <option value="marketer">Marketer - Marketing and social media</option>
-                      <option value="signatory">Signatory - Document signing authority</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Choose your specific role within the nonprofit organization
-                  </p>
+                  {teamInvitation ? (
+                    // Show preselected subrole for team invitations
+                    <div className="relative">
+                      <Input
+                        id="subrole"
+                        type="text"
+                        value={teamInvitation.subrole.charAt(0).toUpperCase() + teamInvitation.subrole.slice(1)}
+                        disabled={true}
+                        className="text-base h-12 bg-gray-50 text-gray-600 cursor-not-allowed"
+                      />
+                      <p className="text-sm text-blue-600 mt-1">
+                        Organization role set by your invitation
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        id="subrole"
+                        name="subrole"
+                        required
+                        value={formData.subrole}
+                        onChange={handleInputChange}
+                        disabled={loading}
+                        className={`w-full h-12 px-4 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200 appearance-none bg-white pr-10 ${error ? 'form-error' : ''}`}
+                      >
+                        <option value="admin">Admin - Full organization management</option>
+                        <option value="member">Member - Basic nonprofit permissions</option>
+                        <option value="marketer">Marketer - Marketing and social media</option>
+                        <option value="signatory">Signatory - Document signing authority</option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                    </div>
+                  )}
+                  {!teamInvitation && (
+                    <p className="text-sm text-gray-600">
+                      Choose your specific role within the nonprofit organization
+                    </p>
+                  )}
                 </div>
               )}
 

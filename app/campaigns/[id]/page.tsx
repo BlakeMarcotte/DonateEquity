@@ -17,6 +17,7 @@ import {
 import { db } from '@/lib/firebase/config'
 import { createCampaignInvitation, getCampaignInvitations } from '@/lib/firebase/invitations'
 import { CampaignInvitation } from '@/types/invitations'
+import CampaignAssignments from '@/components/campaigns/CampaignAssignments'
 import {
   Heart,
   ArrowLeft,
@@ -81,7 +82,7 @@ export default function CampaignDetailPage() {
   const [donations, setDonations] = useState<Donation[]>([])
   const [invitations, setInvitations] = useState<CampaignInvitation[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'invitations'>('donations')
+  const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'team'>('donations')
   const [shareUrl, setShareUrl] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [syncingStats, setSyncingStats] = useState(false)
@@ -326,13 +327,6 @@ export default function CampaignDetailPage() {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                  <button
-                    onClick={() => setShowInviteModal(true)}
-                    className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    <span>Invite Donors</span>
-                  </button>
                   <button className="inline-flex items-center space-x-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium border border-gray-300 rounded-lg transition-colors duration-200">
                     <Edit3 className="w-4 h-4" />
                     <span>Edit Campaign</span>
@@ -418,13 +412,13 @@ export default function CampaignDetailPage() {
                 {[
                   { id: 'donations', name: 'Donations', icon: Heart },
                   { id: 'marketing', name: 'Marketing', icon: Share2 },
-                  { id: 'invitations', name: 'Invitations', icon: UserPlus },
+                  { id: 'team', name: 'Team', icon: Users },
                 ].map((tab) => {
                   const Icon = tab.icon
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id as 'donations' | 'marketing' | 'invitations')}
+                      onClick={() => setActiveTab(tab.id as 'donations' | 'marketing' | 'team')}
                       className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${activeTab === tab.id
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -435,11 +429,6 @@ export default function CampaignDetailPage() {
                       {tab.id === 'donations' && (
                         <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
                           {donations.length}
-                        </span>
-                      )}
-                      {tab.id === 'invitations' && (
-                        <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
-                          {invitations.length}
                         </span>
                       )}
                     </button>
@@ -456,6 +445,13 @@ export default function CampaignDetailPage() {
                       Campaign Donations ({donations.length})
                     </h3>
                     <div className="flex items-center space-x-4">
+                      <button
+                        onClick={() => setShowInviteModal(true)}
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        <span>Invite Donors</span>
+                      </button>
                       <button
                         onClick={syncCampaignStats}
                         disabled={syncingStats}
@@ -656,83 +652,11 @@ export default function CampaignDetailPage() {
                 </div>
               )}
 
-              {activeTab === 'invitations' && (
-                <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Campaign Invitations ({invitations.length})
-                    </h3>
-                    <button
-                      onClick={() => setShowInviteModal(true)}
-                      className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      <span>Send Invitation</span>
-                    </button>
-                  </div>
-
-                  {invitations.length === 0 ? (
-                    <div className="text-center py-12">
-                      <UserPlus className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-gray-900">No invitations sent</h3>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Start by inviting potential donors to support your campaign.
-                      </p>
-                      <div className="mt-6">
-                        <button
-                          onClick={() => setShowInviteModal(true)}
-                          className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
-                        >
-                          <UserPlus className="w-4 h-4" />
-                          <span>Send First Invitation</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {invitations.map((invitation) => (
-                        <div key={invitation.id} className="bg-gray-50 rounded-lg p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                                <Mail className="w-5 h-5 text-green-600" />
-                              </div>
-                              <div>
-                                <h4 className="font-medium text-gray-900">{invitation.invitedEmail}</h4>
-                                <p className="text-sm text-gray-600">
-                                  Invited by {invitation.inviterName} on {invitation.invitedAt.toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center space-x-4">
-                              <div className="text-right">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${invitation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                  invitation.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                    invitation.status === 'declined' ? 'bg-red-100 text-red-800' :
-                                      'bg-gray-100 text-gray-800'
-                                  }`}>
-                                  {invitation.status}
-                                </span>
-                                <p className="text-sm text-gray-600 mt-1">
-                                  {invitation.userExists ? 'Existing user' : 'New user'}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {invitation.message && (
-                            <div className="mt-3 pt-3 border-t border-gray-200">
-                              <p className="text-sm text-gray-600">
-                                <span className="font-medium">Message:</span> {invitation.message}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {activeTab === 'team' && (
+                <CampaignAssignments 
+                  campaignId={campaign.id} 
+                  campaignTitle={campaign.title}
+                />
               )}
             </div>
           </div>

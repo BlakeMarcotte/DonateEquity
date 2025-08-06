@@ -259,13 +259,19 @@ export default function JoinTeamPage() {
               {!user ? (
                 <div className="text-center space-y-4">
                   <p className="text-sm text-gray-600">
-                    You need to sign in to accept this invitation
+                    Create an account to join the organization
                   </p>
                   <button
-                    onClick={() => router.push(`/auth/login?returnUrl=${encodeURIComponent(window.location.href)}`)}
+                    onClick={() => router.push(`/auth/register?teamInvite=${token}&returnUrl=${encodeURIComponent(window.location.href)}`)}
                     className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
-                    Sign In to Accept
+                    Sign Up to Accept
+                  </button>
+                  <button
+                    onClick={() => router.push(`/auth/login?returnUrl=${encodeURIComponent(window.location.href)}`)}
+                    className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Already have an account? Sign In
                   </button>
                 </div>
               ) : user.email !== invitation.invitedEmail ? (

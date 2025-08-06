@@ -11,6 +11,7 @@ interface RegisterRequest {
   organizationId?: string
   organizationName?: string
   phoneNumber?: string
+  teamInviteToken?: string
 }
 
 const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     const body: RegisterRequest = await request.json()
     
     // Validate required fields
-    const { email, password, displayName, role, subrole, organizationId, organizationName, phoneNumber } = body
+    const { email, password, displayName, role, subrole, organizationId, organizationName, phoneNumber, teamInviteToken } = body
     
     if (!email || !password || !displayName || !role) {
       return NextResponse.json(
@@ -73,8 +74,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // All roles now require organizationId or organizationName
-    if (!organizationId && !organizationName) {
+    // All roles now require organizationId or organizationName (except team invitations)
+    if (!teamInviteToken && !organizationId && !organizationName) {
       return NextResponse.json(
         { error: 'Organization information is required for all users' },
         { status: 400 }
@@ -92,6 +93,25 @@ export async function POST(request: NextRequest) {
 
     // Handle organization creation/linking
     let finalOrganizationId = organizationId
+
+    // For team invitations, we need to get the organizationId from the invitation
+    if (teamInviteToken && !finalOrganizationId) {
+      try {
+        const invitationSnapshot = await adminDb
+          .collection('team_invitations')
+          .where('invitationToken', '==', teamInviteToken)
+          .where('status', '==', 'pending')
+          .limit(1)
+          .get()
+
+        if (!invitationSnapshot.empty) {
+          const invitationData = invitationSnapshot.docs[0].data()
+          finalOrganizationId = invitationData.organizationId
+        }
+      } catch (error) {
+        console.error('Error fetching team invitation for organization:', error)
+      }
+    }
 
     if (!finalOrganizationId && organizationName) {
       // Create new organization
@@ -124,10 +144,13 @@ export async function POST(request: NextRequest) {
       }
 
       // Add user to organization's member list
-      await orgRef.update({
-        adminIds: [...(orgDoc.data()?.adminIds || []), userRecord.uid],
-        updatedAt: new Date(),
-      })
+      const currentAdminIds = orgDoc.data()?.adminIds || []
+      if (!currentAdminIds.includes(userRecord.uid)) {
+        await orgRef.update({
+          adminIds: [...currentAdminIds, userRecord.uid],
+          updatedAt: new Date(),
+        })
+      }
     }
 
     // Set custom claims
@@ -146,6 +169,15 @@ export async function POST(request: NextRequest) {
     }
 
     // All users now have an organization
+    if (!finalOrganizationId) {
+      // Clean up created user if we couldn't determine organization
+      await adminAuth.deleteUser(userRecord.uid)
+      return NextResponse.json(
+        { error: 'Could not determine organization for user' },
+        { status: 400 }
+      )
+    }
+    
     customClaims.organizationId = finalOrganizationId
 
     await adminAuth.setCustomUserClaims(userRecord.uid, customClaims)
@@ -179,6 +211,43 @@ export async function POST(request: NextRequest) {
     }
 
     await adminDb.collection('users').doc(userRecord.uid).set(userProfileData)
+
+    // Handle team invitation acceptance if token provided
+    if (teamInviteToken) {
+      try {
+        // Find the invitation
+        const invitationSnapshot = await adminDb
+          .collection('team_invitations')
+          .where('invitationToken', '==', teamInviteToken)
+          .where('status', '==', 'pending')
+          .limit(1)
+          .get()
+
+        if (!invitationSnapshot.empty) {
+          const invitationDoc = invitationSnapshot.docs[0]
+          const invitationData = invitationDoc.data()
+
+          // Verify the invitation is for this email
+          if (invitationData.invitedEmail === email) {
+            // Update invitation status
+            await invitationDoc.ref.update({
+              status: 'accepted',
+              acceptedAt: new Date(),
+              acceptedUserId: userRecord.uid
+            })
+
+            console.log('Team invitation accepted during registration:', {
+              invitationId: invitationDoc.id,
+              userId: userRecord.uid,
+              organizationId: finalOrganizationId
+            })
+          }
+        }
+      } catch (inviteError) {
+        console.error('Error processing team invitation:', inviteError)
+        // Don't fail registration if invitation processing fails
+      }
+    }
 
     return NextResponse.json(
       {

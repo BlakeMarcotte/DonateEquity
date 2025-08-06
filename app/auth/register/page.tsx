@@ -13,11 +13,15 @@ export default function RegisterPage() {
   const searchParams = useSearchParams()
   const [invitation, setInvitation] = useState<CampaignInvitation | null>(null)
   const [invitationLoading, setInvitationLoading] = useState(false)
+  const [teamInvitation, setTeamInvitation] = useState<any>(null)
+  const [teamInvitationLoading, setTeamInvitationLoading] = useState(false)
 
   const invitationToken = searchParams.get('invitation')
+  const teamInviteToken = searchParams.get('teamInvite')
   const campaignId = searchParams.get('campaign')
   const roleParam = searchParams.get('role')
   const redirectParam = searchParams.get('redirect')
+  const returnUrl = searchParams.get('returnUrl')
 
   useEffect(() => {
     if (!loading && user) {
@@ -66,13 +70,39 @@ export default function RegisterPage() {
     }
   }, [invitationToken])
 
+  const fetchTeamInvitation = useCallback(async () => {
+    if (!teamInviteToken) return
+
+    setTeamInvitationLoading(true)
+    try {
+      const response = await fetch(`/api/organizations/join?token=${teamInviteToken}`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.invitation) {
+          setTeamInvitation(data.invitation)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching team invitation:', error)
+    } finally {
+      setTeamInvitationLoading(false)
+    }
+  }, [teamInviteToken])
+
   useEffect(() => {
     if (invitationToken) {
       fetchInvitation()
     }
   }, [invitationToken, fetchInvitation])
 
-  if (loading || invitationLoading) {
+  useEffect(() => {
+    if (teamInviteToken) {
+      fetchTeamInvitation()
+    }
+  }, [teamInviteToken, fetchTeamInvitation])
+
+  if (loading || invitationLoading || teamInvitationLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -88,15 +118,19 @@ export default function RegisterPage() {
     <AuthLayout mode="register">
       <RegisterForm 
         invitation={invitation}
+        teamInvitation={teamInvitation}
+        teamInviteToken={teamInviteToken}
         preselectedRole={roleParam as 'donor' | 'nonprofit_admin' | 'appraiser' | null}
         onSuccessRedirect={
-          redirectParam 
-            ? redirectParam
-            : campaignId && invitationToken && invitation
-              ? `/campaigns/${campaignId}/donate?invitation=${invitationToken}&inviter=${encodeURIComponent(invitation.inviterName)}${invitation.message ? `&message=${encodeURIComponent(invitation.message)}` : ''}`
-              : campaignId 
-                ? `/campaigns/${campaignId}/donate` 
-                : '/organization'
+          returnUrl 
+            ? returnUrl
+            : redirectParam 
+              ? redirectParam
+              : campaignId && invitationToken && invitation
+                ? `/campaigns/${campaignId}/donate?invitation=${invitationToken}&inviter=${encodeURIComponent(invitation.inviterName)}${invitation.message ? `&message=${encodeURIComponent(invitation.message)}` : ''}`
+                : campaignId 
+                  ? `/campaigns/${campaignId}/donate` 
+                  : '/organization'
         }
       />
     </AuthLayout>
