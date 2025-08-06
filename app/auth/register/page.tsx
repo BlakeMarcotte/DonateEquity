@@ -34,7 +34,7 @@ export default function RegisterPage() {
       } else if (campaignId) {
         router.push(`/campaigns/${campaignId}/donate`)
       } else {
-        router.push('/dashboard')
+        router.push('/organization')
       }
     }
   }, [user, loading, router, campaignId, invitationToken, invitation, redirectParam])
@@ -96,7 +96,7 @@ export default function RegisterPage() {
               ? `/campaigns/${campaignId}/donate?invitation=${invitationToken}&inviter=${encodeURIComponent(invitation.inviterName)}${invitation.message ? `&message=${encodeURIComponent(invitation.message)}` : ''}`
               : campaignId 
                 ? `/campaigns/${campaignId}/donate` 
-                : '/dashboard'
+                : '/organization'
         }
       />
     </AuthLayout>

@@ -48,7 +48,7 @@ const ROLES = [
 
 export default function RegisterForm({ 
   onSuccess, 
-  redirectTo = '/dashboard', 
+  redirectTo = '/organization', 
   invitation,
   onSuccessRedirect,
   preselectedRole 

@@ -3,6 +3,7 @@ import { adminAuth, adminDb } from '@/lib/firebase/admin'
 import { verifyAuthToken } from '@/lib/auth/middleware'
 import { CustomClaims, NonprofitSubrole } from '@/types/auth'
 import { v4 as uuidv4 } from 'uuid'
+import { sendTeamInvitationEmail } from '@/lib/email/team-invitation'
 
 interface InviteTeamMemberRequest {
   email: string
@@ -134,14 +135,30 @@ export async function POST(request: NextRequest) {
     const invitationRef = adminDb.collection('team_invitations').doc()
     await invitationRef.set(invitationData)
 
-    // TODO: Send email notification
-    // For now, we'll just log it
-    console.log('Team invitation created:', {
-      invitationId: invitationRef.id,
-      email,
-      subrole,
-      organizationName: organization?.name
-    })
+    // Send email notification
+    try {
+      const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/join-team?token=${invitationToken}`
+      
+      await sendTeamInvitationEmail({
+        to: email,
+        inviterName: invitationData.inviterName,
+        organizationName: invitationData.organizationName,
+        subrole,
+        personalMessage,
+        invitationUrl,
+        expiresAt: invitationData.expiresAt,
+      })
+      
+      console.log('Team invitation email sent successfully:', {
+        invitationId: invitationRef.id,
+        email,
+        subrole,
+        organizationName: organization?.name
+      })
+    } catch (emailError) {
+      console.error('Failed to send invitation email, but invitation was saved:', emailError)
+      // Don't fail the API request if email fails - invitation is still valid
+    }
 
     return NextResponse.json({
       success: true,

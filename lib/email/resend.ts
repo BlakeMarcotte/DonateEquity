@@ -36,4 +36,5 @@ export const EMAIL_SUBJECTS = {
   campaignInvitationAccepted: (donorName: string) => `${donorName} accepted your campaign invitation`,
   campaignInvitationDeclined: (donorName: string) => `${donorName} declined your campaign invitation`,
   donationReceived: (donorName: string) => `New donation from ${donorName}`,
+  teamInvitation: (inviterName: string, organizationName: string) => `${inviterName} invited you to join ${organizationName}`,
 }

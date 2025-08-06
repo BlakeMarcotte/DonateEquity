@@ -21,7 +21,7 @@ export const ROUTES = {
   HOME: '/',
   SIGN_IN: '/auth/sign-in',
   SIGN_UP: '/auth/sign-up',
-  DASHBOARD: '/dashboard',
+  DASHBOARD: '/organization',
   CAMPAIGNS: '/campaigns',
   DONATIONS: '/donations',
   TASKS: '/tasks',

@@ -25,7 +25,7 @@ export default function MyCampaignPage() {
 
     // Redirect non-donors to their appropriate pages
     if (!loading && user && customClaims?.role !== 'donor') {
-      router.push('/dashboard')
+      router.push('/organization')
       return
     }
   }, [user, loading, customClaims, router])
