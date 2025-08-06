@@ -96,7 +96,7 @@ export function useParticipantTasks(participantId: string | null, donationId?: s
     }
   }
 
-  const handleCommitmentDecision = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal') => {
+  const handleCommitmentDecision = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: any) => {
     try {
       const response = await fetch(`/api/tasks/${taskId}/commitment-decision`, {
         method: 'POST',
@@ -104,7 +104,7 @@ export function useParticipantTasks(participantId: string | null, donationId?: s
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${await auth.currentUser?.getIdToken()}`
         },
-        body: JSON.stringify({ decision })
+        body: JSON.stringify({ decision, commitmentData })
       })
 
       if (!response.ok) {

@@ -3,7 +3,7 @@ import { adminAuth, adminDb } from '@/lib/firebase/admin'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
@@ -15,8 +15,8 @@ export async function POST(
     const token = authHeader.split('Bearer ')[1]
     const decodedToken = await adminAuth.verifyIdToken(token)
     
-    const { decision } = await request.json()
-    const taskId = params.id
+    const { decision, commitmentData } = await request.json()
+    const { id: taskId } = await params
 
     if (!decision || !['commit_now', 'commit_after_appraisal'].includes(decision)) {
       return NextResponse.json(
@@ -56,13 +56,20 @@ export async function POST(
 
     // Complete the commitment decision task
     const taskRef = adminDb.collection('tasks').doc(taskId)
-    batch.update(taskRef, {
+    const updateData: any = {
       status: 'completed',
       completedAt: new Date(),
       updatedAt: new Date(),
       'metadata.decision': decision,
       'metadata.decidedAt': new Date()
-    })
+    }
+
+    // If commitment data is provided, store it in metadata
+    if (commitmentData) {
+      updateData['metadata.commitmentData'] = commitmentData
+    }
+
+    batch.update(taskRef, updateData)
 
     if (decision === 'commit_now') {
       // Create donation commitment task immediately

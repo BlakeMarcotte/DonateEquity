@@ -12,6 +12,7 @@ import { AppraiserInvitationForm } from './AppraiserInvitationForm'
 import { FileUpload } from '@/components/files/FileUpload'
 import { useDonationFiles } from '@/hooks/useDonationFiles'
 import { Modal } from '@/components/ui/modal'
+import { EquityCommitmentModal } from './EquityCommitmentModal'
 
 interface DonationTaskListProps {
   donationId?: string
@@ -22,7 +23,10 @@ interface DonationTaskListProps {
   loading?: boolean
   completeTask?: (taskId: string, completionData?: any) => Promise<void>
   updateTaskStatus?: (taskId: string, status: Task['status']) => Promise<void>
-  handleCommitmentDecision?: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal') => Promise<void>
+  handleCommitmentDecision?: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: any) => Promise<void>
+  campaignTitle?: string
+  donorName?: string
+  organizationName?: string
 }
 
 export function DonationTaskList({ 
@@ -33,7 +37,10 @@ export function DonationTaskList({
   loading: externalLoading,
   completeTask: externalCompleteTask,
   updateTaskStatus: externalUpdateTaskStatus,
-  handleCommitmentDecision
+  handleCommitmentDecision,
+  campaignTitle,
+  donorName,
+  organizationName
 }: DonationTaskListProps) {
   const { user, customClaims } = useAuth()
   const { tasks: donationTasks, loading: donationLoading, completeTask: donationCompleteTask, updateTaskStatus: donationUpdateTaskStatus } = useDonationTasks(donationId || null)
@@ -48,10 +55,46 @@ export function DonationTaskList({
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [currentUploadTask, setCurrentUploadTask] = useState<Task | null>(null)
   const [resettingTasks, setResettingTasks] = useState(false)
+  const [showCommitmentModal, setShowCommitmentModal] = useState(false)
+  const [currentCommitmentTask, setCurrentCommitmentTask] = useState<Task | null>(null)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const { uploadFile } = useDonationFiles(donationId)
   const fileUploadRef = useRef<any>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
+
+  // Wrapper for handling commitment decisions that manages modal state
+  const handleCommitmentDecisionWrapper = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: any) => {
+    if (decision === 'commit_now' && !commitmentData) {
+      // Open modal to get commitment details
+      const task = tasks.find(t => t.id === taskId)
+      if (task) {
+        setCurrentCommitmentTask(task)
+        setShowCommitmentModal(true)
+        return
+      }
+    }
+
+    // Process the decision with the original handler
+    if (handleCommitmentDecision) {
+      await handleCommitmentDecision(taskId, decision, commitmentData)
+    }
+  }
+
+  const handleCommitmentCreate = async (commitment: {
+    type: 'dollar' | 'percentage'
+    amount: number
+    message?: string
+  }) => {
+    if (currentCommitmentTask && handleCommitmentDecision) {
+      const commitmentData = {
+        ...commitment,
+        createdAt: new Date().toISOString()
+      }
+      await handleCommitmentDecision(currentCommitmentTask.id, 'commit_now', commitmentData)
+      setShowCommitmentModal(false)
+      setCurrentCommitmentTask(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -449,7 +492,10 @@ export function DonationTaskList({
               <div key={task.id} className="group">
                 <CommitmentDecisionTask 
                   task={task} 
-                  onDecision={handleCommitmentDecision}
+                  onDecision={handleCommitmentDecisionWrapper}
+                  campaignTitle={campaignTitle}
+                  donorName={donorName}
+                  organizationName={organizationName}
                 />
               </div>
             )
@@ -640,6 +686,19 @@ export function DonationTaskList({
           </div>
         </div>
       </Modal>
+
+      {/* Equity Commitment Modal */}
+      <EquityCommitmentModal
+        isOpen={showCommitmentModal}
+        onClose={() => {
+          setShowCommitmentModal(false)
+          setCurrentCommitmentTask(null)
+        }}
+        onCommit={handleCommitmentCreate}
+        campaignTitle={campaignTitle || 'this campaign'}
+        donorName={donorName}
+        organizationName={organizationName}
+      />
       
     </div>
   )

@@ -3,15 +3,31 @@
 import { useState } from 'react'
 import { Task } from '@/types/task'
 import { Heart, Clock, CheckCircle } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { EquityCommitmentModal } from './EquityCommitmentModal'
 
 interface CommitmentDecisionTaskProps {
   task: Task
-  onDecision: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal') => Promise<void>
+  onDecision: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: any) => Promise<void>
+  campaignTitle?: string
+  donorName?: string
+  organizationName?: string
 }
 
-export function CommitmentDecisionTask({ task, onDecision }: CommitmentDecisionTaskProps) {
+export function CommitmentDecisionTask({ 
+  task, 
+  onDecision, 
+  campaignTitle = 'this campaign',
+  donorName,
+  organizationName 
+}: CommitmentDecisionTaskProps) {
+  const { userProfile } = useAuth()
   const [loading, setLoading] = useState(false)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [showCommitmentModal, setShowCommitmentModal] = useState(false)
+  
+  const displayName = donorName || userProfile?.name || 'Anonymous Donor'
+  const displayOrgName = organizationName || userProfile?.organizationName
 
   const handleDecision = async (decision: 'commit_now' | 'commit_after_appraisal') => {
     setLoading(true)
@@ -21,6 +37,24 @@ export function CommitmentDecisionTask({ task, onDecision }: CommitmentDecisionT
       console.error('Error making commitment decision:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCommitmentCreate = async (commitment: {
+    type: 'dollar' | 'percentage'
+    amount: number
+    message?: string
+  }) => {
+    try {
+      const commitmentData = {
+        ...commitment,
+        createdAt: new Date().toISOString()
+      }
+      await onDecision(task.id, 'commit_now', commitmentData)
+      setShowCommitmentModal(false)
+    } catch (error) {
+      console.error('Error creating commitment:', error)
+      throw error
     }
   }
 
@@ -69,7 +103,13 @@ export function CommitmentDecisionTask({ task, onDecision }: CommitmentDecisionT
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
             }`}
-            onClick={() => setSelectedOption(option.id)}
+            onClick={() => {
+              setSelectedOption(option.id)
+              // If "commit_now" is selected, open the modal immediately
+              if (option.id === 'commit_now') {
+                setShowCommitmentModal(true)
+              }
+            }}
           >
             <div className="flex items-start space-x-3">
               <div className={`w-5 h-5 rounded-full border-2 mt-1 flex items-center justify-center ${
@@ -90,10 +130,12 @@ export function CommitmentDecisionTask({ task, onDecision }: CommitmentDecisionT
         ))}
       </div>
 
-      {selectedOption && (
+      {selectedOption && selectedOption !== 'commit_now' && (
         <div className="mt-6 flex justify-end">
           <button
-            onClick={() => handleDecision(selectedOption as 'commit_now' | 'commit_after_appraisal')}
+            onClick={() => {
+              handleDecision(selectedOption as 'commit_now' | 'commit_after_appraisal')
+            }}
             disabled={loading}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors duration-200"
           >
@@ -108,6 +150,16 @@ export function CommitmentDecisionTask({ task, onDecision }: CommitmentDecisionT
           </button>
         </div>
       )}
+
+      {/* Equity Commitment Modal */}
+      <EquityCommitmentModal
+        isOpen={showCommitmentModal}
+        onClose={() => setShowCommitmentModal(false)}
+        onCommit={handleCommitmentCreate}
+        campaignTitle={campaignTitle}
+        donorName={displayName}
+        organizationName={displayOrgName}
+      />
     </div>
   )
 }

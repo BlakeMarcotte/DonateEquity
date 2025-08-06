@@ -296,16 +296,18 @@ service cloud.firestore {
     }
     
     
-    // Campaign participants collection - tracks interested/committed donors
+    // Campaign participants collection - tracks donors who have accepted invitations
     match /campaign_participants/{participantId} {
       allow read: if (
         isAuthenticated() && (
           // User can read their own participation records
-          resource.data.userId == getUserId() ||
+          resource.data.donorId == getUserId() ||
           // Nonprofit admins can read participants for their organization's campaigns
           (hasRole('nonprofit_admin') && 
            exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
            get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.organizationId == request.auth.token.organizationId) ||
+          // Appraisers can read participants they're working with
+          hasRole('appraiser') ||
           // Organization admins can read all
           isOrganizationAdmin()
         )
@@ -314,14 +316,15 @@ service cloud.firestore {
         isAuthenticated() && (
           hasRole('nonprofit_admin') ||
           hasRole('donor') ||
+          hasRole('appraiser') ||
           isOrganizationAdmin()
         )
       );
       allow create: if (
         isAuthenticated() && (
-          // User can create their own participation record
-          request.resource.data.userId == getUserId() ||
-          // Nonprofit admins can create participation records for their campaigns
+          // User can create their own participation record (via API)
+          request.resource.data.donorId == getUserId() ||
+          // API can create participation records
           hasRole('nonprofit_admin') ||
           isOrganizationAdmin()
         )
@@ -329,18 +332,20 @@ service cloud.firestore {
       allow update: if (
         isAuthenticated() && (
           // User can update their own participation record
-          resource.data.userId == getUserId() ||
+          resource.data.donorId == getUserId() ||
           // Nonprofit admins can update participants for their organization's campaigns
           (hasRole('nonprofit_admin') && 
            exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
            get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.organizationId == request.auth.token.organizationId) ||
+          // Appraisers can update status during workflow
+          hasRole('appraiser') ||
           isOrganizationAdmin()
         )
       );
       allow delete: if (
         isAuthenticated() && (
           // User can remove their own participation
-          resource.data.userId == getUserId() ||
+          resource.data.donorId == getUserId() ||
           isOrganizationAdmin()
         )
       );

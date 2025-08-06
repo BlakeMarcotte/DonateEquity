@@ -74,12 +74,28 @@ interface Donation {
   }
 }
 
+interface CampaignParticipant {
+  donorId: string
+  donorName: string
+  donorEmail: string
+  participantId: string
+  joinedAt: Date
+  status: 'interested' | 'in_process' | 'donation_complete'
+  hasDonation: boolean
+  donation?: Donation
+  taskProgress?: {
+    total: number
+    completed: number
+  }
+}
+
 export default function CampaignDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user, userProfile, customClaims } = useAuth()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [donations, setDonations] = useState<Donation[]>([])
+  const [participants, setParticipants] = useState<CampaignParticipant[]>([])
   const [invitations, setInvitations] = useState<CampaignInvitation[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'team'>('donations')
@@ -90,7 +106,10 @@ export default function CampaignDetailPage() {
   useEffect(() => {
     if (params.id) {
       fetchCampaignDetails()
-      fetchDonations()
+      fetchDonations().then((donationData) => {
+        // Fetch participants after donations are loaded
+        fetchParticipants(donationData)
+      })
       fetchInvitations()
       setShareUrl(`${window.location.origin}/campaigns/${params.id}/donate`)
     }
@@ -133,30 +152,136 @@ export default function CampaignDetailPage() {
   }
 
   const fetchDonations = async () => {
-    if (!params.id) return
+    if (!params.id) return []
+
+    console.log('fetchDonations: Starting for campaign:', params.id)
+    console.log('fetchDonations: User role:', customClaims?.role)
+    console.log('fetchDonations: Organization ID:', customClaims?.organizationId)
 
     try {
-      // Try to fetch donations for this campaign
-      // The security rules should allow nonprofit admins to read donations for their campaigns
-      const donationsQuery = query(
+      // First try with orderBy, if that fails due to index issues, try without
+      let donationsQuery = query(
         collection(db, 'donations'),
         where('campaignId', '==', params.id),
         orderBy('createdAt', 'desc')
       )
 
-      const snapshot = await getDocs(donationsQuery)
-      const donationData = snapshot.docs.map(doc => ({
+      console.log('fetchDonations: Executing query with orderBy...')
+      let snapshot = await getDocs(donationsQuery)
+      console.log('fetchDonations: Found donations:', snapshot.docs.length)
+      
+      let donationData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate() || new Date(),
       })) as Donation[]
 
+      console.log('fetchDonations: Processed donation data:', donationData)
       setDonations(donationData)
+      return donationData
     } catch (error) {
-      console.error('Error fetching donations:', error)
-      // If we can't fetch donations due to permissions, set empty array
-      // This allows the page to still load and show the campaign details
-      setDonations([])
+      console.error('fetchDonations: Error with orderBy, trying without...', error)
+      
+      try {
+        // Fallback: try without orderBy
+        const simpleQuery = query(
+          collection(db, 'donations'),
+          where('campaignId', '==', params.id)
+        )
+
+        console.log('fetchDonations: Executing simple query...')
+        const snapshot = await getDocs(simpleQuery)
+        console.log('fetchDonations: Found donations (simple):', snapshot.docs.length)
+        
+        const donationData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate() || new Date(),
+        })) as Donation[]
+
+        // Sort manually since we couldn't orderBy in the query
+        donationData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+
+        console.log('fetchDonations: Processed donation data (simple):', donationData)
+        setDonations(donationData)
+        return donationData
+      } catch (secondError) {
+        console.error('fetchDonations: Error with simple query too:', secondError)
+        // If we can't fetch donations due to permissions, set empty array
+        // This allows the page to still load and show the campaign details
+        setDonations([])
+        return []
+      }
+    }
+  }
+
+  const fetchParticipants = async (donationData: Donation[] = donations) => {
+    if (!params.id) return
+
+    console.log('fetchParticipants: Looking for campaign participants for campaign:', params.id)
+
+    try {
+      // Fetch campaign_participants for this campaign
+      let participantsQuery = query(
+        collection(db, 'campaign_participants'),
+        where('campaignId', '==', params.id),
+        orderBy('joinedAt', 'desc')
+      )
+
+      console.log('fetchParticipants: Executing query...')
+      let snapshot
+      
+      try {
+        snapshot = await getDocs(participantsQuery)
+      } catch (indexError) {
+        console.log('fetchParticipants: OrderBy failed, trying without...', indexError)
+        // Fallback without orderBy
+        participantsQuery = query(
+          collection(db, 'campaign_participants'),
+          where('campaignId', '==', params.id)
+        )
+        snapshot = await getDocs(participantsQuery)
+      }
+      
+      console.log('fetchParticipants: Found campaign_participants:', snapshot.docs.length)
+      
+      const participantData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        joinedAt: doc.data().joinedAt?.toDate() || new Date(),
+      })) as any[]
+
+      // Create full participant objects with donation info if available
+      const fullParticipants: CampaignParticipant[] = participantData.map(participant => {
+        const donation = donationData.find(d => d.donorId === participant.donorId)
+        
+        // Determine status based on participant record and donation existence
+        let participantStatus = participant.status || 'interested'
+        if (donation && participantStatus !== 'donation_complete') {
+          participantStatus = 'donation_complete'
+        }
+        
+        return {
+          donorId: participant.donorId,
+          donorName: participant.donorName,
+          donorEmail: participant.donorEmail,
+          participantId: participant.participantId,
+          joinedAt: participant.joinedAt,
+          status: participantStatus,
+          hasDonation: !!donation,
+          donation: donation,
+          taskProgress: {
+            total: 0,
+            completed: 0
+          }
+        }
+      })
+
+      console.log('fetchParticipants: Created participants:', fullParticipants.length)
+      setParticipants(fullParticipants)
+    } catch (error) {
+      console.error('fetchParticipants: Error fetching participants:', error)
+      setParticipants([])
     }
   }
 
@@ -368,8 +493,8 @@ export default function CampaignDetailPage() {
               <div className="flex items-center">
                 <Users className="h-8 w-8 text-purple-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Donors</p>
-                  <p className="text-2xl font-bold text-gray-900">{donations.length}</p>
+                  <p className="text-sm font-medium text-gray-500">Participants</p>
+                  <p className="text-2xl font-bold text-gray-900">{participants.length}</p>
                 </div>
               </div>
             </div>
@@ -410,9 +535,9 @@ export default function CampaignDetailPage() {
             <div className="border-b border-gray-200">
               <nav className="flex space-x-8 px-6">
                 {[
-                  { id: 'donations', name: 'Donations', icon: Heart },
+                  { id: 'donations', name: 'Campaign Donors', icon: Users },
                   { id: 'marketing', name: 'Marketing', icon: Share2 },
-                  { id: 'team', name: 'Team', icon: Users },
+                  { id: 'team', name: 'Team', icon: Heart },
                 ].map((tab) => {
                   const Icon = tab.icon
                   return (
@@ -428,7 +553,7 @@ export default function CampaignDetailPage() {
                       <span>{tab.name}</span>
                       {tab.id === 'donations' && (
                         <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
-                          {donations.length}
+                          {participants.length}
                         </span>
                       )}
                     </button>
@@ -442,7 +567,7 @@ export default function CampaignDetailPage() {
                 <div>
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      Campaign Donations ({donations.length})
+                      Campaign Donors ({participants.length})
                     </h3>
                     <div className="flex items-center space-x-4">
                       <button
@@ -476,21 +601,30 @@ export default function CampaignDetailPage() {
                     </div>
                   </div>
 
-                  {donations.length === 0 ? (
+                  {participants.length === 0 ? (
                     <div className="text-center py-12">
-                      <Heart className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-gray-900">No donations yet</h3>
+                      <Users className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">No participants yet</h3>
                       <p className="mt-1 text-sm text-gray-500">
-                        When people donate to your campaign, they'll appear here.
+                        When people join your campaign, they'll appear here.
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {donations.map((donation) => (
+                      {participants.map((participant) => (
                         <div 
-                          key={donation.id} 
+                          key={participant.participantId} 
                           className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
-                          onClick={() => router.push(`/donations/${donation.id}/tasks`)}
+                          onClick={() => {
+                            // Navigate to donor's shared task list using participantId
+                            if (participant.donation) {
+                              // If they have a donation, use the existing donation tasks flow
+                              router.push(`/donations/${participant.donation.id}/tasks`)
+                            } else {
+                              // If no donation yet, navigate to participant task flow
+                              router.push(`/campaigns/${params.id}/participants/${participant.donorId}/tasks`)
+                            }
+                          }}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
@@ -498,49 +632,89 @@ export default function CampaignDetailPage() {
                                 <Users className="w-5 h-5 text-blue-600" />
                               </div>
                               <div>
-                                <h4 className="font-medium text-gray-900">{donation.donorName}</h4>
-                                <p className="text-sm text-gray-600">{donation.donorEmail}</p>
+                                <h4 className="font-medium text-gray-900">{participant.donorName}</h4>
+                                <p className="text-sm text-gray-600">{participant.donorEmail}</p>
                               </div>
                             </div>
 
                             <div className="flex items-center space-x-4">
                               <div className="text-right">
-                                <p className="font-semibold text-gray-900">
-                                  {formatCurrency(donation.amount)}
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  {donation.createdAt.toLocaleDateString()}
-                                </p>
+                                {participant.status === 'donation_complete' && participant.donation ? (
+                                  <>
+                                    <p className="font-semibold text-gray-900">
+                                      {formatCurrency(participant.donation.amount)}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Donated {participant.donation.createdAt.toLocaleDateString()}
+                                    </p>
+                                  </>
+                                ) : participant.status === 'in_process' ? (
+                                  <>
+                                    <p className="font-medium text-blue-600">
+                                      In Process
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Joined {participant.joinedAt.toLocaleDateString()}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="font-medium text-yellow-600">
+                                      Interested
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Joined {participant.joinedAt.toLocaleDateString()}
+                                    </p>
+                                  </>
+                                )}
                               </div>
 
                               <div className="flex items-center space-x-2">
-                                {getDonationStatusIcon(donation.status)}
-                                <span className="text-sm text-gray-600 capitalize">
-                                  {donation.status}
-                                </span>
+                                {participant.status === 'donation_complete' && participant.donation ? (
+                                  <>
+                                    {getDonationStatusIcon(participant.donation.status)}
+                                    <span className="text-sm text-gray-600 capitalize">
+                                      {participant.donation.status}
+                                    </span>
+                                  </>
+                                ) : participant.status === 'in_process' ? (
+                                  <>
+                                    <Clock className="w-4 h-4 text-blue-600" />
+                                    <span className="text-sm text-blue-600">
+                                      In Process
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="w-4 h-4 text-yellow-600" />
+                                    <span className="text-sm text-yellow-600">
+                                      Interested
+                                    </span>
+                                  </>
+                                )}
                               </div>
 
                               <div className="text-sm text-gray-500">
-                                Click to view tasks →
+                                View tasks →
                               </div>
                             </div>
                           </div>
 
-                          {donation.equityDetails && (
+                          {participant.donation?.equityDetails && (
                             <div className="mt-3 pt-3 border-t border-gray-200">
                               <div className="grid grid-cols-3 gap-4 text-sm">
                                 <div>
                                   <p className="text-gray-600">Company</p>
-                                  <p className="font-medium">{donation.equityDetails.companyName}</p>
+                                  <p className="font-medium">{participant.donation.equityDetails.companyName}</p>
                                 </div>
                                 <div>
                                   <p className="text-gray-600">Equity %</p>
-                                  <p className="font-medium">{donation.equityDetails.equityPercentage}%</p>
+                                  <p className="font-medium">{participant.donation.equityDetails.equityPercentage}%</p>
                                 </div>
                                 <div>
                                   <p className="text-gray-600">Est. Value</p>
                                   <p className="font-medium">
-                                    {formatCurrency(donation.equityDetails.estimatedValue)}
+                                    {formatCurrency(participant.donation.equityDetails.estimatedValue)}
                                   </p>
                                 </div>
                               </div>

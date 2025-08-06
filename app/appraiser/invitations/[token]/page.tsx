@@ -136,7 +136,7 @@ export default function AppraiserInvitationPage() {
           </h1>
           <p className="text-gray-600 mb-6">{error}</p>
           <Button
-            onClick={() => router.push('/appraiser')
+            onClick={() => router.push('/appraiser')}
             variant="outline"
             className="w-full"
           >
@@ -159,7 +159,7 @@ export default function AppraiserInvitationPage() {
             This invitation link may be invalid or expired.
           </p>
           <Button
-            onClick={() => router.push('/appraiser')
+            onClick={() => router.push('/appraiser')}
             variant="outline"
             className="w-full"
           >
@@ -206,7 +206,7 @@ export default function AppraiserInvitationPage() {
               Sign Out & Use Correct Account
             </Button>
             <Button
-              onClick={() => router.push('/appraiser')
+              onClick={() => router.push('/appraiser')}
               variant="outline"
               className="w-full"
             >
@@ -230,7 +230,7 @@ export default function AppraiserInvitationPage() {
             This invitation has expired. Please contact the donor to request a new invitation.
           </p>
           <Button
-            onClick={() => router.push('/appraiser')
+            onClick={() => router.push('/appraiser')}
             variant="outline"
             className="w-full"
           >

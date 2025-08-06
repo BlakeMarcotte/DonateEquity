@@ -7,9 +7,10 @@ import { useDonorCampaign } from '@/hooks/useDonorCampaign'
 import { DonationTaskList } from '@/components/tasks/DonationTaskList'
 import { TaskTimeline } from '@/components/tasks/TaskTimeline'
 import { DonationFiles } from '@/components/files/DonationFiles'
+import { EquityCommitmentModal } from '@/components/tasks/EquityCommitmentModal'
 import { useDonationTasks } from '@/hooks/useDonationTasks'
 import { useParticipantTasks } from '@/hooks/useParticipantTasks'
-import { Heart, Clock, Users, CheckSquare, FileText } from 'lucide-react'
+import { Heart, Clock, Users, CheckSquare, FileText, DollarSign } from 'lucide-react'
 
 export default function MyCampaignPage() {
   const { user, customClaims, loading } = useAuth()
@@ -25,6 +26,32 @@ export default function MyCampaignPage() {
   const tasksLoading = donation ? donationTasksLoading : participantTasksLoading
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
+  const [showCommitmentModal, setShowCommitmentModal] = useState(false)
+
+  const handleCommitmentCreate = async (commitment: {
+    type: 'dollar' | 'percentage'
+    amount: number
+    message?: string
+  }) => {
+    try {
+      // Call the existing handleCommitmentDecision with the commitment data
+      if (handleCommitmentDecision) {
+        // Find the commitment decision task
+        const commitmentTask = tasks.find(t => t.type === 'commitment_decision')
+        if (commitmentTask) {
+          const commitmentData = {
+            ...commitment,
+            createdAt: new Date().toISOString()
+          }
+          await handleCommitmentDecision(commitmentTask.id, 'commit_now', commitmentData)
+          setShowCommitmentModal(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error creating commitment:', error)
+      throw error
+    }
+  }
 
   useEffect(() => {
     if (!loading && !user) {
@@ -122,16 +149,25 @@ export default function MyCampaignPage() {
         {/* Show interest status if no donation yet but has tasks */}
         {campaign && !donation && tasks.length > 0 && (
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <Heart className="w-5 h-5 text-blue-600" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Heart className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900">Welcome to your campaign workflow!</h3>
+                  <p className="text-blue-700 mt-1">
+                    Ready to make your equity commitment? Start the process now.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-blue-900">Welcome to your campaign workflow!</h3>
-                <p className="text-blue-700 mt-1">
-                  Complete the tasks below to proceed with your equity donation process.
-                </p>
-              </div>
+              <button
+                onClick={() => setShowCommitmentModal(true)}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors duration-200 flex items-center space-x-2"
+              >
+                <DollarSign className="w-5 h-5" />
+                <span>Make Commitment Now</span>
+              </button>
             </div>
           </div>
         )}
@@ -203,6 +239,10 @@ export default function MyCampaignPage() {
                     donationId={donation?.id} 
                     campaignId={donation?.campaignId || campaign?.id}
                     showAllTasks={false}
+                    // Pass required props for EquityCommitmentModal
+                    campaignTitle={campaign?.title}
+                    donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}
+                    organizationName={campaign?.organizationName}
                     // Pass participant tasks and handlers when no donation exists
                     {...(!donation && {
                       tasks: tasks,
@@ -215,12 +255,22 @@ export default function MyCampaignPage() {
               
               {activeTab === 'files' && (
                 <div className="animate-in fade-in duration-300">
-                  <DonationFiles 
-                    donationId={donation.id}
-                    title="Shared Documents"
-                    showUpload={false}
-                    className="border-0 shadow-none p-0"
-                  />
+                  {donation ? (
+                    <DonationFiles 
+                      donationId={donation.id}
+                      title="Shared Documents"
+                      showUpload={false}
+                      className="border-0 shadow-none p-0"
+                    />
+                  ) : (
+                    <div className="text-center py-12">
+                      <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">Shared Files</h2>
+                      <p className="text-gray-600">
+                        File sharing will be available once your donation is created.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -228,6 +278,16 @@ export default function MyCampaignPage() {
         )}
 
       </div>
+
+      {/* Equity Commitment Modal */}
+      <EquityCommitmentModal
+        isOpen={showCommitmentModal}
+        onClose={() => setShowCommitmentModal(false)}
+        onCommit={handleCommitmentCreate}
+        campaignTitle={campaign?.title || 'this campaign'}
+        donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}
+        organizationName={campaign?.organizationName}
+      />
     </div>
   )
 }
