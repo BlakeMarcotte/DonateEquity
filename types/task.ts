@@ -1,6 +1,8 @@
 export interface Task {
   id: string
-  donationId: string
+  participantId: string
+  campaignId: string
+  donorId: string
   title: string
   description: string
   type: TaskType
@@ -38,6 +40,7 @@ export interface Task {
 }
 
 export type TaskType = 
+  | 'commitment_decision'
   | 'invitation'
   | 'document_upload'
   | 'document_review'

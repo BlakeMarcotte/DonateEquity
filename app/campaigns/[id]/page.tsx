@@ -285,33 +285,90 @@ export default function CampaignDetailPage() {
         joinedAt: doc.data().joinedAt?.toDate() || new Date(),
       })) as any[]
 
+      // Fetch user data for all participants to get proper names
+      const userIds = participantData.map(p => p.userId).filter(Boolean)
+      const userDataMap = new Map()
+      
+      console.log('fetchParticipants: Participant user IDs:', userIds)
+      console.log('fetchParticipants: Participant data:', participantData.map(p => ({
+        id: p.id,
+        userId: p.userId,
+        invitedEmail: p.invitedEmail,
+        inviterName: p.inviterName
+      })))
+      
+      if (userIds.length > 0) {
+        try {
+          console.log('fetchParticipants: Fetching user data for', userIds.length, 'users')
+          const usersQuery = query(
+            collection(db, 'users'),
+            where('__name__', 'in', userIds)
+          )
+          const usersSnapshot = await getDocs(usersQuery)
+          console.log('fetchParticipants: Found user documents:', usersSnapshot.docs.length)
+          
+          usersSnapshot.docs.forEach(doc => {
+            const userData = doc.data()
+            console.log('fetchParticipants: Processing user:', doc.id, userData)
+            userDataMap.set(doc.id, {
+              name: userData.displayName || userData.firstName + ' ' + userData.lastName || userData.email?.split('@')[0] || 'User',
+              email: userData.email
+            })
+          })
+          console.log('fetchParticipants: User data map:', Object.fromEntries(userDataMap))
+        } catch (userError) {
+          console.error('fetchParticipants: Error fetching user data:', userError)
+        }
+      }
+
       // Create full participant objects with donation info if available
-      const fullParticipants: CampaignParticipant[] = participantData.map(participant => {
-        // Map from your database fields to our interface
-        const userId = participant.userId
-        const donation = donationData.find(d => d.donorId === userId)
-        
-        // Determine status based on participant record and donation existence
-        let participantStatus = participant.status || 'interested'
-        if (donation && participantStatus !== 'donation_complete') {
-          participantStatus = 'donation_complete'
-        }
-        
-        return {
-          userId: userId,
-          donorName: participant.inviterName || participant.donorName || 'Unknown User',
-          donorEmail: participant.invitedEmail || participant.donorEmail || 'Unknown Email',
-          participantId: participant.id, // Use document ID as participantId
-          joinedAt: participant.joinedAt,
-          status: participantStatus,
-          hasDonation: !!donation,
-          donation: donation,
-          taskProgress: {
-            total: 0,
-            completed: 0
+      const fullParticipants: CampaignParticipant[] = participantData
+        .filter(participant => {
+          // Filter out participants with missing or invalid userId
+          if (!participant.userId) {
+            console.log('fetchParticipants: Filtering out participant with no userId:', participant.id)
+            return false
           }
-        }
-      })
+          
+          // Check if we found user data for this participant
+          const userData = userDataMap.get(participant.userId)
+          if (!userData) {
+            console.log('fetchParticipants: No user data found for userId:', participant.userId, 'participant:', participant.id)
+            // You can choose to filter out or keep with fallback data
+            return true // Keep but use fallback data
+          }
+          
+          return true
+        })
+        .map(participant => {
+          // Map from your database fields to our interface
+          const userId = participant.userId
+          const donation = donationData.find(d => d.donorId === userId)
+          const userData = userDataMap.get(userId)
+          
+          console.log('fetchParticipants: Creating participant for userId:', userId, 'userData:', userData)
+          
+          // Determine status based on participant record and donation existence
+          let participantStatus = participant.status || 'interested'
+          if (donation && participantStatus !== 'donation_complete') {
+            participantStatus = 'donation_complete'
+          }
+          
+          return {
+            userId: userId,
+            donorName: userData?.name || participant.invitedEmail?.split('@')[0] || 'Unknown User',
+            donorEmail: userData?.email || participant.invitedEmail || 'Unknown Email',
+            participantId: participant.id, // Use document ID as participantId
+            joinedAt: participant.joinedAt,
+            status: participantStatus,
+            hasDonation: !!donation,
+            donation: donation,
+            taskProgress: {
+              total: 0,
+              completed: 0
+            }
+          }
+        })
 
       console.log('fetchParticipants: Created participants:', fullParticipants.length)
       setParticipants(fullParticipants)

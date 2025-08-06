@@ -3,7 +3,7 @@ import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestor
 import { db, auth } from '@/lib/firebase/config'
 import { Task } from '@/types/task'
 
-export function useParticipantTasks(participantId: string | null, donationId?: string | null) {
+export function useParticipantTasks(participantId: string | null) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -19,28 +19,13 @@ export function useParticipantTasks(participantId: string | null, donationId?: s
     console.log('useParticipantTasks: Querying tasks for participant:', participantId)
     const tasksRef = collection(db, 'tasks')
     
-    // Query for both participant tasks and donation tasks if available
-    const queries = []
-    
-    // Always query participant-based tasks
+    // Query only participant-based tasks, ordered by order field
     const participantQuery = query(
       tasksRef,
       where('participantId', '==', participantId),
-      orderBy('createdAt', 'asc')
+      orderBy('order', 'asc')
     )
-    queries.push(participantQuery)
-    
-    // Also query donation-based tasks if we have a donationId
-    if (donationId) {
-      const donationQuery = query(
-        tasksRef,
-        where('donationId', '==', donationId),
-        orderBy('order', 'asc')
-      )
-      queries.push(donationQuery)
-    }
 
-    // Use the first query for now (participant tasks)
     const unsubscribe = onSnapshot(
       participantQuery,
       (snapshot) => {
@@ -54,7 +39,7 @@ export function useParticipantTasks(participantId: string | null, donationId?: s
           completedAt: doc.data().completedAt?.toDate?.() || null,
         })) as Task[]
 
-        console.log('Participant tasks data:', tasksData.map(t => ({ id: t.id, title: t.title, type: t.type })))
+        console.log('Participant tasks data:', tasksData.map(t => ({ id: t.id, title: t.title, type: t.type, order: t.order })))
 
         // Calculate blocking status based on dependencies
         const updatedTasks = calculateBlockingStatus(tasksData)
@@ -70,7 +55,7 @@ export function useParticipantTasks(participantId: string | null, donationId?: s
     )
 
     return () => unsubscribe()
-  }, [participantId, donationId])
+  }, [participantId])
 
   const completeTask = async (taskId: string, completionData?: any) => {
     try {

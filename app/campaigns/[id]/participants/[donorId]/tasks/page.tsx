@@ -16,7 +16,7 @@ export default function ParticipantTasksPage() {
   
   // Create participant ID for task querying
   const participantId = campaignId && donorId ? `${campaignId}_${donorId}` : null
-  const { tasks, loading: tasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId, null)
+  const { tasks, loading: tasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
 
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
 
@@ -140,7 +140,7 @@ export default function ParticipantTasksPage() {
             {activeTab === 'tasks' && (
               <div className="animate-in fade-in duration-300">
                 <DonationTaskList 
-                  donationId={null}
+                  participantId={participantId}
                   campaignId={campaignId}
                   showAllTasks={!isDonor}
                   tasks={tasks}

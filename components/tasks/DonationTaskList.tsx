@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useDonationTasks } from '@/hooks/useDonationTasks'
+import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { CommitmentDecisionTask } from './CommitmentDecisionTask'
 import { useAuth } from '@/contexts/AuthContext'
 import { Task } from '@/types/task'
@@ -15,10 +15,10 @@ import { Modal } from '@/components/ui/modal'
 import { EquityCommitmentModal } from './EquityCommitmentModal'
 
 interface DonationTaskListProps {
-  donationId?: string
+  participantId?: string
   campaignId?: string
   showAllTasks?: boolean // Show tasks for all roles (admin view)
-  // Allow passing tasks and handlers from parent (for participant tasks)
+  // Allow passing tasks and handlers from parent
   tasks?: Task[]
   loading?: boolean
   completeTask?: (taskId: string, completionData?: any) => Promise<void>
@@ -30,7 +30,7 @@ interface DonationTaskListProps {
 }
 
 export function DonationTaskList({ 
-  donationId, 
+  participantId, 
   campaignId, 
   showAllTasks = false,
   tasks: externalTasks,
@@ -43,13 +43,13 @@ export function DonationTaskList({
   organizationName
 }: DonationTaskListProps) {
   const { user, customClaims } = useAuth()
-  const { tasks: donationTasks, loading: donationLoading, completeTask: donationCompleteTask, updateTaskStatus: donationUpdateTaskStatus } = useDonationTasks(donationId || null)
+  const { tasks: participantTasks, loading: participantLoading, completeTask: participantCompleteTask, updateTaskStatus: participantUpdateTaskStatus } = useParticipantTasks(participantId || null)
   
-  // Use external tasks/handlers if provided, otherwise use donation tasks
-  const tasks = externalTasks || donationTasks
-  const loading = externalLoading !== undefined ? externalLoading : donationLoading
-  const completeTask = externalCompleteTask || donationCompleteTask
-  const updateTaskStatus = externalUpdateTaskStatus || donationUpdateTaskStatus
+  // Use external tasks/handlers if provided, otherwise use participant tasks
+  const tasks = externalTasks || participantTasks
+  const loading = externalLoading !== undefined ? externalLoading : participantLoading
+  const completeTask = externalCompleteTask || participantCompleteTask
+  const updateTaskStatus = externalUpdateTaskStatus || participantUpdateTaskStatus
   const [completingTasks, setCompletingTasks] = useState<Set<string>>(new Set())
   const [showInvitationModal, setShowInvitationModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -58,7 +58,7 @@ export function DonationTaskList({
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
   const [currentCommitmentTask, setCurrentCommitmentTask] = useState<Task | null>(null)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
-  const { uploadFile } = useDonationFiles(donationId)
+  const { uploadFile } = useDonationFiles(participantId ? `participants/${participantId}` : null)
   const fileUploadRef = useRef<any>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
@@ -323,13 +323,9 @@ export function DonationTaskList({
     try {
       const token = await user?.getIdToken()
       
-      // Determine if we're dealing with participant tasks or donation tasks
-      const isParticipantTasks = !donationId && tasks.length > 0 && tasks[0].participantId
-      
       let response
-      if (isParticipantTasks) {
+      if (participantId) {
         // Reset participant tasks
-        const participantId = tasks[0].participantId
         response = await fetch(`/api/campaign-participants/${participantId}/reset-tasks`, {
           method: 'POST',
           headers: {
@@ -337,9 +333,9 @@ export function DonationTaskList({
             'Authorization': `Bearer ${token}`
           }
         })
-      } else if (donationId) {
-        // Reset donation tasks
-        response = await fetch(`/api/donations/${donationId}/reset-tasks`, {
+      } else if (tasks.length > 0 && tasks[0].participantId) {
+        // Fallback: get participantId from tasks
+        response = await fetch(`/api/campaign-participants/${tasks[0].participantId}/reset-tasks`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -347,7 +343,7 @@ export function DonationTaskList({
           }
         })
       } else {
-        throw new Error('No tasks to reset')
+        throw new Error('No participant ID available to reset tasks')
       }
 
       const result = await response.json()
