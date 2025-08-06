@@ -333,9 +333,8 @@ export default function CampaignDetailPage() {
           // Check if we found user data for this participant
           const userData = userDataMap.get(participant.userId)
           if (!userData) {
-            console.log('fetchParticipants: No user data found for userId:', participant.userId, 'participant:', participant.id)
-            // You can choose to filter out or keep with fallback data
-            return true // Keep but use fallback data
+            console.log('fetchParticipants: No user data found for userId:', participant.userId, 'participant:', participant.id, '- filtering out')
+            return false // Filter out participants with no valid user data
           }
           
           return true

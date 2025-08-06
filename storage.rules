@@ -45,6 +45,24 @@ service firebase.storage {
         );
     }
     
+    function isParticipantAuthorized(participantId) {
+      // Extract campaignId and donorId from participantId (format: campaignId_donorId)
+      return isAuthenticated() && 
+        (
+          // Check if user is admin (always allowed)
+          isAdmin() ||
+          // Check if participant exists and user is authorized
+          (exists(/databases/$(database)/documents/campaign_participants/$(participantId)) &&
+           (get(/databases/$(database)/documents/campaign_participants/$(participantId)).data.userId == getUserId())) ||
+          // Allow nonprofit admins to access all participant files
+          hasRole('nonprofit_admin') ||
+          // Allow appraisers to access participant files they're assigned to
+          hasRole('appraiser') ||
+          // Allow donors to access their own participant files
+          hasRole('donor')
+        );
+    }
+    
     function isCampaignParticipant(campaignId) {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/campaigns/$(campaignId)) &&
@@ -89,10 +107,31 @@ service firebase.storage {
       );
     }
     
-    // Donation-specific documents - Debug mode - very permissive
+    // Donation-specific documents - Debug mode - very permissive (OLD STRUCTURE - for backward compatibility)
     match /donations/{donationId}/{folder}/{fileName} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated(); // Temporary: allow any authenticated user
+      allow delete: if isAuthenticated();
+    }
+    
+    // Participant-based documents - NEW STRUCTURE (Temporarily permissive for debugging)
+    match /donations/participants/{participantId}/{folder}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if (
+        isAuthenticated() &&
+        isValidFileSize(25 * 1024 * 1024) && // 25MB limit
+        isValidFileType([
+          'application/pdf',
+          'image/jpeg', 
+          'image/png',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+          'text/plain',
+          'text/csv'
+        ])
+      );
       allow delete: if isAuthenticated();
     }
     

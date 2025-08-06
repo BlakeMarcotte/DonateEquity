@@ -5,7 +5,24 @@ import { useUserTasks } from '@/hooks/useUserTasks'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Clock, AlertCircle, ArrowRight } from 'lucide-react'
+import { Task } from '@/types/task'
 import Link from 'next/link'
+
+// Helper function to get the correct task URL
+function getTaskViewUrl(task: Task): string {
+  // If task has participantId, use new participant-based URL
+  if (task.participantId && task.campaignId && task.donorId) {
+    return `/campaigns/${task.campaignId}/participants/${task.donorId}/tasks`
+  }
+  
+  // If task only has donationId, use deprecated URL (will redirect)
+  if ((task as any).donationId) {
+    return `/donations/${(task as any).donationId}/tasks`
+  }
+  
+  // Fallback to general campaign page
+  return '/my-campaign'
+}
 
 export function TasksDashboardWidget() {
   const { user, customClaims } = useAuth()
@@ -87,8 +104,8 @@ export function TasksDashboardWidget() {
                 </div>
               </div>
             </div>
-            {task.donationId && (
-              <Link href={`/donations/${task.donationId}/tasks`}>
+            {(task.participantId || (task as any).donationId) && (
+              <Link href={getTaskViewUrl(task)}>
                 <Button size="sm" variant="ghost">
                   <ArrowRight className="h-4 w-4" />
                 </Button>

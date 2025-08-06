@@ -334,7 +334,10 @@ export default function DonationsPage() {
                   <div 
                     key={donation.id} 
                     className="p-6 hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
-                    onClick={() => router.push(`/donations/${donation.id}/tasks`)}
+                    onClick={() => {
+                      // Use the deprecated URL for now (will redirect to new page)
+                      router.push(`/donations/${donation.id}/tasks`)
+                    }}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">

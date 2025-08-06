@@ -8,22 +8,20 @@ import { DonationTaskList } from '@/components/tasks/DonationTaskList'
 import { TaskTimeline } from '@/components/tasks/TaskTimeline'
 import { DonationFiles } from '@/components/files/DonationFiles'
 import { EquityCommitmentModal } from '@/components/tasks/EquityCommitmentModal'
-import { useDonationTasks } from '@/hooks/useDonationTasks'
 import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { Heart, Clock, Users, CheckSquare, FileText, DollarSign } from 'lucide-react'
 
 export default function MyCampaignPage() {
   const { user, customClaims, loading } = useAuth()
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign()
-  const { tasks: donationTasks, loading: donationTasksLoading } = useDonationTasks(donation?.id || null)
   
   // Create participant ID for task querying
   const participantId = campaign && user ? `${campaign.id}_${user.uid}` : null
-  const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId, donation?.id || null)
+  const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
   
-  // Use participant tasks if no donation, otherwise use donation tasks
-  const tasks = donation ? donationTasks : participantTasks
-  const tasksLoading = donation ? donationTasksLoading : participantTasksLoading
+  // Use participant tasks exclusively
+  const tasks = participantTasks
+  const tasksLoading = participantTasksLoading
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
@@ -203,19 +201,17 @@ export default function MyCampaignPage() {
             <div className="p-6">
               {activeTab === 'tasks' && (
                 <DonationTaskList 
-                  donationId={donation?.id} 
-                  campaignId={donation?.campaignId || campaign?.id}
+                  participantId={participantId}
+                  campaignId={campaign?.id}
                   showAllTasks={false}
                   // Pass required props for EquityCommitmentModal
                   campaignTitle={campaign?.title}
                   donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}
                   organizationName={campaign?.organizationName}
-                  // Pass participant tasks and handlers when no donation exists
-                  {...(!donation && {
-                    tasks: tasks,
-                    loading: tasksLoading,
-                    handleCommitmentDecision: handleCommitmentDecision
-                  })}
+                  // Always pass participant tasks and handlers
+                  tasks={tasks}
+                  loading={tasksLoading}
+                  handleCommitmentDecision={handleCommitmentDecision}
                 />
               )}
               

@@ -22,7 +22,6 @@ interface DonationTaskListProps {
   tasks?: Task[]
   loading?: boolean
   completeTask?: (taskId: string, completionData?: any) => Promise<void>
-  updateTaskStatus?: (taskId: string, status: Task['status']) => Promise<void>
   handleCommitmentDecision?: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: any) => Promise<void>
   campaignTitle?: string
   donorName?: string
@@ -36,20 +35,18 @@ export function DonationTaskList({
   tasks: externalTasks,
   loading: externalLoading,
   completeTask: externalCompleteTask,
-  updateTaskStatus: externalUpdateTaskStatus,
   handleCommitmentDecision,
   campaignTitle,
   donorName,
   organizationName
 }: DonationTaskListProps) {
   const { user, customClaims } = useAuth()
-  const { tasks: participantTasks, loading: participantLoading, completeTask: participantCompleteTask, updateTaskStatus: participantUpdateTaskStatus } = useParticipantTasks(participantId || null)
+  const { tasks: participantTasks, loading: participantLoading, completeTask: participantCompleteTask } = useParticipantTasks(participantId || null)
   
   // Use external tasks/handlers if provided, otherwise use participant tasks
   const tasks = externalTasks || participantTasks
   const loading = externalLoading !== undefined ? externalLoading : participantLoading
   const completeTask = externalCompleteTask || participantCompleteTask
-  const updateTaskStatus = externalUpdateTaskStatus || participantUpdateTaskStatus
   const [completingTasks, setCompletingTasks] = useState<Set<string>>(new Set())
   const [showInvitationModal, setShowInvitationModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -235,7 +232,7 @@ export function DonationTaskList({
         body: JSON.stringify({
           signerEmail: user?.email,
           signerName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          donationId,
+          participantId,
           documentName: 'General NDA',
           emailSubject: 'Please sign the General NDA for your donation'
         })
@@ -636,7 +633,7 @@ export function DonationTaskList({
         size="md"
       >
         <AppraiserInvitationForm
-          donationId={donationId}
+          participantId={participantId}
           onSuccess={handleInvitationSuccess}
         />
       </Modal>

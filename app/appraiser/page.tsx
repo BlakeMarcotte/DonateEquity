@@ -231,7 +231,7 @@ export default function AppraiserDashboard() {
                               Created {new Date(task.createdAt).toLocaleDateString()}
                             </p>
                           </div>
-                          <Link href={`/donations/${task.donationId}/tasks`}>
+                          <Link href={`/donations/${(task as any).donationId || task.participantId}/tasks`}>
                             <Button variant="outline" size="sm">
                               View
                             </Button>

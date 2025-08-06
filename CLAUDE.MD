@@ -83,8 +83,9 @@ interface CustomClaims {
 
 ### Storage Structure
 ```
-donations/{donationId}/ - legal/, financial/, appraisals/, signed-documents/
+donations/participants/{participantId}/ - legal/, financial/, appraisals/, signed-documents/, general/
 shared/{campaignId}/ - campaign-materials/
+donations/{donationId}/ - legacy structure (maintained for backward compatibility)
 ```
 
 ## API Integration
