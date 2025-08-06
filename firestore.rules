@@ -232,6 +232,9 @@ service cloud.firestore {
            (get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.donorId == getUserId() ||
             get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.nonprofitAdminId == getUserId() ||
             get(/databases/$(database)/documents/donations/$(resource.data.donationId)).data.appraiserId == getUserId())) ||
+          // Allow campaign participants to read all tasks for their participation
+          (resource.data.participantId != null && 
+           resource.data.participantId.matches('.*_' + getUserId() + '$')) ||
           isOrganizationAdmin()
         )
       );
@@ -293,6 +296,56 @@ service cloud.firestore {
     }
     
     
+    // Campaign participants collection - tracks interested/committed donors
+    match /campaign_participants/{participantId} {
+      allow read: if (
+        isAuthenticated() && (
+          // User can read their own participation records
+          resource.data.userId == getUserId() ||
+          // Nonprofit admins can read participants for their organization's campaigns
+          (hasRole('nonprofit_admin') && 
+           exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
+           get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.organizationId == request.auth.token.organizationId) ||
+          // Organization admins can read all
+          isOrganizationAdmin()
+        )
+      );
+      allow list: if (
+        isAuthenticated() && (
+          hasRole('nonprofit_admin') ||
+          hasRole('donor') ||
+          isOrganizationAdmin()
+        )
+      );
+      allow create: if (
+        isAuthenticated() && (
+          // User can create their own participation record
+          request.resource.data.userId == getUserId() ||
+          // Nonprofit admins can create participation records for their campaigns
+          hasRole('nonprofit_admin') ||
+          isOrganizationAdmin()
+        )
+      );
+      allow update: if (
+        isAuthenticated() && (
+          // User can update their own participation record
+          resource.data.userId == getUserId() ||
+          // Nonprofit admins can update participants for their organization's campaigns
+          (hasRole('nonprofit_admin') && 
+           exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
+           get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.organizationId == request.auth.token.organizationId) ||
+          isOrganizationAdmin()
+        )
+      );
+      allow delete: if (
+        isAuthenticated() && (
+          // User can remove their own participation
+          resource.data.userId == getUserId() ||
+          isOrganizationAdmin()
+        )
+      );
+    }
+
     // Campaign invitations collection
     match /campaign_invitations/{invitationId} {
       allow read: if (

@@ -158,12 +158,9 @@ export default function InvitationPage() {
           setInvitation(prev => prev ? { ...prev, status: response } : null)
           setResponded(true)
           
-          // Redirect to campaign with invitation context
+          // Redirect to my-campaign page to show their campaign dashboard
           setTimeout(() => {
-            const inviterName = encodeURIComponent(invitation.inviterName)
-            const message = invitation.message ? encodeURIComponent(invitation.message) : ''
-            const redirectUrl = `/campaigns/${invitation.campaignId}/donate?invitation=${params.token}&inviter=${inviterName}${message ? `&message=${message}` : ''}`
-            router.push(redirectUrl)
+            router.push('/my-campaign')
           }, 2000)
         } else {
           const error = await apiResponse.json()

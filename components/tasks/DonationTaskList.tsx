@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useDonationTasks } from '@/hooks/useDonationTasks'
+import { CommitmentDecisionTask } from './CommitmentDecisionTask'
 import { useAuth } from '@/contexts/AuthContext'
 import { Task } from '@/types/task'
 import { Button } from '@/components/ui/button'
@@ -13,14 +14,35 @@ import { useDonationFiles } from '@/hooks/useDonationFiles'
 import { Modal } from '@/components/ui/modal'
 
 interface DonationTaskListProps {
-  donationId: string
+  donationId?: string
   campaignId?: string
   showAllTasks?: boolean // Show tasks for all roles (admin view)
+  // Allow passing tasks and handlers from parent (for participant tasks)
+  tasks?: Task[]
+  loading?: boolean
+  completeTask?: (taskId: string, completionData?: any) => Promise<void>
+  updateTaskStatus?: (taskId: string, status: Task['status']) => Promise<void>
+  handleCommitmentDecision?: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal') => Promise<void>
 }
 
-export function DonationTaskList({ donationId, campaignId, showAllTasks = false }: DonationTaskListProps) {
+export function DonationTaskList({ 
+  donationId, 
+  campaignId, 
+  showAllTasks = false,
+  tasks: externalTasks,
+  loading: externalLoading,
+  completeTask: externalCompleteTask,
+  updateTaskStatus: externalUpdateTaskStatus,
+  handleCommitmentDecision
+}: DonationTaskListProps) {
   const { user, customClaims } = useAuth()
-  const { tasks, loading, completeTask, updateTaskStatus } = useDonationTasks(donationId)
+  const { tasks: donationTasks, loading: donationLoading, completeTask: donationCompleteTask, updateTaskStatus: donationUpdateTaskStatus } = useDonationTasks(donationId || null)
+  
+  // Use external tasks/handlers if provided, otherwise use donation tasks
+  const tasks = externalTasks || donationTasks
+  const loading = externalLoading !== undefined ? externalLoading : donationLoading
+  const completeTask = externalCompleteTask || donationCompleteTask
+  const updateTaskStatus = externalUpdateTaskStatus || donationUpdateTaskStatus
   const [completingTasks, setCompletingTasks] = useState<Set<string>>(new Set())
   const [showInvitationModal, setShowInvitationModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -258,13 +280,32 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
     try {
       const token = await user?.getIdToken()
       
-      const response = await fetch(`/api/donations/${donationId}/reset-tasks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      })
+      // Determine if we're dealing with participant tasks or donation tasks
+      const isParticipantTasks = !donationId && tasks.length > 0 && tasks[0].participantId
+      
+      let response
+      if (isParticipantTasks) {
+        // Reset participant tasks
+        const participantId = tasks[0].participantId
+        response = await fetch(`/api/campaign-participants/${participantId}/reset-tasks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+      } else if (donationId) {
+        // Reset donation tasks
+        response = await fetch(`/api/donations/${donationId}/reset-tasks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+      } else {
+        throw new Error('No tasks to reset')
+      }
 
       const result = await response.json()
 
@@ -272,7 +313,6 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
         throw new Error(result.error || 'Failed to reset tasks')
       }
 
-      // The useDonationTasks hook should automatically refresh the tasks
       console.log('Tasks reset successfully:', result.message)
       
     } catch (err) {
@@ -402,9 +442,22 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
       </div>
 
       <div className="space-y-3">
-        {sortedTasks.map((task, index) => (
-          <div key={task.id} className="group">
-            <div className={`p-4 rounded-xl transition-all duration-300 ${getStatusColor(task.status)}`}>
+        {sortedTasks.map((task, index) => {
+          // Special rendering for commitment decision tasks
+          if (task.type === 'commitment_decision' && handleCommitmentDecision) {
+            return (
+              <div key={task.id} className="group">
+                <CommitmentDecisionTask 
+                  task={task} 
+                  onDecision={handleCommitmentDecision}
+                />
+              </div>
+            )
+          }
+
+          return (
+            <div key={task.id} className="group">
+              <div className={`p-4 rounded-xl transition-all duration-300 ${getStatusColor(task.status)}`}>
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-3 flex-1">
                   <div className="flex flex-col items-center">
@@ -529,7 +582,8 @@ export function DonationTaskList({ donationId, campaignId, showAllTasks = false 
               </div>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Invitation Modal */}

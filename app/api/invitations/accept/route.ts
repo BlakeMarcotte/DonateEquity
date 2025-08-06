@@ -89,19 +89,164 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update the invitation to link it to the user and accept it
+    // Update the invitation and create campaign participant record
+    const batch = adminDb.batch()
+    
     try {
-      await invitationDoc.ref.update({
+      // Update the invitation
+      batch.update(invitationDoc.ref, {
         invitedUserId: decodedToken.uid,
         status: 'accepted',
         respondedAt: new Date(),
         updatedAt: new Date()
       })
-      console.log('Successfully updated invitation:', invitationDoc.id)
+
+      // Create campaign participant record to track donor interest
+      const participantRef = adminDb.collection('campaign_participants').doc(`${invitationData.campaignId}_${decodedToken.uid}`)
+      batch.set(participantRef, {
+        campaignId: invitationData.campaignId,
+        userId: decodedToken.uid,
+        userRole: 'donor',
+        status: 'interested', // interested -> committed -> donated
+        joinedAt: new Date(),
+        joinedVia: 'invitation',
+        invitationId: invitationDoc.id,
+        inviterUserId: invitationData.inviterUserId,
+        metadata: {
+          invitedEmail: invitationData.invitedEmail,
+          inviterName: invitationData.inviterName
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+
+      // Execute batch
+      await batch.commit()
+      console.log('Successfully updated invitation and created participant record:', invitationDoc.id)
+
+      // Create initial tasks for the participant directly
+      try {
+        const participantId = `${invitationData.campaignId}_${decodedToken.uid}`
+        
+        // Get campaign data
+        const campaignDoc = await adminDb.collection('campaigns').doc(invitationData.campaignId).get()
+        if (!campaignDoc.exists) {
+          console.error('Campaign not found for task creation')
+        } else {
+          const campaignData = campaignDoc.data()
+
+          // Task 1: Donation Commitment Decision
+          const commitmentTaskId = `${participantId}_commitment_decision`
+          const commitmentTask = {
+            id: commitmentTaskId,
+            participantId: participantId,
+            campaignId: invitationData.campaignId,
+            donorId: decodedToken.uid,
+            assignedTo: decodedToken.uid,
+            assignedRole: 'donor',
+            title: 'Donation Commitment Decision',
+            description: 'Choose when you want to make your donation commitment: now or after appraisal.',
+            type: 'commitment_decision',
+            status: 'pending',
+            priority: 'high',
+            order: 1,
+            dependencies: [],
+            metadata: {
+              options: [
+                {
+                  id: 'commit_now',
+                  label: 'Make Commitment Now',
+                  description: 'I\'m ready to commit to a donation amount now and proceed with the workflow.'
+                },
+                {
+                  id: 'commit_after_appraisal',
+                  label: 'Wait for Appraisal',
+                  description: 'I want to see the appraisal results before making my commitment decision.'
+                }
+              ],
+              campaignTitle: campaignData.title,
+              organizationName: campaignData.organizationName
+            },
+            comments: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            createdBy: decodedToken.uid
+          }
+
+          // Task 2: Company Information
+          const companyInfoTaskId = `${participantId}_company_info`
+          const companyInfoTask = {
+            id: companyInfoTaskId,
+            participantId: participantId,
+            campaignId: invitationData.campaignId,
+            donorId: decodedToken.uid,
+            assignedTo: decodedToken.uid,
+            assignedRole: 'donor',
+            title: 'Provide Company Information',
+            description: 'Upload your company information and details for the appraisal process.',
+            type: 'document_upload',
+            status: 'blocked',
+            priority: 'high',
+            order: 2,
+            dependencies: [commitmentTaskId],
+            metadata: {
+              documentTypes: ['company_info', 'financial_statements'],
+              documentPath: `participants/${participantId}/company_info/`,
+              requiresApproval: false
+            },
+            comments: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            createdBy: decodedToken.uid
+          }
+
+          // Task 3: Invite Appraiser
+          const inviteAppraiserTaskId = `${participantId}_invite_appraiser`
+          const inviteAppraiserTask = {
+            id: inviteAppraiserTaskId,
+            participantId: participantId,
+            campaignId: invitationData.campaignId,
+            donorId: decodedToken.uid,
+            assignedTo: decodedToken.uid,
+            assignedRole: 'donor',
+            title: 'Invite Appraiser to Platform',
+            description: 'Invite a professional appraiser to conduct your equity valuation.',
+            type: 'invitation',
+            status: 'blocked',
+            priority: 'high',
+            order: 3,
+            dependencies: [companyInfoTaskId],
+            metadata: {
+              invitationType: 'appraiser',
+              role: 'appraiser'
+            },
+            comments: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            createdBy: decodedToken.uid
+          }
+
+          // Create all tasks in batch
+          const taskBatch = adminDb.batch()
+          const commitmentTaskRef = adminDb.collection('tasks').doc(commitmentTaskId)
+          const companyInfoTaskRef = adminDb.collection('tasks').doc(companyInfoTaskId)
+          const inviteAppraiserTaskRef = adminDb.collection('tasks').doc(inviteAppraiserTaskId)
+
+          taskBatch.set(commitmentTaskRef, commitmentTask)
+          taskBatch.set(companyInfoTaskRef, companyInfoTask)
+          taskBatch.set(inviteAppraiserTaskRef, inviteAppraiserTask)
+
+          await taskBatch.commit()
+          console.log('Successfully created initial tasks for participant:', participantId)
+        }
+      } catch (taskError) {
+        console.error('Error creating initial tasks:', taskError)
+        // Don't fail the invitation acceptance if task creation fails
+      }
     } catch (updateError) {
-      console.error('Error updating invitation document:', updateError)
+      console.error('Error updating invitation or creating participant record:', updateError)
       return NextResponse.json(
-        { error: `Failed to update invitation: ${updateError.message}` },
+        { error: `Failed to process invitation acceptance: ${updateError.message}` },
         { status: 500 }
       )
     }

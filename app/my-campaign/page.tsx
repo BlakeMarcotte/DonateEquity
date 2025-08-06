@@ -8,12 +8,21 @@ import { DonationTaskList } from '@/components/tasks/DonationTaskList'
 import { TaskTimeline } from '@/components/tasks/TaskTimeline'
 import { DonationFiles } from '@/components/files/DonationFiles'
 import { useDonationTasks } from '@/hooks/useDonationTasks'
+import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { Heart, Clock, Users, CheckSquare, FileText } from 'lucide-react'
 
 export default function MyCampaignPage() {
   const { user, customClaims, loading } = useAuth()
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign()
-  const { tasks, loading: tasksLoading } = useDonationTasks(donation?.id || null)
+  const { tasks: donationTasks, loading: donationTasksLoading } = useDonationTasks(donation?.id || null)
+  
+  // Create participant ID for task querying
+  const participantId = campaign && user ? `${campaign.id}_${user.uid}` : null
+  const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId, donation?.id || null)
+  
+  // Use participant tasks if no donation, otherwise use donation tasks
+  const tasks = donation ? donationTasks : participantTasks
+  const tasksLoading = donation ? donationTasksLoading : participantTasksLoading
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
 
@@ -110,8 +119,50 @@ export default function MyCampaignPage() {
           <TaskTimeline tasks={tasks} />
         )}
 
-        {/* Enhanced Tab Navigation */}
-        {donation && (
+        {/* Show interest status if no donation yet but has tasks */}
+        {campaign && !donation && tasks.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <Heart className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900">Welcome to your campaign workflow!</h3>
+                <p className="text-blue-700 mt-1">
+                  Complete the tasks below to proceed with your equity donation process.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Show old-style interest message if no tasks yet */}
+        {campaign && !donation && tasks.length === 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <Heart className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900">You're interested in this campaign!</h3>
+                <p className="text-blue-700 mt-1">
+                  Ready to make your equity donation? Start by creating your donation commitment.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={() => router.push(`/campaigns/${campaign.id}/donate`)}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200"
+              >
+                Start Donation Process
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Tab Navigation - show for both donations and participant tasks */}
+        {(donation || (!donation && tasks.length > 0)) && (
           <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 overflow-hidden">
             <div className="border-b border-gray-100/50 bg-gradient-to-r from-gray-50/50 to-white/50">
               <nav className="flex space-x-1 px-6 py-2" aria-label="Tabs">
@@ -149,9 +200,15 @@ export default function MyCampaignPage() {
               {activeTab === 'tasks' && (
                 <div className="animate-in fade-in duration-300">
                   <DonationTaskList 
-                    donationId={donation.id} 
-                    campaignId={donation.campaignId}
+                    donationId={donation?.id} 
+                    campaignId={donation?.campaignId || campaign?.id}
                     showAllTasks={false}
+                    // Pass participant tasks and handlers when no donation exists
+                    {...(!donation && {
+                      tasks: tasks,
+                      loading: tasksLoading,
+                      handleCommitmentDecision: handleCommitmentDecision
+                    })}
                   />
                 </div>
               )}

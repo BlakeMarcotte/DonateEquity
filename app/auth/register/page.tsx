@@ -30,11 +30,8 @@ export default function RegisterPage() {
         // Appraiser invitation redirect
         router.push(redirectParam)
       } else if (campaignId && invitationToken && invitation) {
-        // Campaign invitation redirect
-        const inviterName = encodeURIComponent(invitation.inviterName)
-        const message = invitation.message ? encodeURIComponent(invitation.message) : ''
-        const redirectUrl = `/campaigns/${campaignId}/donate?invitation=${invitationToken}&inviter=${inviterName}${message ? `&message=${message}` : ''}`
-        router.push(redirectUrl)
+        // Campaign invitation redirect - take donor to my-campaign page
+        router.push('/my-campaign')
       } else if (campaignId) {
         router.push(`/campaigns/${campaignId}/donate`)
       } else {
@@ -130,7 +127,7 @@ export default function RegisterPage() {
             : redirectParam 
               ? redirectParam
               : campaignId && invitationToken && invitation
-                ? `/campaigns/${campaignId}/donate?invitation=${invitationToken}&inviter=${encodeURIComponent(invitation.inviterName)}${invitation.message ? `&message=${encodeURIComponent(invitation.message)}` : ''}`
+                ? '/my-campaign'
                 : campaignId 
                   ? `/campaigns/${campaignId}/donate` 
                   : '/organization'
