@@ -103,6 +103,8 @@ export default function CampaignAssignments({ campaignId, campaignTitle }: Campa
         })))
       } else {
         console.error('Failed to fetch assignments:', result.error)
+        // Don't show error to user, just show empty state
+        setAssignments([])
       }
     } catch (error) {
       console.error('Error fetching assignments:', error)

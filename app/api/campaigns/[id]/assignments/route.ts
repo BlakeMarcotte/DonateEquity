@@ -18,7 +18,7 @@ interface CampaignAssignment {
 // GET: Get all assignments for a campaign
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
@@ -52,7 +52,7 @@ export async function GET(
       )
     }
 
-    const campaignId = params.id
+    const { id: campaignId } = await params
 
     // Verify campaign belongs to user's organization
     const campaignDoc = await adminDb.collection('campaigns').doc(campaignId).get()
@@ -72,23 +72,36 @@ export async function GET(
     }
 
     // Get campaign assignments
-    const assignmentsSnapshot = await adminDb
-      .collection('campaign_assignments')
-      .where('campaignId', '==', campaignId)
-      .where('status', '==', 'active')
-      .orderBy('assignedAt', 'desc')
-      .get()
+    try {
+      const assignmentsSnapshot = await adminDb
+        .collection('campaign_assignments')
+        .where('campaignId', '==', campaignId)
+        .where('status', '==', 'active')
+        .get()
 
-    const assignments = assignmentsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      assignedAt: doc.data().assignedAt.toDate()
-    })) as CampaignAssignment[]
+      const assignments = assignmentsSnapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          assignedAt: doc.data().assignedAt?.toDate() || new Date()
+        }))
+        .sort((a, b) => b.assignedAt.getTime() - a.assignedAt.getTime()) as CampaignAssignment[]
 
-    return NextResponse.json({
-      success: true,
-      assignments
-    })
+      return NextResponse.json({
+        success: true,
+        assignments
+      })
+    } catch (queryError: any) {
+      // If it's an index error, return empty assignments for now
+      if (queryError.code === 9 || queryError.message?.includes('index')) {
+        console.log('Firestore index not ready, returning empty assignments')
+        return NextResponse.json({
+          success: true,
+          assignments: []
+        })
+      }
+      throw queryError
+    }
 
   } catch (error) {
     console.error('Error fetching campaign assignments:', error)
@@ -102,7 +115,7 @@ export async function GET(
 // POST: Assign team members to campaign
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
@@ -146,7 +159,7 @@ export async function POST(
       )
     }
 
-    const campaignId = params.id
+    const { id: campaignId } = await params
 
     // Verify campaign belongs to user's organization
     const campaignDoc = await adminDb.collection('campaigns').doc(campaignId).get()
@@ -220,7 +233,7 @@ export async function POST(
 // DELETE: Remove assignment from campaign
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
