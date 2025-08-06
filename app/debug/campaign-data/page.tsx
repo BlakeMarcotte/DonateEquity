@@ -10,6 +10,7 @@ export default function DebugCampaignData() {
   const [results, setResults] = useState<any>({})
   const [campaignId, setCampaignId] = useState('')
   const [loading, setLoading] = useState(false)
+  const [permissionTestResults, setPermissionTestResults] = useState<any>(null)
 
   const debugData = async () => {
     if (!campaignId) return
@@ -62,6 +63,23 @@ export default function DebugCampaignData() {
         debugResults.accepted_invitations = { error: e.message }
       }
 
+      // Check campaign_invitations with pending status
+      console.log('Checking pending campaign_invitations...')
+      try {
+        const pendingQuery = query(
+          collection(db, 'campaign_invitations'),
+          where('campaignId', '==', campaignId),
+          where('status', '==', 'pending')
+        )
+        const pendingSnapshot = await getDocs(pendingQuery)
+        debugResults.pending_invitations = {
+          count: pendingSnapshot.docs.length,
+          data: pendingSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        }
+      } catch (e) {
+        debugResults.pending_invitations = { error: e.message }
+      }
+
       // Check tasks
       console.log('Checking tasks...')
       try {
@@ -109,6 +127,31 @@ export default function DebugCampaignData() {
     setLoading(false)
   }
 
+  const testPermissions = async () => {
+    if (!user) return
+    setLoading(true)
+
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/debug/test-permissions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ campaignId })
+      })
+
+      const result = await response.json()
+      setPermissionTestResults(result)
+    } catch (error) {
+      console.error('Permission test error:', error)
+      setPermissionTestResults({ error: error.message })
+    }
+    
+    setLoading(false)
+  }
+
   if (!user || customClaims?.role !== 'nonprofit_admin') {
     return <div className="p-8">Access denied. Must be nonprofit admin.</div>
   }
@@ -128,11 +171,29 @@ export default function DebugCampaignData() {
         <button
           onClick={debugData}
           disabled={loading || !campaignId}
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50 mr-2"
         >
           {loading ? 'Loading...' : 'Debug Data'}
         </button>
+        <button
+          onClick={testPermissions}
+          disabled={loading}
+          className="bg-red-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        >
+          {loading ? 'Testing...' : 'Test Permissions'}
+        </button>
       </div>
+
+      {permissionTestResults && (
+        <div className="mb-6">
+          <div className="bg-red-100 border border-red-200 rounded p-4">
+            <h2 className="font-bold text-lg mb-2 text-red-800">Permission Test Results</h2>
+            <pre className="text-sm bg-white p-3 rounded overflow-x-auto">
+              {JSON.stringify(permissionTestResults, null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
 
       {Object.keys(results).length > 0 && (
         <div className="space-y-6">

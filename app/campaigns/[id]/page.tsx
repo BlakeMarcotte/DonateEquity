@@ -12,6 +12,7 @@ import {
   where,
   orderBy,
   getDocs,
+  limit
 
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
@@ -75,7 +76,7 @@ interface Donation {
 }
 
 interface CampaignParticipant {
-  donorId: string
+  userId: string // Maps to userId in the database
   donorName: string
   donorEmail: string
   participantId: string
@@ -97,8 +98,9 @@ export default function CampaignDetailPage() {
   const [donations, setDonations] = useState<Donation[]>([])
   const [participants, setParticipants] = useState<CampaignParticipant[]>([])
   const [invitations, setInvitations] = useState<CampaignInvitation[]>([])
+  const [pendingInvitations, setPendingInvitations] = useState<CampaignInvitation[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'team'>('donations')
+  const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'team' | 'pending'>('donations')
   const [shareUrl, setShareUrl] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [syncingStats, setSyncingStats] = useState(false)
@@ -111,6 +113,7 @@ export default function CampaignDetailPage() {
         fetchParticipants(donationData)
       })
       fetchInvitations()
+      fetchPendingInvitations()
       setShareUrl(`${window.location.origin}/campaigns/${params.id}/donate`)
     }
   }, [params.id, customClaims?.organizationId])
@@ -219,27 +222,58 @@ export default function CampaignDetailPage() {
     if (!params.id) return
 
     console.log('fetchParticipants: Looking for campaign participants for campaign:', params.id)
+    console.log('fetchParticipants: User details:', {
+      uid: user?.uid,
+      email: user?.email,
+      role: customClaims?.role,
+      organizationId: customClaims?.organizationId
+    })
 
     try {
-      // Fetch campaign_participants for this campaign
+      // First test basic access
+      console.log('fetchParticipants: Testing basic collection access...')
+      try {
+        const testQuery = query(
+          collection(db, 'campaign_participants'),
+          limit(1)
+        )
+        const testSnapshot = await getDocs(testQuery)
+        console.log('fetchParticipants: Basic access test successful, found docs:', testSnapshot.docs.length)
+      } catch (basicError) {
+        console.error('fetchParticipants: Basic access test failed:', basicError)
+        console.error('fetchParticipants: Error code:', basicError.code)
+        console.error('fetchParticipants: Error message:', basicError.message)
+      }
+
+      // Fetch campaign_participants for this campaign (donors only)
       let participantsQuery = query(
         collection(db, 'campaign_participants'),
         where('campaignId', '==', params.id),
+        where('userRole', '==', 'donor'),
         orderBy('joinedAt', 'desc')
       )
 
-      console.log('fetchParticipants: Executing query...')
+      console.log('fetchParticipants: Executing query with where + orderBy...')
       let snapshot
       
       try {
         snapshot = await getDocs(participantsQuery)
       } catch (indexError) {
-        console.log('fetchParticipants: OrderBy failed, trying without...', indexError)
+        console.error('fetchParticipants: OrderBy failed, trying without...', indexError)
+        console.error('fetchParticipants: Error details:', {
+          code: indexError?.code,
+          message: indexError?.message,
+          name: indexError?.name
+        })
+        
         // Fallback without orderBy
         participantsQuery = query(
           collection(db, 'campaign_participants'),
-          where('campaignId', '==', params.id)
+          where('campaignId', '==', params.id),
+          where('userRole', '==', 'donor')
         )
+        
+        console.log('fetchParticipants: Trying simple where query...')
         snapshot = await getDocs(participantsQuery)
       }
       
@@ -253,7 +287,9 @@ export default function CampaignDetailPage() {
 
       // Create full participant objects with donation info if available
       const fullParticipants: CampaignParticipant[] = participantData.map(participant => {
-        const donation = donationData.find(d => d.donorId === participant.donorId)
+        // Map from your database fields to our interface
+        const userId = participant.userId
+        const donation = donationData.find(d => d.donorId === userId)
         
         // Determine status based on participant record and donation existence
         let participantStatus = participant.status || 'interested'
@@ -262,10 +298,10 @@ export default function CampaignDetailPage() {
         }
         
         return {
-          donorId: participant.donorId,
-          donorName: participant.donorName,
-          donorEmail: participant.donorEmail,
-          participantId: participant.participantId,
+          userId: userId,
+          donorName: participant.inviterName || participant.donorName || 'Unknown User',
+          donorEmail: participant.invitedEmail || participant.donorEmail || 'Unknown Email',
+          participantId: participant.id, // Use document ID as participantId
           joinedAt: participant.joinedAt,
           status: participantStatus,
           hasDonation: !!donation,
@@ -281,6 +317,11 @@ export default function CampaignDetailPage() {
       setParticipants(fullParticipants)
     } catch (error) {
       console.error('fetchParticipants: Error fetching participants:', error)
+      console.error('fetchParticipants: Error details:', {
+        code: error?.code,
+        message: error?.message,
+        name: error?.name
+      })
       setParticipants([])
     }
   }
@@ -294,6 +335,53 @@ export default function CampaignDetailPage() {
     } catch (error) {
       console.error('Error fetching invitations:', error)
       setInvitations([])
+    }
+  }
+
+  const fetchPendingInvitations = async () => {
+    if (!params.id) return
+
+    console.log('fetchPendingInvitations: Looking for pending invitations for campaign:', params.id)
+
+    try {
+      // Fetch pending campaign invitations for this campaign
+      let pendingQuery = query(
+        collection(db, 'campaign_invitations'),
+        where('campaignId', '==', params.id),
+        where('status', '==', 'pending'),
+        orderBy('invitedAt', 'desc')
+      )
+
+      console.log('fetchPendingInvitations: Executing query...')
+      let snapshot
+      
+      try {
+        snapshot = await getDocs(pendingQuery)
+      } catch (indexError) {
+        console.log('fetchPendingInvitations: OrderBy failed, trying without...', indexError)
+        // Fallback without orderBy
+        pendingQuery = query(
+          collection(db, 'campaign_invitations'),
+          where('campaignId', '==', params.id),
+          where('status', '==', 'pending')
+        )
+        snapshot = await getDocs(pendingQuery)
+      }
+      
+      console.log('fetchPendingInvitations: Found pending invitations:', snapshot.docs.length)
+      
+      const pendingData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        invitedAt: doc.data().invitedAt?.toDate() || new Date(),
+        expiresAt: doc.data().expiresAt?.toDate() || null,
+      })) as CampaignInvitation[]
+
+      console.log('fetchPendingInvitations: Processed pending invitations:', pendingData.length)
+      setPendingInvitations(pendingData)
+    } catch (error) {
+      console.error('fetchPendingInvitations: Error fetching pending invitations:', error)
+      setPendingInvitations([])
     }
   }
 
@@ -536,6 +624,7 @@ export default function CampaignDetailPage() {
               <nav className="flex space-x-8 px-6">
                 {[
                   { id: 'donations', name: 'Campaign Donors', icon: Users },
+                  { id: 'pending', name: 'Pending Invitations', icon: Clock },
                   { id: 'marketing', name: 'Marketing', icon: Share2 },
                   { id: 'team', name: 'Team', icon: Heart },
                 ].map((tab) => {
@@ -554,6 +643,11 @@ export default function CampaignDetailPage() {
                       {tab.id === 'donations' && (
                         <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
                           {participants.length}
+                        </span>
+                      )}
+                      {tab.id === 'pending' && (
+                        <span className="bg-yellow-100 text-yellow-600 py-0.5 px-2 rounded-full text-xs">
+                          {pendingInvitations.length}
                         </span>
                       )}
                     </button>
@@ -622,7 +716,7 @@ export default function CampaignDetailPage() {
                               router.push(`/donations/${participant.donation.id}/tasks`)
                             } else {
                               // If no donation yet, navigate to participant task flow
-                              router.push(`/campaigns/${params.id}/participants/${participant.donorId}/tasks`)
+                              router.push(`/campaigns/${params.id}/participants/${participant.userId}/tasks`)
                             }
                           }}
                         >
@@ -718,6 +812,124 @@ export default function CampaignDetailPage() {
                                   </p>
                                 </div>
                               </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'pending' && (
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Pending Invitations ({pendingInvitations.length})
+                    </h3>
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={() => setShowInviteModal(true)}
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        <span>Send New Invitation</span>
+                      </button>
+                      <button 
+                        onClick={fetchPendingInvitations}
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                      >
+                        <Clock className="w-4 h-4" />
+                        <span>Refresh</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {pendingInvitations.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Clock className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">No pending invitations</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        All invitations have been responded to, or you haven't sent any yet.
+                      </p>
+                      <div className="mt-6">
+                        <button
+                          onClick={() => setShowInviteModal(true)}
+                          className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          <span>Send First Invitation</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingInvitations.map((invitation) => (
+                        <div 
+                          key={invitation.id} 
+                          className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 hover:bg-yellow-100 transition-colors duration-200"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                                <Clock className="w-5 h-5 text-yellow-600" />
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-gray-900">{invitation.invitedEmail}</h4>
+                                <p className="text-sm text-gray-600">
+                                  Invited by {invitation.inviterName}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-4">
+                              <div className="text-right">
+                                <p className="font-medium text-yellow-700">
+                                  Waiting for Response
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Sent {invitation.invitedAt.toLocaleDateString()}
+                                </p>
+                                {invitation.expiresAt && (
+                                  <p className="text-xs text-gray-500">
+                                    Expires {invitation.expiresAt.toLocaleDateString()}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => {
+                                    // Copy invitation URL to clipboard
+                                    const invitationUrl = `${window.location.origin}/invite/${invitation.invitationToken}`
+                                    navigator.clipboard.writeText(invitationUrl)
+                                    // You could add a toast notification here
+                                  }}
+                                  className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm rounded-md transition-colors duration-200"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                  <span>Copy Link</span>
+                                </button>
+                                
+                                <button
+                                  onClick={() => {
+                                    // TODO: Implement resend functionality
+                                    console.log('Resend invitation:', invitation.id)
+                                  }}
+                                  className="inline-flex items-center space-x-1 px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 text-sm rounded-md transition-colors duration-200"
+                                >
+                                  <Send className="w-3 h-3" />
+                                  <span>Resend</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {invitation.message && (
+                            <div className="mt-3 pt-3 border-t border-yellow-200">
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Personal message:</span> {invitation.message}
+                              </p>
                             </div>
                           )}
                         </div>

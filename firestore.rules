@@ -300,8 +300,8 @@ service cloud.firestore {
     match /campaign_participants/{participantId} {
       allow read: if (
         isAuthenticated() && (
-          // User can read their own participation records
-          resource.data.donorId == getUserId() ||
+          // User can read their own participation records (using userId field)
+          resource.data.userId == getUserId() ||
           // Nonprofit admins can read participants for their organization's campaigns
           (hasRole('nonprofit_admin') && 
            exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
@@ -322,8 +322,8 @@ service cloud.firestore {
       );
       allow create: if (
         isAuthenticated() && (
-          // User can create their own participation record (via API)
-          request.resource.data.donorId == getUserId() ||
+          // User can create their own participation record (via API, using userId field)
+          request.resource.data.userId == getUserId() ||
           // API can create participation records
           hasRole('nonprofit_admin') ||
           isOrganizationAdmin()
@@ -331,8 +331,8 @@ service cloud.firestore {
       );
       allow update: if (
         isAuthenticated() && (
-          // User can update their own participation record
-          resource.data.donorId == getUserId() ||
+          // User can update their own participation record (using userId field)
+          resource.data.userId == getUserId() ||
           // Nonprofit admins can update participants for their organization's campaigns
           (hasRole('nonprofit_admin') && 
            exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
@@ -344,8 +344,8 @@ service cloud.firestore {
       );
       allow delete: if (
         isAuthenticated() && (
-          // User can remove their own participation
-          resource.data.donorId == getUserId() ||
+          // User can remove their own participation (using userId field)
+          resource.data.userId == getUserId() ||
           isOrganizationAdmin()
         )
       );

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user is authorized to update this participant
     const isAuthorized = (
-      participantData.donorId === authResult.user.uid || // The participant themselves
+      participantData.userId === authResult.user.uid || // The participant themselves (using userId field)
       authResult.decodedToken?.role === 'nonprofit_admin' || // Nonprofit admin
       authResult.decodedToken?.role === 'admin' // System admin
     )

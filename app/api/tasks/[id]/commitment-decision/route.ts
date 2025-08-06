@@ -72,32 +72,41 @@ export async function POST(
     batch.update(taskRef, updateData)
 
     if (decision === 'commit_now') {
-      // Create donation commitment task immediately
-      const commitmentTaskId = `${taskData.participantId}_donation_commitment`
-      const commitmentTaskRef = adminDb.collection('tasks').doc(commitmentTaskId)
-      
-      batch.set(commitmentTaskRef, {
-        id: commitmentTaskId,
-        participantId: taskData.participantId,
+      // Create donation record with commitment data
+      const donationData = {
         campaignId: taskData.campaignId,
         donorId: taskData.donorId,
-        assignedTo: taskData.donorId,
-        assignedRole: 'donor',
-        title: 'Create Donation Commitment',
-        description: 'Specify your donation amount and complete your commitment.',
-        type: 'donation_commitment',
-        status: 'blocked', // Will be unblocked after company info
-        priority: 'high',
-        order: 1.5, // Insert between commitment decision and company info
-        dependencies: [taskId],
-        metadata: {
-          requiresAmount: true,
-          createsDonationRecord: true
-        },
-        comments: [],
+        donorName: decodedToken.name || decodedToken.email?.split('@')[0] || 'Anonymous',
+        donorEmail: decodedToken.email,
+        amount: commitmentData?.amount || 0,
+        commitmentType: commitmentData?.type || 'dollar',
+        status: 'committed',
+        requiresAppraisal: true,
+        participantId: taskData.participantId,
         createdAt: new Date(),
-        updatedAt: new Date(),
-        createdBy: taskData.donorId
+        metadata: {
+          commitmentData,
+          source: 'commitment_decision_task'
+        }
+      }
+
+      const donationRef = adminDb.collection('donations').doc()
+      batch.set(donationRef, donationData)
+
+      // Find and unblock the next task (Provide Company Information)
+      const tasksSnapshot = await adminDb
+        .collection('tasks')
+        .where('participantId', '==', taskData.participantId)
+        .where('dependencies', 'array-contains', taskId)
+        .get()
+
+      tasksSnapshot.docs.forEach((taskDoc) => {
+        const nextTaskRef = adminDb.collection('tasks').doc(taskDoc.id)
+        batch.update(nextTaskRef, {
+          status: 'pending',
+          donationId: donationRef.id,
+          updatedAt: new Date()
+        })
       })
     } else {
       // Decision is 'commit_after_appraisal'
@@ -117,7 +126,7 @@ export async function POST(
       success: true,
       decision: decision,
       message: decision === 'commit_now' 
-        ? 'Commitment task created. You can now specify your donation amount.'
+        ? 'Commitment recorded successfully. You can now proceed with providing company information.'
         : 'You will be asked for your commitment after the appraisal is complete.'
     })
 

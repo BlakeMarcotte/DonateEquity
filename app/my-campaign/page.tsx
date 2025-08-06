@@ -112,65 +112,34 @@ export default function MyCampaignPage() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-gray-50 to-blue-50">
-      {/* Enhanced Header with Gradient */}
-      <div className="bg-gradient-to-r from-white to-blue-50/30 border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-10">
+    <div className="min-h-screen bg-gray-50">
+      {/* Clean Header */}
+      <div className="bg-white shadow-sm">
+        <div className="max-w-4xl mx-auto px-6">
           <div className="py-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
-                <Heart className="w-5 h-5 text-white" />
-              </div>
+            <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                  {campaign?.title || 'Loading Campaign...'}
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {campaign?.title || 'My Campaign'}
                 </h1>
                 {campaign?.organizationName && (
-                  <p className="mt-1 text-sm text-gray-600 font-medium">
+                  <p className="text-gray-600">
                     {campaign.organizationName}
                   </p>
                 )}
               </div>
             </div>
-            <p className="mt-3 text-gray-600 text-base">
-              Track your donation progress and complete required steps
-            </p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-10 py-6 pb-20">
+      <div className="max-w-4xl mx-auto px-6 py-8">
 
         {/* Timeline Section */}
         {donation && tasks.length > 0 && (
           <TaskTimeline tasks={tasks} />
         )}
 
-        {/* Show interest status if no donation yet but has tasks */}
-        {campaign && !donation && tasks.length > 0 && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Heart className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-blue-900">Welcome to your campaign workflow!</h3>
-                  <p className="text-blue-700 mt-1">
-                    Ready to make your equity commitment? Start the process now.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCommitmentModal(true)}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors duration-200 flex items-center space-x-2"
-              >
-                <DollarSign className="w-5 h-5" />
-                <span>Make Commitment Now</span>
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Show old-style interest message if no tasks yet */}
         {campaign && !donation && tasks.length === 0 && (
@@ -197,64 +166,61 @@ export default function MyCampaignPage() {
           </div>
         )}
 
-        {/* Enhanced Tab Navigation - show for both donations and participant tasks */}
+        {/* Task Content - show for both donations and participant tasks */}
         {(donation || (!donation && tasks.length > 0)) && (
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 overflow-hidden">
-            <div className="border-b border-gray-100/50 bg-gradient-to-r from-gray-50/50 to-white/50">
-              <nav className="flex space-x-1 px-6 py-2" aria-label="Tabs">
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="border-b border-gray-200">
+              <nav className="flex space-x-8 px-6">
                 <button
                   onClick={() => setActiveTab('tasks')}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 ${
+                  className={`py-4 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === 'tasks'
-                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/25'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   <div className="flex items-center space-x-2">
                     <CheckSquare className="h-4 w-4" />
-                    <span>Your Tasks</span>
+                    <span>Tasks</span>
                   </div>
                 </button>
                 <button
                   onClick={() => setActiveTab('files')}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 ${
+                  className={`py-4 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === 'files'
-                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/25'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   <div className="flex items-center space-x-2">
                     <FileText className="h-4 w-4" />
-                    <span>Shared Files</span>
+                    <span>Files</span>
                   </div>
                 </button>
               </nav>
             </div>
 
-            {/* Enhanced Tab Content */}
             <div className="p-6">
               {activeTab === 'tasks' && (
-                <div className="animate-in fade-in duration-300">
-                  <DonationTaskList 
-                    donationId={donation?.id} 
-                    campaignId={donation?.campaignId || campaign?.id}
-                    showAllTasks={false}
-                    // Pass required props for EquityCommitmentModal
-                    campaignTitle={campaign?.title}
-                    donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}
-                    organizationName={campaign?.organizationName}
-                    // Pass participant tasks and handlers when no donation exists
-                    {...(!donation && {
-                      tasks: tasks,
-                      loading: tasksLoading,
-                      handleCommitmentDecision: handleCommitmentDecision
-                    })}
-                  />
-                </div>
+                <DonationTaskList 
+                  donationId={donation?.id} 
+                  campaignId={donation?.campaignId || campaign?.id}
+                  showAllTasks={false}
+                  // Pass required props for EquityCommitmentModal
+                  campaignTitle={campaign?.title}
+                  donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}
+                  organizationName={campaign?.organizationName}
+                  // Pass participant tasks and handlers when no donation exists
+                  {...(!donation && {
+                    tasks: tasks,
+                    loading: tasksLoading,
+                    handleCommitmentDecision: handleCommitmentDecision
+                  })}
+                />
               )}
               
               {activeTab === 'files' && (
-                <div className="animate-in fade-in duration-300">
+                <>
                   {donation ? (
                     <DonationFiles 
                       donationId={donation.id}
@@ -264,14 +230,14 @@ export default function MyCampaignPage() {
                     />
                   ) : (
                     <div className="text-center py-12">
-                      <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                      <h2 className="text-xl font-semibold text-gray-900 mb-2">Shared Files</h2>
+                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Shared Files</h3>
                       <p className="text-gray-600">
                         File sharing will be available once your donation is created.
                       </p>
                     </div>
                   )}
-                </div>
+                </>
               )}
             </div>
           </div>

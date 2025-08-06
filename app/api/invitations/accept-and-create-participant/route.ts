@@ -50,16 +50,19 @@ export async function POST(request: NextRequest) {
       })
     })
 
-    // Create campaign participant record
+    // Create campaign participant record  
     const participantData = {
       campaignId: invitationData.campaignId,
-      donorId: authResult.user.uid,
-      donorName: authResult.user.displayName || authResult.user.email?.split('@')[0] || 'User',
-      donorEmail: authResult.user.email,
-      participantId: `${invitationData.campaignId}_${authResult.user.uid}`,
+      userId: authResult.user.uid, // Using userId to match your data structure
+      invitedEmail: authResult.user.email,
+      inviterName: authResult.user.displayName || authResult.user.email?.split('@')[0] || 'User',
+      userRole: 'donor', // Adding userRole field seen in your data
       joinedAt: serverTimestamp(),
+      joinedVia: 'invitation', // Adding joinedVia field seen in your data
       status: 'interested', // Initial status
       invitationId: invitationId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
       // Store any additional acceptance data
       ...(acceptanceData && { acceptanceData })
     }

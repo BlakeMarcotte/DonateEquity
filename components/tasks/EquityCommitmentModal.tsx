@@ -332,19 +332,6 @@ export function EquityCommitmentModal({
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start">
-                  <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-                  <div className="text-sm text-blue-800">
-                    <h4 className="font-medium mb-1">What happens next?</h4>
-                    <p>
-                      Your equity commitment will be recorded and you'll proceed through a professional 
-                      appraisal and documentation process. The commitment will be fulfilled when a 
-                      qualifying liquidity event occurs (IPO, acquisition, etc.).
-                    </p>
-                  </div>
-                </div>
-              </div>
 
               <div className="flex justify-between">
                 <Button variant="outline" onClick={handleBack}>
