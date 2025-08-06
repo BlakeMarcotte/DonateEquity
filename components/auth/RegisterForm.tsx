@@ -67,7 +67,7 @@ export default function RegisterForm({
     subrole: 'admin' as NonprofitSubrole,
     organizationId: '',
     organizationName: '',
-    createNewOrg: false,
+    joinExistingOrg: false,
   })
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(false)
@@ -94,7 +94,7 @@ export default function RegisterForm({
         role: 'nonprofit_admin', // Always nonprofit_admin for team invites
         subrole: teamInvitation.subrole,
         organizationId: teamInvitation.organizationId,
-        createNewOrg: false, // They're joining an existing org
+        joinExistingOrg: true, // They're joining an existing org
       }))
     }
   }, [invitation, teamInvitation])
@@ -135,7 +135,7 @@ export default function RegisterForm({
       ...prev,
       [name]: inputValue,
       // Reset organization fields when role changes
-      ...(name === 'role' && { organizationId: '', organizationName: '', createNewOrg: false }),
+      ...(name === 'role' && { organizationId: '', organizationName: '', joinExistingOrg: false }),
     }))
   }
 
@@ -166,12 +166,12 @@ export default function RegisterForm({
         setStep('organization')
       }
     } else if (step === 'organization') {
-      if (!formData.createNewOrg && !formData.organizationId) {
-        setError('Please select an organization or choose to create a new one')
+      if (formData.joinExistingOrg && !formData.organizationId) {
+        setError('Please select an organization or uncheck to create a new one')
         return
       }
       
-      if (formData.createNewOrg && !formData.organizationName) {
+      if (!formData.joinExistingOrg && !formData.organizationName) {
         setError('Please enter an organization name')
         return
       }
@@ -204,8 +204,8 @@ export default function RegisterForm({
           displayName: formData.displayName,
           role: formData.role,
           subrole: formData.role === 'nonprofit_admin' ? formData.subrole : undefined,
-          organizationId: formData.createNewOrg ? undefined : formData.organizationId || undefined,
-          organizationName: formData.createNewOrg ? formData.organizationName : undefined,
+          organizationId: formData.joinExistingOrg ? formData.organizationId || undefined : undefined,
+          organizationName: formData.joinExistingOrg ? undefined : formData.organizationName,
           teamInviteToken: teamInviteToken || undefined,
         }),
       })
@@ -575,48 +575,28 @@ export default function RegisterForm({
           </div>
 
           <div className="space-y-6">
-            {/* Toggle for new organization */}
+            {/* Toggle for joining existing organization */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="flex items-center gap-3 mb-4">
                 <input
-                  id="createNewOrg"
-                  name="createNewOrg"
+                  id="joinExistingOrg"
+                  name="joinExistingOrg"
                   type="checkbox"
-                  checked={formData.createNewOrg}
+                  checked={formData.joinExistingOrg}
                   onChange={handleInputChange}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   disabled={loading}
                 />
-                <Label htmlFor="createNewOrg" className="text-gray-700 font-medium">
-                  I want to register a new organization
+                <Label htmlFor="joinExistingOrg" className="text-gray-700 font-medium">
+                  Join an existing organization
                 </Label>
               </div>
               <p className="text-sm text-gray-600 ml-7">
-                Check this if your organization isn&apos;t listed below
+                Check this if you want to join an organization that&apos;s already registered
               </p>
             </div>
 
-            {formData.createNewOrg ? (
-              <div className="space-y-2">
-                <Label htmlFor="organizationName" className="text-gray-700 font-medium">
-                  Organization Name *
-                </Label>
-                <Input
-                  id="organizationName"
-                  name="organizationName"
-                  type="text"
-                  required
-                  value={formData.organizationName}
-                  onChange={handleInputChange}
-                  placeholder={`Enter your ${
-                    formData.role === 'donor' ? 'organization or foundation' :
-                    formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraisal firm'
-                  } name`}
-                  disabled={loading}
-                  className={`text-base h-12 ${error ? 'form-error' : ''}`}
-                />
-              </div>
-            ) : (
+            {formData.joinExistingOrg ? (
               <div className="space-y-2">
                 <Label htmlFor="organizationId" className="text-gray-700 font-medium">
                   Select Your Organization *
@@ -645,6 +625,26 @@ export default function RegisterForm({
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
                 </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="organizationName" className="text-gray-700 font-medium">
+                  New Organization Name *
+                </Label>
+                <Input
+                  id="organizationName"
+                  name="organizationName"
+                  type="text"
+                  required
+                  value={formData.organizationName}
+                  onChange={handleInputChange}
+                  placeholder={`Enter your new ${
+                    formData.role === 'donor' ? 'organization or foundation' :
+                    formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraisal firm'
+                  } name`}
+                  disabled={loading}
+                  className={`text-base h-12 ${error ? 'form-error' : ''}`}
+                />
               </div>
             )}
 

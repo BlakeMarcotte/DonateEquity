@@ -120,7 +120,10 @@ export default function RegisterPage() {
         invitation={invitation}
         teamInvitation={teamInvitation}
         teamInviteToken={teamInviteToken}
-        preselectedRole={roleParam as 'donor' | 'nonprofit_admin' | 'appraiser' | null}
+        preselectedRole={
+          invitation ? 'donor' : 
+          roleParam as 'donor' | 'nonprofit_admin' | 'appraiser' | null
+        }
         onSuccessRedirect={
           returnUrl 
             ? returnUrl

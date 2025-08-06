@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { getInvitationByToken, respondToInvitation } from '@/lib/firebase/invitations'
-import { doc, getDoc } from 'firebase/firestore'
-import { db } from '@/lib/firebase/config'
 import { CampaignInvitation } from '@/types/invitations'
 import { Heart, Mail, Calendar, Target, DollarSign, CheckCircle, XCircle, Clock } from 'lucide-react'
 
@@ -98,15 +96,14 @@ export default function InvitationPage() {
 
       setInvitation(invitation)
 
-      // Fetch campaign details
-      const campaignDoc = await getDoc(doc(db, 'campaigns', invitation.campaignId))
-      if (campaignDoc.exists()) {
-        const campaignData = campaignDoc.data()
+      // Fetch campaign details using API
+      const campaignResponse = await fetch(`/api/campaigns/${invitation.campaignId}`)
+      if (campaignResponse.ok) {
+        const { campaign: campaignData } = await campaignResponse.json()
         setCampaign({
-          id: campaignDoc.id,
           ...campaignData,
-          createdAt: campaignData.createdAt?.toDate() || new Date(),
-          updatedAt: campaignData.updatedAt?.toDate() || new Date(),
+          createdAt: new Date(campaignData.createdAt),
+          updatedAt: new Date(campaignData.updatedAt),
         } as Campaign)
       }
     } catch (error: any) {
