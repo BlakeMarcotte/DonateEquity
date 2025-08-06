@@ -124,120 +124,30 @@ export async function POST(request: NextRequest) {
       await batch.commit()
       console.log('Successfully updated invitation and created participant record:', invitationDoc.id)
 
-      // Create initial tasks for the participant directly
+      // Create the full 9-step task workflow for the participant
       try {
         const participantId = `${invitationData.campaignId}_${decodedToken.uid}`
         
-        // Get campaign data
-        const campaignDoc = await adminDb.collection('campaigns').doc(invitationData.campaignId).get()
-        if (!campaignDoc.exists) {
-          console.error('Campaign not found for task creation')
+        // Use the task creation API endpoint to create the full workflow
+        const createTasksUrl = `${request.url.split('/api/')[0]}/api/campaign-participants/create-tasks`
+        const taskCreationResponse = await fetch(createTasksUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authHeader.split('Bearer ')[1]}`
+          },
+          body: JSON.stringify({
+            campaignId: invitationData.campaignId,
+            participantId: participantId
+          })
+        })
+
+        if (taskCreationResponse.ok) {
+          const taskResult = await taskCreationResponse.json()
+          console.log('Successfully created full task workflow for participant:', participantId, 'Tasks:', taskResult.tasksCreated)
         } else {
-          const campaignData = campaignDoc.data()
-
-          // Task 1: Donation Commitment Decision
-          const commitmentTaskId = `${participantId}_commitment_decision`
-          const commitmentTask = {
-            id: commitmentTaskId,
-            participantId: participantId,
-            campaignId: invitationData.campaignId,
-            donorId: decodedToken.uid,
-            assignedTo: decodedToken.uid,
-            assignedRole: 'donor',
-            title: 'Donation Commitment Decision',
-            description: 'Choose when you want to make your donation commitment: now or after appraisal.',
-            type: 'commitment_decision',
-            status: 'pending',
-            priority: 'high',
-            order: 1,
-            dependencies: [],
-            metadata: {
-              options: [
-                {
-                  id: 'commit_now',
-                  label: 'Make Commitment Now',
-                  description: 'I\'m ready to commit to a donation amount now and proceed with the workflow.'
-                },
-                {
-                  id: 'commit_after_appraisal',
-                  label: 'Wait for Appraisal',
-                  description: 'I want to see the appraisal results before making my commitment decision.'
-                }
-              ],
-              campaignTitle: campaignData.title,
-              organizationName: campaignData.organizationName
-            },
-            comments: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            createdBy: decodedToken.uid
-          }
-
-          // Task 2: Company Information
-          const companyInfoTaskId = `${participantId}_company_info`
-          const companyInfoTask = {
-            id: companyInfoTaskId,
-            participantId: participantId,
-            campaignId: invitationData.campaignId,
-            donorId: decodedToken.uid,
-            assignedTo: decodedToken.uid,
-            assignedRole: 'donor',
-            title: 'Provide Company Information',
-            description: 'Upload your company information and details for the appraisal process.',
-            type: 'document_upload',
-            status: 'blocked',
-            priority: 'high',
-            order: 2,
-            dependencies: [commitmentTaskId],
-            metadata: {
-              documentTypes: ['company_info', 'financial_statements'],
-              documentPath: `participants/${participantId}/company_info/`,
-              requiresApproval: false
-            },
-            comments: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            createdBy: decodedToken.uid
-          }
-
-          // Task 3: Invite Appraiser
-          const inviteAppraiserTaskId = `${participantId}_invite_appraiser`
-          const inviteAppraiserTask = {
-            id: inviteAppraiserTaskId,
-            participantId: participantId,
-            campaignId: invitationData.campaignId,
-            donorId: decodedToken.uid,
-            assignedTo: decodedToken.uid,
-            assignedRole: 'donor',
-            title: 'Invite Appraiser to Platform',
-            description: 'Invite a professional appraiser to conduct your equity valuation.',
-            type: 'invitation',
-            status: 'blocked',
-            priority: 'high',
-            order: 3,
-            dependencies: [companyInfoTaskId],
-            metadata: {
-              invitationType: 'appraiser',
-              role: 'appraiser'
-            },
-            comments: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            createdBy: decodedToken.uid
-          }
-
-          // Create all tasks in batch
-          const taskBatch = adminDb.batch()
-          const commitmentTaskRef = adminDb.collection('tasks').doc(commitmentTaskId)
-          const companyInfoTaskRef = adminDb.collection('tasks').doc(companyInfoTaskId)
-          const inviteAppraiserTaskRef = adminDb.collection('tasks').doc(inviteAppraiserTaskId)
-
-          taskBatch.set(commitmentTaskRef, commitmentTask)
-          taskBatch.set(companyInfoTaskRef, companyInfoTask)
-          taskBatch.set(inviteAppraiserTaskRef, inviteAppraiserTask)
-
-          await taskBatch.commit()
-          console.log('Successfully created initial tasks for participant:', participantId)
+          const taskError = await taskCreationResponse.text()
+          console.error('Failed to create full task workflow:', taskError)
         }
       } catch (taskError) {
         console.error('Error creating initial tasks:', taskError)
@@ -253,8 +163,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      campaignId: invitationData.campaignId,
-      message: 'Invitation accepted successfully'
+      message: 'Invitation accepted successfully',
+      data: {
+        campaignId: invitationData.campaignId,
+        participantId: `${invitationData.campaignId}_${decodedToken.uid}`,
+        donorId: decodedToken.uid
+      }
     })
   } catch (error) {
     console.error('Error accepting invitation:', error)

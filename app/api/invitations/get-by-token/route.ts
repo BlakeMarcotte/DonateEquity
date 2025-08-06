@@ -48,10 +48,28 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Fetch campaign title
+    let campaignTitle = ''
+    try {
+      const campaignDoc = await adminDb
+        .collection('campaigns')
+        .doc(invitationData.campaignId)
+        .get()
+      
+      if (campaignDoc.exists) {
+        const campaignData = campaignDoc.data()
+        campaignTitle = campaignData?.title || ''
+      }
+    } catch (campaignError) {
+      console.error('Error fetching campaign title:', campaignError)
+      // Continue without campaign title
+    }
+
     // Return invitation data
     const invitation = {
       id: invitationDoc.id,
       campaignId: invitationData.campaignId,
+      campaignTitle: campaignTitle,
       invitedEmail: invitationData.invitedEmail,
       inviterUserId: invitationData.inviterUserId,
       inviterName: invitationData.inviterName,

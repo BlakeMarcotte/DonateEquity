@@ -51,16 +51,19 @@ Next.js/TypeScript platform enabling pre-committed equity donations to nonprofit
 - **Performance**: Next.js App Router, image optimization, lazy loading, Firebase query optimization
 - **Quality**: No temporary fixes - production-ready code from start
 
-## 7-Step Task Workflow
-1. **Donor**: Provide Company Information
-2. **Appraiser**: Initial Equity Assessment
-3. **Donor**: Review Initial Assessment
-4. **Appraiser**: Conduct Equity Appraisal
-5. **Nonprofit**: Process Donation Request
-6. **Donor**: Review Final Documentation
-7. **Nonprofit**: Finalize Donation Receipt
+## 9-Step Task Workflow (with Conditional Tasks)
+1. **Donor**: Sign NDA
+2. **Donor**: Commitment Decision (branches workflow)
+3. **Donor**: Invite Appraiser
+4. **Donor**: Upload Company Information (File Upload)
+5. **Appraiser**: Sign NDA
+6. **Appraiser**: Upload Documents (File Upload)
+7. **Donor**: Approve Documents
+8. **[CONDITIONAL]** **Donor**: Makes Equity Commitment (only if "commit after appraisal" chosen)
+9. **Nonprofit**: Approve Documents
+10. **Nonprofit**: Upload Documents (File Upload)
 
-**Features**: Auto-creation, sequential dependencies, universal visibility, role-based completion, real-time updates, professional UI with color-coded badges
+**Features**: Auto-creation, sequential dependencies, conditional task creation, universal visibility, role-based completion, real-time updates, branching workflows based on donor decisions
 
 ## Firebase Architecture
 

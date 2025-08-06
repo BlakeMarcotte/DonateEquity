@@ -34,7 +34,7 @@ const ROLES = [
   {
     value: 'donor' as UserRole,
     label: 'Donor',
-    description: 'Individual looking to donate equity to nonprofits',
+    description: '',
   },
   {
     value: 'nonprofit_admin' as UserRole,
@@ -285,11 +285,8 @@ export default function RegisterForm({
                   </div>
                   <div>
                     <h4 className="text-sm font-medium text-blue-900">
-                      You're invited to support a campaign!
+                      {invitation.inviterName} invited you to support {invitation.campaignTitle || 'their campaign'}!
                     </h4>
-                    <p className="text-sm text-blue-800 mt-1">
-                      {invitation.inviterName} has invited you to join our platform and support their fundraising campaign.
-                    </p>
                   </div>
                 </div>
               </div>

@@ -69,13 +69,28 @@ export async function POST(request: NextRequest) {
 
     const participantRef = await addDoc(collection(db, 'campaign_participants'), participantData)
 
-    // Optional: Create initial tasks for the participant
-    // This could be moved to a separate function or Cloud Function
+    // Create initial tasks for the participant using the new 9-step workflow
     try {
-      // You can add task creation logic here if needed
-      console.log('Participant created successfully:', participantRef.id)
+      const createTasksResponse = await fetch(`${request.nextUrl.origin}/api/campaign-participants/create-tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': request.headers.get('authorization') || ''
+        },
+        body: JSON.stringify({
+          campaignId: invitationData.campaignId,
+          participantId: participantRef.id
+        })
+      })
+      
+      if (createTasksResponse.ok) {
+        const taskResult = await createTasksResponse.json()
+        console.log('Initial tasks created successfully:', taskResult.tasksCreated, 'tasks for participant', participantRef.id)
+      } else {
+        console.warn('Failed to create initial tasks:', await createTasksResponse.text())
+      }
     } catch (taskError) {
-      console.warn('Failed to create initial tasks:', taskError)
+      console.warn('Error creating initial tasks:', taskError)
       // Don't fail the whole operation if task creation fails
     }
 

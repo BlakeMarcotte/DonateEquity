@@ -155,12 +155,22 @@ export default function InvitationPage() {
         })
         
         if (apiResponse.ok) {
+          const acceptanceResult = await apiResponse.json()
           setInvitation(prev => prev ? { ...prev, status: response } : null)
           setResponded(true)
           
-          // Redirect to my-campaign page to show their campaign dashboard
+          // Redirect to participant-based task page if we have the participant data
           setTimeout(() => {
-            router.push('/my-campaign')
+            if (acceptanceResult.data?.participantId && acceptanceResult.data?.campaignId) {
+              const participantId = acceptanceResult.data.participantId
+              const campaignId = acceptanceResult.data.campaignId
+              // Construct the donor ID from the participant ID (participantId format: campaignId_donorId)
+              const donorId = user?.uid
+              router.push(`/campaigns/${campaignId}/participants/${donorId}/tasks`)
+            } else {
+              // Fallback to my-campaign if participant data is not available
+              router.push('/my-campaign')
+            }
           }, 2000)
         } else {
           const error = await apiResponse.json()

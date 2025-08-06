@@ -3,6 +3,7 @@
 export interface CampaignInvitation {
   id: string
   campaignId: string
+  campaignTitle?: string
   invitedEmail: string
   inviterUserId: string
   inviterName: string
