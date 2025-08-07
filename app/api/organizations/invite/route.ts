@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     const organization = orgDoc.data()
     
     // Get inviter details
-    const inviterDoc = await adminDb.collection('users').doc(authResult.decodedToken.uid).get()
+    const inviterDoc = await adminDb.collection('users').doc(authResult.decodedToken.uid as string).get()
     const inviterData = inviterDoc.data()
 
     // Generate invitation token
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       organizationId: userClaims.organizationId,
       organizationName: organization?.name || 'Unknown Organization',
       inviterUserId: authResult.decodedToken.uid,
-      inviterName: inviterData?.displayName || inviterData?.email || 'Unknown',
+      inviterName: (inviterData?.displayName as string) || (inviterData?.email as string) || 'Unknown',
       inviterEmail: inviterData?.email,
       invitedEmail: email,
       invitedUserId: existingUser?.uid || null,

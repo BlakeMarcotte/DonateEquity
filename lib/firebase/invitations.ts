@@ -84,7 +84,7 @@ export async function createCampaignInvitation(
       expiresAt: Timestamp.fromDate(expiresAt),
       invitationToken,
       userExists: userCheck.exists,
-      invitedUserId: userCheck.userId || null,
+      invitedUserId: userCheck.userId || undefined,
     }
     
     const docRef = await addDoc(collection(db, 'campaign_invitations'), invitationData)

@@ -35,6 +35,12 @@ export async function POST(
     }
 
     const taskData = taskDoc.data()
+    if (!taskData) {
+      return NextResponse.json(
+        { error: 'Task data not found' },
+        { status: 404 }
+      )
+    }
 
     // Verify the user can complete this task
     if (taskData.assignedTo !== decodedToken.uid) {

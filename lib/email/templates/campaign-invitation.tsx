@@ -63,7 +63,7 @@ export const CampaignInvitationEmail = ({
 
           {/* Campaign Card */}
           <Section style={campaignCard}>
-            <Heading style={campaignTitle}>{campaignTitle}</Heading>
+            <Heading style={campaignTitleStyle}>{campaignTitle}</Heading>
             <Text style={campaignDescriptionStyle}>{campaignDescription}</Text>
             
             {/* Progress Bar */}
@@ -179,6 +179,13 @@ const campaignCard = {
   margin: '24px 20px',
 }
 
+const campaignTitleStyle = {
+  fontSize: '20px',
+  lineHeight: '1.3',
+  fontWeight: '700',
+  color: '#111827',
+  margin: '0 0 12px',
+}
 
 const campaignDescriptionStyle = {
   fontSize: '14px',

@@ -53,6 +53,13 @@ export async function POST(request: NextRequest) {
     }
 
     const invitationData = invitationDoc.data()
+    if (!invitationData) {
+      return NextResponse.json(
+        { error: 'Invitation data not found' },
+        { status: 404 }
+      )
+    }
+    
     console.log('Invitation data:', { 
       invitedEmail: invitationData.invitedEmail, 
       invitedUserId: invitationData.invitedUserId,
@@ -156,7 +163,7 @@ export async function POST(request: NextRequest) {
     } catch (updateError) {
       console.error('Error updating invitation or creating participant record:', updateError)
       return NextResponse.json(
-        { error: `Failed to process invitation acceptance: ${updateError.message}` },
+        { error: `Failed to process invitation acceptance: ${updateError instanceof Error ? updateError.message : 'Unknown error'}` },
         { status: 500 }
       )
     }
@@ -170,11 +177,12 @@ export async function POST(request: NextRequest) {
         donorId: decodedToken.uid
       }
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error accepting invitation:', error)
     
     // Check if it's a Firebase permission error
-    if (error.code === 'permission-denied') {
+    const firebaseError = error as { code?: string }
+    if (firebaseError.code === 'permission-denied') {
       return NextResponse.json(
         { error: 'Permission denied. You may not have access to this invitation.' },
         { status: 403 }
@@ -182,7 +190,7 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { error: `Failed to accept invitation: ${error.message}` },
+      { error: `Failed to accept invitation: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

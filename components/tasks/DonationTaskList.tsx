@@ -55,11 +55,11 @@ export function DonationTaskList({
   const [currentCommitmentTask, setCurrentCommitmentTask] = useState<Task | null>(null)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const { uploadFile } = useDonationFiles(participantId ? `participants/${participantId}` : null)
-  const fileUploadRef = useRef<{ triggerUpload: () => void } | null>(null)
+  const fileUploadRef = useRef<{ triggerUpload: () => Promise<void>; hasFiles: () => boolean } | null>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
   // Wrapper for handling commitment decisions that manages modal state
-  const handleCommitmentDecisionWrapper = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: Record<string, unknown>) => {
+  const handleCommitmentDecisionWrapper = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: Record<string, unknown> | undefined) => {
     if (decision === 'commit_now' && !commitmentData) {
       // Open modal to get commitment details
       const task = tasks.find(t => t.id === taskId)
@@ -115,7 +115,7 @@ export function DonationTaskList({
         if (customClaims?.role === 'appraiser') {
           return task.assignedRole === 'appraiser' || 
                  task.assignedTo === user?.uid ||
-                 (task.assignedTo?.startsWith('mock-') && task.assignedRole === 'appraiser')
+                 (task.assignedTo?.startsWith?.('mock-') && task.assignedRole === 'appraiser')
         }
         // For other roles, check direct assignment or role match
         return task.assignedTo === user?.uid || task.assignedRole === customClaims?.role
@@ -497,8 +497,8 @@ export function DonationTaskList({
                   task={task} 
                   onDecision={handleCommitmentDecisionWrapper}
                   campaignTitle={campaignTitle}
-                  donorName={donorName}
-                  organizationName={organizationName}
+                  donorName={donorName || 'Anonymous Donor'}
+                  organizationName={organizationName || 'Organization'}
                 />
               </div>
             )
@@ -700,8 +700,8 @@ export function DonationTaskList({
         }}
         onCommit={handleCommitmentCreate}
         campaignTitle={campaignTitle || 'this campaign'}
-        donorName={donorName}
-        organizationName={organizationName}
+        donorName={donorName || 'Anonymous Donor'}
+        organizationName={organizationName || 'Organization'}
       />
       
     </div>

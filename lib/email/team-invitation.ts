@@ -65,7 +65,7 @@ export async function sendTeamInvitationEmail({
 
     if (result.error) {
       console.error('Failed to send team invitation email:', result.error)
-      throw new Error(`Email sending failed: ${result.error.message}`)
+      throw new Error(`Email sending failed: ${(result.error as Error)?.message || 'Unknown error'}`)
     }
 
     console.log('Team invitation email sent successfully:', {

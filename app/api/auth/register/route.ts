@@ -27,6 +27,20 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'view_assigned_tasks',
     'submit_appraisals',
     'manage_own_profile'
+  ],
+  admin: [
+    'create_donation',
+    'view_own_donations',
+    'manage_own_profile',
+    'create_campaign',
+    'manage_campaigns',
+    'view_donations',
+    'manage_organization',
+    'view_assigned_tasks',
+    'submit_appraisals',
+    'system_admin',
+    'manage_all_users',
+    'access_admin_panel'
   ]
 }
 

@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current user info
-    const currentUser = await adminAuth.getUser(authResult.decodedToken.uid)
+    const currentUser = await adminAuth.getUser(authResult.decodedToken.uid as string)
     const currentClaims = currentUser.customClaims as CustomClaims
 
     // Check if invitation is for this user's email
@@ -118,10 +118,10 @@ export async function POST(request: NextRequest) {
       permissions,
     }
 
-    await adminAuth.setCustomUserClaims(authResult.decodedToken.uid, updatedClaims)
+    await adminAuth.setCustomUserClaims(authResult.decodedToken.uid as string, updatedClaims)
 
     // Update user profile in Firestore
-    await adminDb.collection('users').doc(authResult.decodedToken.uid).update({
+    await adminDb.collection('users').doc(authResult.decodedToken.uid as string).update({
       role: 'nonprofit_admin',
       subrole: invitation.subrole,
       organizationId: invitation.organizationId,

@@ -41,8 +41,8 @@ export function CommitmentDecisionTask({
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
   
-  const displayName = donorName || userProfile?.name || 'Anonymous Donor'
-  const displayOrgName = organizationName || userProfile?.organizationName
+  const displayName = donorName || userProfile?.displayName || 'Anonymous Donor'
+  const displayOrgName = organizationName || userProfile?.organizationId
 
   const handleDecision = async (decision: CommitmentDecision) => {
     setLoading(true)
@@ -74,7 +74,7 @@ export function CommitmentDecisionTask({
   }
 
   if (task.status === 'completed') {
-    const decision = task.metadata?.decision
+    const decision = (task.metadata as Record<string, unknown>)?.decision
     return (
       <div className="bg-green-50 border border-green-200 rounded-lg p-6">
         <div className="flex items-center space-x-3">
@@ -95,7 +95,7 @@ export function CommitmentDecisionTask({
     )
   }
 
-  const options = task.metadata?.options || []
+  const options = (task.metadata as Record<string, unknown>)?.options || []
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6">

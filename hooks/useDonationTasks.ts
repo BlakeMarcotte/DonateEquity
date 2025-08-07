@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, query, where, onSnapshot, doc, updateDoc, orderBy, addDoc, Timestamp, getDocs } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, updateDoc, orderBy, addDoc, Timestamp } from 'firebase/firestore'
 import { db, auth } from '@/lib/firebase/config'
 import { Task } from '@/types/task'
 
@@ -16,7 +16,6 @@ const createBasicTaskTemplates = (donationId: string, campaignId: string, donorI
   return [
     // Donor tasks
     {
-      donationId,
       title: 'Provide Company Information',
       description: 'Submit basic company information and documentation for equity valuation',
       type: 'document_upload',
@@ -35,7 +34,6 @@ const createBasicTaskTemplates = (donationId: string, campaignId: string, donorI
       comments: []
     },
     {
-      donationId,
       title: 'Review Final Documentation',
       description: 'Review and approve all finalized donation documentation',
       type: 'document_review',
@@ -56,7 +54,6 @@ const createBasicTaskTemplates = (donationId: string, campaignId: string, donorI
     
     // Nonprofit Admin tasks
     {
-      donationId,
       title: 'Process Donation Request',
       description: 'Review donation request and coordinate with appraiser',
       type: 'document_review',
@@ -75,7 +72,6 @@ const createBasicTaskTemplates = (donationId: string, campaignId: string, donorI
       comments: []
     },
     {
-      donationId,
       title: 'Finalize Donation Receipt',
       description: 'Generate and send final donation receipt and acknowledgement',
       type: 'other',
@@ -96,7 +92,6 @@ const createBasicTaskTemplates = (donationId: string, campaignId: string, donorI
     
     // Appraiser tasks
     {
-      donationId,
       title: 'Conduct Equity Appraisal',
       description: 'Perform professional appraisal of donated equity',
       type: 'appraisal_submission',

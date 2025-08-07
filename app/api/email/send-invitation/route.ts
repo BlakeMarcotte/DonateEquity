@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await resend.emails.send({
       from: EMAIL_CONFIG.from,
       to: invitedEmail,
-      reply_to: EMAIL_CONFIG.replyTo,
+      replyTo: EMAIL_CONFIG.replyTo,
       subject: EMAIL_SUBJECTS.campaignInvitation(inviterName),
       react: CampaignInvitationEmail({
         inviterName,

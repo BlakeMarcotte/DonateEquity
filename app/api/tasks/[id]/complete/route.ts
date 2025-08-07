@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
+import { Task } from '@/types/task'
 
 export async function POST(
   request: NextRequest,
@@ -87,7 +88,7 @@ async function updateDependentTasks(completedTaskId: string, donationId: string)
     const allTasks = tasksSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    }))
+    })) as Task[]
 
     console.log(`Found ${allTasks.length} total tasks for donation ${donationId}`)
     console.log('All tasks:', allTasks.map(t => ({ 
