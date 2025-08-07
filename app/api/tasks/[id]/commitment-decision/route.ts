@@ -62,7 +62,7 @@ export async function POST(
 
     // Complete the commitment decision task
     const taskRef = adminDb.collection('tasks').doc(taskId)
-    const updateData: Record<string, unknown> = {
+    const updateData: { [key: string]: any } = {
       status: 'completed',
       completedAt: new Date(),
       updatedAt: new Date(),
