@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail, UserPlus, AlertCircle } from 'lucide-react'
+import { Mail, AlertCircle } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
 import { NonprofitSubrole } from '@/types/auth'
 
@@ -87,12 +87,7 @@ export default function InviteTeamMemberModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={
-        <div className="flex items-center space-x-3">
-          <UserPlus className="w-6 h-6 text-blue-600" />
-          <span>Invite Team Member</span>
-        </div>
-      }
+      title="Invite Team Member"
       size="sm"
     >
       <form onSubmit={handleSubmit} className="space-y-6">

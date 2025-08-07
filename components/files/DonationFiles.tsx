@@ -291,7 +291,7 @@ export function DonationFiles({
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                          {canDelete(file) && (
+                          {canDelete() && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -358,7 +358,7 @@ export function DonationFiles({
                   >
                     <Download className="h-4 w-4" />
                   </Button>
-                  {canDelete(file) && (
+                  {canDelete() && (
                     <Button
                       size="sm"
                       variant="outline"

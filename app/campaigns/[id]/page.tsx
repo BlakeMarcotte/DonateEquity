@@ -97,6 +97,7 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [donations, setDonations] = useState<Donation[]>([])
   const [participants, setParticipants] = useState<CampaignParticipant[]>([])
+  const [invitations, setInvitations] = useState<unknown[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<CampaignInvitation[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'team' | 'pending'>('donations')
@@ -240,8 +241,9 @@ export default function CampaignDetailPage() {
         console.log('fetchParticipants: Basic access test successful, found docs:', testSnapshot.docs.length)
       } catch (basicError) {
         console.error('fetchParticipants: Basic access test failed:', basicError)
-        console.error('fetchParticipants: Error code:', basicError.code)
-        console.error('fetchParticipants: Error message:', basicError.message)
+        const basicErr = basicError as { code?: string; message?: string }
+        console.error('fetchParticipants: Error code:', basicErr?.code)
+        console.error('fetchParticipants: Error message:', basicErr?.message)
       }
 
       // Fetch campaign_participants for this campaign (donors only)
@@ -260,9 +262,9 @@ export default function CampaignDetailPage() {
       } catch (indexError) {
         console.error('fetchParticipants: OrderBy failed, trying without...', indexError)
         console.error('fetchParticipants: Error details:', {
-          code: indexError?.code,
-          message: indexError?.message,
-          name: indexError?.name
+          code: (indexError as { code?: string })?.code,
+          message: (indexError as Error)?.message,
+          name: (indexError as Error)?.name
         })
         
         // Fallback without orderBy
@@ -366,7 +368,7 @@ export default function CampaignDetailPage() {
             donorEmail: userData?.email || participant.invitedEmail || 'Unknown Email',
             participantId: participant.id, // Use document ID as participantId
             joinedAt: participant.joinedAt,
-            status: participantStatus,
+            status: participantStatus as "interested" | "in_process" | "donation_complete",
             hasDonation: !!donation,
             donation: donation,
             taskProgress: {
@@ -381,9 +383,9 @@ export default function CampaignDetailPage() {
     } catch (error) {
       console.error('fetchParticipants: Error fetching participants:', error)
       console.error('fetchParticipants: Error details:', {
-        code: error?.code,
-        message: error?.message,
-        name: error?.name
+        code: (error as { code?: string })?.code,
+        message: (error as Error)?.message,
+        name: (error as Error)?.name
       })
       setParticipants([])
     }
@@ -1171,7 +1173,7 @@ function InviteModal({
           invitedEmail: formData.email,
           message: formData.message,
         },
-        userProfile.uid,
+        userProfile?.uid || '',
         userProfile.displayName || userProfile.email,
         customClaims.organizationId,
         {

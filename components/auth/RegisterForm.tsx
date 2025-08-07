@@ -89,10 +89,10 @@ export default function RegisterForm({
       // Pre-fill for team invitation
       setFormData(prev => ({
         ...prev,
-        email: teamInvitation.invitedEmail,
+        email: teamInvitation.invitedEmail as string,
         role: 'nonprofit_admin', // Always nonprofit_admin for team invites
-        subrole: teamInvitation.subrole,
-        organizationId: teamInvitation.organizationId,
+        subrole: teamInvitation.subrole as NonprofitSubrole,
+        organizationId: teamInvitation.organizationId as string,
         joinExistingOrg: true, // They're joining an existing org
       }))
     }
@@ -300,14 +300,14 @@ export default function RegisterForm({
                   </div>
                   <div>
                     <h4 className="text-sm font-medium text-green-900">
-                      {`You're invited to join ${teamInvitation.organizationName}!`}
+                      {`You're invited to join ${teamInvitation.organizationName as string}!`}
                     </h4>
                     <p className="text-sm text-green-800 mt-1">
-                      {teamInvitation.inviterName} has invited you to join their nonprofit organization as a {teamInvitation.subrole}.
+                      {teamInvitation.inviterName as React.ReactNode} has invited you to join their nonprofit organization as a {teamInvitation.subrole as React.ReactNode}.
                     </p>
-                    {teamInvitation.personalMessage && (
+                    {(teamInvitation.personalMessage as string) && (
                       <p className="text-sm text-green-700 mt-2 italic">
-                        {`"${teamInvitation.personalMessage}"`}
+                        {`"${teamInvitation.personalMessage as string}"`}
                       </p>
                     )}
                   </div>
@@ -363,7 +363,7 @@ export default function RegisterForm({
                     <Input
                       id="role"
                       type="text"
-                      value={teamInvitation ? 'Nonprofit' : ROLES.find(r => r.value === preselectedRole)?.label || preselectedRole}
+                      value={teamInvitation ? 'Nonprofit' : ROLES.find(r => r.value === preselectedRole)?.label || preselectedRole || ''}
                       disabled={true}
                       className="text-base h-12 bg-gray-50 text-gray-600 cursor-not-allowed"
                     />

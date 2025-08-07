@@ -140,7 +140,7 @@ export default function ParticipantTasksPage() {
             {activeTab === 'tasks' && (
               <div className="animate-in fade-in duration-300">
                 <DonationTaskList 
-                  participantId={participantId}
+                  participantId={participantId || undefined}
                   campaignId={campaignId}
                   showAllTasks={customClaims.role === 'nonprofit_admin' || customClaims.role === 'appraiser'}
                   tasks={tasks}

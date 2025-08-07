@@ -76,13 +76,13 @@ export default function PendingInvitations({
   }
 
   const isExpired = (expiresAt: Date | unknown) => {
-    const expiryDate = expiresAt.toDate ? expiresAt.toDate() : new Date(expiresAt)
+    const expiryDate = (expiresAt as { toDate?: () => Date }).toDate ? (expiresAt as { toDate: () => Date }).toDate() : new Date(expiresAt as string | number | Date)
     return new Date() > expiryDate
   }
 
   const formatTimeRemaining = (expiresAt: Date | unknown) => {
     const now = new Date()
-    const expiryDate = expiresAt.toDate ? expiresAt.toDate() : new Date(expiresAt)
+    const expiryDate = (expiresAt as { toDate?: () => Date }).toDate ? (expiresAt as { toDate: () => Date }).toDate() : new Date(expiresAt as string | number | Date)
     const timeRemaining = expiryDate.getTime() - now.getTime()
     
     if (timeRemaining <= 0) return 'Expired'

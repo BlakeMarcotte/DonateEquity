@@ -201,9 +201,9 @@ export default function MyCampaignPage() {
             <div className="p-6">
               {activeTab === 'tasks' && (
                 <DonationTaskList 
-                  participantId={participantId}
+                  participantId={participantId || undefined}
                   campaignId={campaign?.id}
-                  showAllTasks={customClaims?.role === 'nonprofit_admin'}
+                  showAllTasks={customClaims?.role === 'nonprofit_admin' || customClaims?.role === 'appraiser'}
                   // Pass required props for EquityCommitmentModal
                   campaignTitle={campaign?.title}
                   donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}

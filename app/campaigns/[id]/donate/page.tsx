@@ -560,7 +560,7 @@ export default function DonateCampaignPage() {
           <DonationModal
             campaign={campaign}
             onClose={() => setShowDonationModal(false)}
-            user={user}
+            user={user!}
             userProfile={userProfile}
             router={router}
           />

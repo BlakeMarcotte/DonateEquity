@@ -54,7 +54,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult> {
       user: {
         uid: decodedToken.uid,
         email: decodedToken.email,
-        customClaims: decodedToken as CustomClaims
+        customClaims: decodedToken as unknown as CustomClaims
       }
     }
 

@@ -98,7 +98,7 @@ export default function CampaignAssignments({ campaignId, campaignTitle }: Campa
       if (result.success) {
         setAssignments(result.assignments.map((assignment: Record<string, unknown>) => ({
           ...assignment,
-          assignedAt: new Date(assignment.assignedAt)
+          assignedAt: new Date(assignment.assignedAt as string | number | Date)
         })))
       } else {
         console.error('Failed to fetch assignments:', result.error)
@@ -125,8 +125,8 @@ export default function CampaignAssignments({ campaignId, campaignTitle }: Campa
       if (result.success) {
         setTeamMembers(result.members.map((member: Record<string, unknown>) => ({
           ...member,
-          joinedAt: new Date(member.joinedAt),
-          lastLoginAt: member.lastLoginAt ? new Date(member.lastLoginAt) : undefined
+          joinedAt: new Date(member.joinedAt as string | number | Date),
+          lastLoginAt: member.lastLoginAt ? new Date(member.lastLoginAt as string | number | Date) : undefined
         })))
       } else {
         console.error('Failed to fetch team members:', result.error)

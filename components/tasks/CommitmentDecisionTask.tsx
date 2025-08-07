@@ -110,7 +110,7 @@ export function CommitmentDecisionTask({
       </div>
 
       <div className="space-y-4">
-        {options.map((option: TaskOption) => (
+        {(Array.isArray(options) ? options : []).map((option: TaskOption) => (
           <div
             key={option.id}
             className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${

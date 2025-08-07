@@ -59,7 +59,7 @@ export function DonationTaskList({
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
   // Wrapper for handling commitment decisions that manages modal state
-  const handleCommitmentDecisionWrapper = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: Record<string, unknown> | undefined) => {
+  const handleCommitmentDecisionWrapper = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: Record<string, unknown>) => {
     if (decision === 'commit_now' && !commitmentData) {
       // Open modal to get commitment details
       const task = tasks.find(t => t.id === taskId)
@@ -112,7 +112,7 @@ export function DonationTaskList({
     ? tasks 
     : tasks.filter(task => {
         // For appraisers, show tasks assigned to their role (including null assignedTo)
-        if (customClaims?.role === 'appraiser') {
+        if ((customClaims?.role as string) === 'appraiser') {
           return task.assignedRole === 'appraiser' || 
                  task.assignedTo === user?.uid ||
                  (task.assignedTo?.startsWith?.('mock-') && task.assignedRole === 'appraiser')

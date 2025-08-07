@@ -20,6 +20,7 @@ export default function NotificationBell() {
       const interval = setInterval(fetchNotifications, 30000) // Check every 30 seconds
       return () => clearInterval(interval)
     }
+    return undefined
   }, [user])
 
   const fetchNotifications = async () => {

@@ -10,12 +10,15 @@ export interface DonationTaskWorkflowUser {
 }
 
 // Basic task templates for the three roles
-const createBasicTaskTemplates = (donationId: string, campaignId: string, donorId: string, nonprofitAdminId: string): Omit<Task, 'id'>[] => {
+const createBasicTaskTemplates = (_donationId: string, campaignId: string, donorId: string, nonprofitAdminId: string): Omit<Task, 'id'>[] => {
   const now = new Date()
   
   return [
     // Donor tasks
     {
+      participantId: `${campaignId}_${donorId}`,
+      campaignId,
+      donorId,
       title: 'Provide Company Information',
       description: 'Submit basic company information and documentation for equity valuation',
       type: 'document_upload',
@@ -34,6 +37,9 @@ const createBasicTaskTemplates = (donationId: string, campaignId: string, donorI
       comments: []
     },
     {
+      participantId: `${campaignId}_${donorId}`,
+      campaignId,
+      donorId,
       title: 'Review Final Documentation',
       description: 'Review and approve all finalized donation documentation',
       type: 'document_review',
@@ -54,6 +60,9 @@ const createBasicTaskTemplates = (donationId: string, campaignId: string, donorI
     
     // Nonprofit Admin tasks
     {
+      participantId: `${campaignId}_${donorId}`,
+      campaignId,
+      donorId,
       title: 'Process Donation Request',
       description: 'Review donation request and coordinate with appraiser',
       type: 'document_review',
@@ -72,6 +81,9 @@ const createBasicTaskTemplates = (donationId: string, campaignId: string, donorI
       comments: []
     },
     {
+      participantId: `${campaignId}_${donorId}`,
+      campaignId,
+      donorId,
       title: 'Finalize Donation Receipt',
       description: 'Generate and send final donation receipt and acknowledgement',
       type: 'other',
@@ -92,6 +104,9 @@ const createBasicTaskTemplates = (donationId: string, campaignId: string, donorI
     
     // Appraiser tasks
     {
+      participantId: `${campaignId}_${donorId}`,
+      campaignId,
+      donorId,
       title: 'Conduct Equity Appraisal',
       description: 'Perform professional appraisal of donated equity',
       type: 'appraisal_submission',

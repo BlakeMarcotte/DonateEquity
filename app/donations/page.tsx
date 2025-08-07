@@ -500,7 +500,7 @@ function DonationDetailsModal({
               <div className="flex justify-between">
                 <span className="text-gray-600">Your Organization:</span>
                 <span className="font-medium text-gray-900">
-                  {donation.donationDetails?.donorOrganizationName || 'Individual Donor'}
+                  {(donation as Record<string, any>).donationDetails?.donorOrganizationName || 'Individual Donor'}
                 </span>
               </div>
               <div className="flex justify-between">

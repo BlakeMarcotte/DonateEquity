@@ -110,11 +110,11 @@ export default function InvitationPage() {
       console.error('Error fetching invitation:', error)
       
       // Provide specific error messages based on error type
-      if (error.message?.includes('expired')) {
+      if ((error as Error).message?.includes('expired')) {
         setError('This invitation has expired. Please contact the person who invited you for a new invitation.')
-      } else if (error.message?.includes('already responded')) {
+      } else if ((error as Error).message?.includes('already responded')) {
         setError('You have already responded to this invitation.')
-      } else if (error.message?.includes('not found')) {
+      } else if ((error as Error).message?.includes('not found')) {
         setError('This invitation link is invalid or has been removed.')
       } else {
         setError('Failed to load invitation. Please check the link and try again.')

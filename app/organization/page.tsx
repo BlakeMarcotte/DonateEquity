@@ -103,7 +103,7 @@ export default function OrganizationPage() {
       }
     } catch (error: unknown) {
       console.error('Error fetching organization:', error)
-      setError(`Failed to fetch organization: ${error.message}`)
+      setError(`Failed to fetch organization: ${(error as Error).message}`)
     } finally {
       setLoading(false)
     }

@@ -76,7 +76,7 @@ export async function POST(
       updateData['metadata.commitmentData'] = commitmentData
     }
 
-    batch.update(taskRef, updateData)
+    batch.update(taskRef, updateData as Parameters<typeof batch.update>[1])
 
     if (decision === 'commit_now') {
       // Create donation record with commitment data

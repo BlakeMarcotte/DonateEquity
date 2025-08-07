@@ -132,7 +132,7 @@ export default function RegisterPage() {
     <AuthLayout mode="register">
       <RegisterForm 
         invitation={invitation}
-        teamInvitation={teamInvitation || undefined}
+        teamInvitation={teamInvitation ? {...teamInvitation} as Record<string, unknown> : undefined}
         teamInviteToken={teamInviteToken}
         preselectedRole={
           invitation ? 'donor' : 

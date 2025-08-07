@@ -251,7 +251,7 @@ export default function ProfilePage() {
                   {customClaims?.role?.replace('_', ' ')}
                 </p>
                 {organization && (
-                  <p className="text-sm text-blue-600 mt-1">{organization.name}</p>
+                  <p className="text-sm text-blue-600 mt-1">{organization.name as React.ReactNode}</p>
                 )}
               </div>
 
@@ -380,7 +380,7 @@ export default function ProfilePage() {
                         </label>
                         <div className="flex items-center space-x-2">
                           <Building2 className="w-4 h-4 text-gray-400" />
-                          <p className="text-lg text-gray-900">{organization.name}</p>
+                          <p className="text-lg text-gray-900">{organization.name as React.ReactNode}</p>
                         </div>
                       </div>
                     )}
