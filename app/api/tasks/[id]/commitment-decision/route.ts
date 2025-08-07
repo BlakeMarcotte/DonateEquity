@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
+import { FieldValue } from 'firebase-admin/firestore'
 
 export async function POST(
   request: NextRequest,
@@ -62,7 +63,7 @@ export async function POST(
 
     // Complete the commitment decision task
     const taskRef = adminDb.collection('tasks').doc(taskId)
-    const updateData: { [key: string]: any } = {
+    const updateData: { [key: string]: FieldValue | string | Date | unknown } = {
       status: 'completed',
       completedAt: new Date(),
       updatedAt: new Date(),
