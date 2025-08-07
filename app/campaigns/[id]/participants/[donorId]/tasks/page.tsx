@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { DonationTaskList } from '@/components/tasks/DonationTaskList'
+import { DonationFiles } from '@/components/files/DonationFiles'
 import { Heart, ArrowLeft, Users, CheckSquare, FileText } from 'lucide-react'
 
 export default function ParticipantTasksPage() {
@@ -152,13 +153,12 @@ export default function ParticipantTasksPage() {
             
             {activeTab === 'files' && (
               <div className="animate-in fade-in duration-300">
-                <div className="text-center py-12">
-                  <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2">Shared Files</h2>
-                  <p className="text-gray-600">
-                    File sharing will be available once a donation is created.
-                  </p>
-                </div>
+                <DonationFiles 
+                  donationId={`participants/${participantId}`}
+                  title="Shared Documents"
+                  showUpload={customClaims.role === 'donor'}
+                  className="border-0 shadow-none p-0"
+                />
               </div>
             )}
           </div>

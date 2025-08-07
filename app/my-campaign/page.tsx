@@ -217,9 +217,9 @@ export default function MyCampaignPage() {
               
               {activeTab === 'files' && (
                 <>
-                  {donation ? (
+                  {participantId ? (
                     <DonationFiles 
-                      donationId={donation.id}
+                      donationId={`participants/${participantId}`}
                       title="Shared Documents"
                       showUpload={false}
                       className="border-0 shadow-none p-0"
@@ -229,7 +229,7 @@ export default function MyCampaignPage() {
                       <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">Shared Files</h3>
                       <p className="text-gray-600">
-                        File sharing will be available once your donation is created.
+                        File sharing will be available once your participation is set up.
                       </p>
                     </div>
                   )}
