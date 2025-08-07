@@ -44,12 +44,23 @@ export async function POST(request: NextRequest) {
 
     // Find and update the DocuSign signature task with the envelope ID
     try {
-      const tasksQuery = await adminDb
+      // First try to find by participantId (new system)
+      let tasksQuery = await adminDb
         .collection('tasks')
-        .where('donationId', '==', donationId)
+        .where('participantId', '==', donationId) // donationId is actually participantId in the new system
         .where('type', '==', 'docusign_signature')
         .where('assignedTo', '==', user.uid)
         .get()
+
+      // If not found, try the old donation-based system for backward compatibility
+      if (tasksQuery.empty) {
+        tasksQuery = await adminDb
+          .collection('tasks')
+          .where('donationId', '==', donationId)
+          .where('type', '==', 'docusign_signature')
+          .where('assignedTo', '==', user.uid)
+          .get()
+      }
 
       if (!tasksQuery.empty) {
         const taskDoc = tasksQuery.docs[0]
@@ -62,7 +73,7 @@ export async function POST(request: NextRequest) {
         
         console.log(`Updated task ${taskDoc.id} with envelope ID: ${envelope.envelopeId}`)
       } else {
-        console.log(`No DocuSign signature task found for donation ${donationId} and user ${user.uid}`)
+        console.log(`No DocuSign signature task found for ID ${donationId} and user ${user.uid}`)
       }
     } catch (taskUpdateError) {
       console.error('Failed to update task with envelope ID:', taskUpdateError)

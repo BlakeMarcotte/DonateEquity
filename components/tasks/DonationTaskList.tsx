@@ -122,11 +122,11 @@ export function DonationTaskList({
         return task.assignedTo === user?.uid || task.assignedRole === customClaims?.role
       })
 
-  console.log('Debug - Total tasks:', tasks.length)
-  console.log('Debug - User role:', customClaims?.role)
-  console.log('Debug - User ID:', user?.uid)
-  console.log('Debug - showAllTasks:', showAllTasks)
-  console.log('Debug - Filtered tasks:', filteredTasks.length)
+  // console.log('Debug - Total tasks:', tasks.length)
+  // console.log('Debug - User role:', customClaims?.role)
+  // console.log('Debug - User ID:', user?.uid)
+  // console.log('Debug - showAllTasks:', showAllTasks)
+  // console.log('Debug - Filtered tasks:', filteredTasks.length)
   console.log('Debug - Tasks:', tasks.map(t => ({ 
     id: t.id, 
     title: t.title, 
@@ -216,6 +216,8 @@ export function DonationTaskList({
   
   const handleDocuSignTask = async (taskId: string) => {
     console.log('🔥 DocuSign task handler called for task:', taskId)
+    console.log('🔥 User:', user?.email, user?.displayName)
+    console.log('🔥 ParticipantId:', participantId)
     if (docuSignLoading) return
     
     setDocuSignLoading(true)
@@ -233,7 +235,7 @@ export function DonationTaskList({
         body: JSON.stringify({
           signerEmail: user?.email,
           signerName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          participantId,
+          donationId: participantId, // Use participantId as donationId for backward compatibility
           documentName: 'General NDA',
           emailSubject: 'Please sign the General NDA for your donation'
         })
@@ -256,7 +258,7 @@ export function DonationTaskList({
           envelopeId: envelopeResult.envelopeId,
           recipientEmail: user?.email,
           recipientName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          donationId
+          donationId: participantId // Use participantId as donationId for backward compatibility
         })
       })
       

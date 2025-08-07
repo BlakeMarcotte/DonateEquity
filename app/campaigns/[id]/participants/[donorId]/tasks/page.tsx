@@ -62,7 +62,7 @@ export default function ParticipantTasksPage() {
       <div className="bg-gradient-to-r from-white to-blue-50/30 border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-10">
           <div className="py-6">
-            <div className="flex items-center space-x-4 mb-4">
+            <div className="flex items-center justify-between mb-6">
               <button
                 onClick={() => {
                   if (isNonprofitAdmin) {
@@ -93,11 +93,11 @@ export default function ParticipantTasksPage() {
                 </p>
               </div>
             </div>
-            <p className="mt-3 text-gray-600 text-base">
-              {isDonor 
-                ? 'Complete your tasks to proceed with the equity donation process' 
-                : 'Monitor and assist with the donor\'s progress through the donation workflow'}
-            </p>
+            {isDonor && (
+              <p className="mt-3 text-gray-600 text-base">
+                Complete your tasks to proceed with the equity donation process
+              </p>
+            )}
           </div>
         </div>
       </div>
