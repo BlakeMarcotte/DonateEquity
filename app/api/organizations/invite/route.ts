@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
     let existingUser = null
     try {
       existingUser = await adminAuth.getUserByEmail(email)
-    } catch (error: any) {
-      if (error.code !== 'auth/user-not-found') {
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'auth/user-not-found') {
         console.error('Error checking existing user:', error)
         return NextResponse.json(
           { error: 'Failed to check user existence' },

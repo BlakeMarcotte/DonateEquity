@@ -415,8 +415,8 @@ export default function AppraiserDonationsPage() {
                 </h3>
                 <p className="mt-1 text-sm text-gray-500">
                   {donations.length === 0 
-                    ? 'Donations will appear here when they are assigned to you for appraisal.'
-                    : 'Try adjusting your search or filter criteria.'
+                    ? `Donations will appear here when they are assigned to you for appraisal.`
+                    : `Try adjusting your search or filter criteria.`
                   }
                 </p>
               </div>
@@ -477,7 +477,7 @@ export default function AppraiserDonationsPage() {
 
                         {donation.message && (
                           <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                            <p className="text-sm text-blue-800 italic">"{donation.message}"</p>
+                            <p className="text-sm text-blue-800 italic">{`"${donation.message}"`}</p>
                           </div>
                         )}
                       </div>

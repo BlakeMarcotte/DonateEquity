@@ -326,7 +326,7 @@ export function EquityCommitmentModal({
                   {message && (
                     <div className="pt-4 border-t border-gray-200">
                       <span className="text-gray-600 block mb-2">Message:</span>
-                      <p className="text-gray-900 italic">"{message}"</p>
+                      <p className="text-gray-900 italic">{`"${message}"`}</p>
                     </div>
                   )}
                 </div>
@@ -387,7 +387,7 @@ export function EquityCommitmentModal({
               </div>
               <p className="text-gray-600 mb-6">
                 Your commitment has been recorded and the appraisal workflow will begin. 
-                You'll receive updates on the next steps in the process.
+                {`You'll receive updates on the next steps in the process.`}
               </p>
               <Button 
                 onClick={() => {

@@ -215,10 +215,10 @@ export async function POST(request: NextRequest) {
       participantId: participantId
     })
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error migrating participant tasks:', error)
     return NextResponse.json(
-      { error: `Failed to migrate tasks: ${error?.message || 'Unknown error'}` },
+      { error: `Failed to migrate tasks: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

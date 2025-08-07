@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 
 export default function MigrateTasksPage() {
@@ -51,7 +51,7 @@ export default function MigrateTasksPage() {
   }
 
   return (
-    <ProtectedRoute requiredRole="donor">
+    <ProtectedRoute requiredRoles={['donor']}>
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="bg-white rounded-lg shadow-sm p-6">
@@ -65,7 +65,7 @@ export default function MigrateTasksPage() {
                 <div>
                   <p className="text-sm text-blue-800">
                     This tool migrates existing tasks to the new 9-step workflow structure. 
-                    Use this if you're experiencing issues with the "Reset Tasks" button.
+                    Use this if you&apos;re experiencing issues with the &quot;Reset Tasks&quot; button.
                   </p>
                   <p className="text-sm text-blue-800 mt-2">
                     Your participant ID can be found in the URL when viewing your tasks.

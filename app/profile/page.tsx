@@ -8,8 +8,6 @@ import { db } from '@/lib/firebase/config'
 import {
   User,
   Mail,
-  Phone,
-  MapPin,
   Building2,
   Edit3,
   Save,

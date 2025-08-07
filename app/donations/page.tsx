@@ -38,7 +38,7 @@ interface DonationWithCampaign extends Donation {
 
 export default function DonationsPage() {
   const router = useRouter()
-  const { user, userProfile } = useAuth()
+  const { user } = useAuth()
   const [donations, setDonations] = useState<DonationWithCampaign[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -381,7 +381,7 @@ export default function DonationsPage() {
 
                         {donation.message && (
                           <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                            <p className="text-sm text-blue-800 italic">"{donation.message}"</p>
+                            <p className="text-sm text-blue-800 italic">{`"${donation.message}"`}</p>
                           </div>
                         )}
                       </div>
@@ -519,7 +519,7 @@ function DonationDetailsModal({
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Message</h3>
               <div className="bg-blue-50 rounded-lg p-4">
-                <p className="text-blue-800 italic">"{donation.message}"</p>
+                <p className="text-blue-800 italic">{`"${donation.message}"`}</p>
               </div>
             </div>
           )}

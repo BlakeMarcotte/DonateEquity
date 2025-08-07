@@ -374,10 +374,10 @@ export async function POST(
       tasksCreated: 9
     })
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error resetting participant tasks:', error)
     return NextResponse.json(
-      { error: `Failed to reset tasks: ${error?.message || 'Unknown error'}` },
+      { error: `Failed to reset tasks: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

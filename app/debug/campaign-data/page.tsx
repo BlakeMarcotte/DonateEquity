@@ -5,17 +5,46 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import { useAuth } from '@/contexts/AuthContext'
 
+interface FirestoreData {
+  id: string
+  [key: string]: unknown
+}
+
+interface CollectionResult {
+  count: number
+  data: FirestoreData[]
+}
+
+interface CollectionError {
+  error: string
+}
+
+interface DebugResults {
+  donations?: CollectionResult
+  campaign_participants?: CollectionResult | CollectionError
+  accepted_invitations?: CollectionResult | CollectionError
+  pending_invitations?: CollectionResult | CollectionError
+  tasks?: CollectionResult | CollectionError
+  campaign?: CollectionResult | CollectionError
+  error?: string
+}
+
+interface PermissionTestResults {
+  error?: string
+  [key: string]: unknown
+}
+
 export default function DebugCampaignData() {
   const { user, customClaims } = useAuth()
-  const [results, setResults] = useState<any>({})
+  const [results, setResults] = useState<DebugResults>({})
   const [campaignId, setCampaignId] = useState('')
   const [loading, setLoading] = useState(false)
-  const [permissionTestResults, setPermissionTestResults] = useState<any>(null)
+  const [permissionTestResults, setPermissionTestResults] = useState<PermissionTestResults | null>(null)
 
   const debugData = async () => {
     if (!campaignId) return
     setLoading(true)
-    const debugResults: any = {}
+    const debugResults: DebugResults = {}
 
     try {
       // Check donations
@@ -43,7 +72,7 @@ export default function DebugCampaignData() {
           data: participantsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         }
       } catch (e) {
-        debugResults.campaign_participants = { error: e.message }
+        debugResults.campaign_participants = { error: e instanceof Error ? e.message : 'Unknown error' }
       }
 
       // Check campaign_invitations with accepted status
@@ -60,7 +89,7 @@ export default function DebugCampaignData() {
           data: invitationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         }
       } catch (e) {
-        debugResults.accepted_invitations = { error: e.message }
+        debugResults.accepted_invitations = { error: e instanceof Error ? e.message : 'Unknown error' }
       }
 
       // Check campaign_invitations with pending status
@@ -77,7 +106,7 @@ export default function DebugCampaignData() {
           data: pendingSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         }
       } catch (e) {
-        debugResults.pending_invitations = { error: e.message }
+        debugResults.pending_invitations = { error: e instanceof Error ? e.message : 'Unknown error' }
       }
 
       // Check tasks
@@ -91,14 +120,14 @@ export default function DebugCampaignData() {
         const relevantTasks = tasksSnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
           .filter(task => 
-            debugResults.donations.data.some((d: any) => d.id === task.donationId)
+            debugResults.donations?.data.some((d) => d.id === (task as FirestoreData & { donationId?: string }).donationId) || false
           )
         debugResults.tasks = {
           count: relevantTasks.length,
           data: relevantTasks
         }
       } catch (e) {
-        debugResults.tasks = { error: e.message }
+        debugResults.tasks = { error: e instanceof Error ? e.message : 'Unknown error' }
       }
 
       // Check campaign
@@ -114,13 +143,13 @@ export default function DebugCampaignData() {
           data: campaignSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         }
       } catch (e) {
-        debugResults.campaign = { error: e.message }
+        debugResults.campaign = { error: e instanceof Error ? e.message : 'Unknown error' }
       }
 
       setResults(debugResults)
     } catch (error) {
       console.error('Debug error:', error)
-      debugResults.error = error.message
+      debugResults.error = error instanceof Error ? error.message : 'Unknown error'
       setResults(debugResults)
     }
     
@@ -146,7 +175,7 @@ export default function DebugCampaignData() {
       setPermissionTestResults(result)
     } catch (error) {
       console.error('Permission test error:', error)
-      setPermissionTestResults({ error: error.message })
+      setPermissionTestResults({ error: error instanceof Error ? error.message : 'Unknown error' })
     }
     
     setLoading(false)

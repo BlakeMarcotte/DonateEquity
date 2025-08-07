@@ -2,7 +2,7 @@ import { auth } from '@/lib/firebase/config'
 
 export interface AcceptInvitationData {
   invitationId: string
-  acceptanceData?: any
+  acceptanceData?: Record<string, unknown>
 }
 
 export interface AcceptInvitationResponse {

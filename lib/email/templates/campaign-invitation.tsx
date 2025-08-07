@@ -104,8 +104,8 @@ export const CampaignInvitationEmail = ({
           {/* Additional Info */}
           <Text style={paragraph}>
             {isExistingUser 
-              ? "You already have an account with us. Click the button above to view this invitation in your dashboard."
-              : "New to Donate Equity? Accepting this invitation will guide you through creating your account."}
+              ? `You already have an account with us. Click the button above to view this invitation in your dashboard.`
+              : `New to Donate Equity? Accepting this invitation will guide you through creating your account.`}
           </Text>
 
           <Hr style={hr} />

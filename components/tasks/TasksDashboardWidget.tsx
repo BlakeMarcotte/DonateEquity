@@ -8,16 +8,21 @@ import { CheckCircle, Clock, AlertCircle, ArrowRight } from 'lucide-react'
 import { Task } from '@/types/task'
 import Link from 'next/link'
 
+// Extended task type to handle legacy donationId property
+interface TaskWithLegacyFields extends Task {
+  donationId?: string
+}
+
 // Helper function to get the correct task URL
-function getTaskViewUrl(task: Task): string {
+function getTaskViewUrl(task: TaskWithLegacyFields): string {
   // If task has participantId, use new participant-based URL
   if (task.participantId && task.campaignId && task.donorId) {
     return `/campaigns/${task.campaignId}/participants/${task.donorId}/tasks`
   }
   
   // If task only has donationId, use deprecated URL (will redirect)
-  if ((task as any).donationId) {
-    return `/donations/${(task as any).donationId}/tasks`
+  if (task.donationId) {
+    return `/donations/${task.donationId}/tasks`
   }
   
   // Fallback to general campaign page
@@ -87,7 +92,7 @@ export function TasksDashboardWidget() {
 
       {/* Recent Tasks */}
       <div className="space-y-3 mb-4">
-        {tasksToShow.map(task => (
+        {tasksToShow.map((task: TaskWithLegacyFields) => (
           <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center space-x-3">
               {task.status === 'completed' ? (
@@ -104,7 +109,7 @@ export function TasksDashboardWidget() {
                 </div>
               </div>
             </div>
-            {(task.participantId || (task as any).donationId) && (
+            {(task.participantId || task.donationId) && (
               <Link href={getTaskViewUrl(task)}>
                 <Button size="sm" variant="ghost">
                   <ArrowRight className="h-4 w-4" />

@@ -1,5 +1,31 @@
 import { Resend } from 'resend'
 
+interface ResendEmailData {
+  from: string
+  to: string | string[]
+  subject: string
+  html?: string
+  text?: string
+  replyTo?: string
+  cc?: string | string[]
+  bcc?: string | string[]
+}
+
+interface ResendEmailResponse {
+  data: {
+    id: string
+  } | null
+  error: unknown
+}
+
+interface MockResendEmails {
+  send: (data: ResendEmailData) => Promise<ResendEmailResponse>
+}
+
+interface MockResend {
+  emails: MockResendEmails
+}
+
 // Check if we have a Resend API key
 const hasResendKey = !!process.env.RESEND_API_KEY
 
@@ -14,7 +40,7 @@ export const resend = hasResendKey
   : {
       // Mock Resend object for development without API key
       emails: {
-        send: async (data: any) => {
+        send: async (data: ResendEmailData): Promise<ResendEmailResponse> => {
           console.log('Mock email send:', data)
           return { 
             data: { id: 'mock-email-id' }, 
@@ -22,7 +48,7 @@ export const resend = hasResendKey
           }
         }
       }
-    } as any
+    } as MockResend
 
 // Email configuration
 export const EMAIL_CONFIG = {

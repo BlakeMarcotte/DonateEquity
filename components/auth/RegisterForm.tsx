@@ -8,11 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Eye, EyeOff, Loader2, ChevronDown, Mail, Heart, Users } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ChevronDown, Mail, Users } from 'lucide-react'
 import { signIn } from '@/lib/firebase/auth'
 import { auth } from '@/lib/firebase/config'
 import { useAuth } from '@/contexts/AuthContext'
-import { respondToInvitation } from '@/lib/firebase/invitations'
 
 interface Organization {
   id: string

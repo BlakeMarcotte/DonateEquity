@@ -9,10 +9,8 @@ import {
   BarChart3,
   TrendingUp,
   FileText,
-  Calendar,
   DollarSign,
   Clock,
-  CheckCircle,
   Download,
   Eye
 } from 'lucide-react'
@@ -25,7 +23,7 @@ interface AppraisalReport {
   appraisalValue: number
   estimatedValue: number
   variance: number
-  completedAt: any
+  completedAt: Date
   status: 'draft' | 'final' | 'submitted'
   methodUsed: string
 }
@@ -164,7 +162,7 @@ export default function AppraiserReportsPage() {
             <div className="flex items-center space-x-4">
               <select
                 value={selectedTimeframe}
-                onChange={(e) => setSelectedTimeframe(e.target.value as any)}
+                onChange={(e) => setSelectedTimeframe(e.target.value as '1m' | '3m' | '6m' | '1y')}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="1m">Last Month</option>

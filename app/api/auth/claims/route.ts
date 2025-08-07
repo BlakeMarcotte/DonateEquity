@@ -92,7 +92,7 @@ export async function PUT(request: NextRequest) {
 
     // Update user profile in Firestore
     const userRef = adminDb.collection('users').doc(targetUserId)
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       role: updatedClaims.role,
       organizationId: updatedClaims.organizationId,
       updatedAt: new Date(),

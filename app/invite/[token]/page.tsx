@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { getInvitationByToken, respondToInvitation } from '@/lib/firebase/invitations'
+import { respondToInvitation } from '@/lib/firebase/invitations'
 import { CampaignInvitation } from '@/types/invitations'
 import { Heart, Mail, Calendar, Target, DollarSign, CheckCircle, XCircle, Clock } from 'lucide-react'
 
@@ -23,7 +23,7 @@ interface Campaign {
 export default function InvitationPage() {
   const params = useParams()
   const router = useRouter()
-  const { user, userProfile, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [invitation, setInvitation] = useState<CampaignInvitation | null>(null)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
@@ -162,7 +162,6 @@ export default function InvitationPage() {
           // Redirect to participant-based task page if we have the participant data
           setTimeout(() => {
             if (acceptanceResult.data?.participantId && acceptanceResult.data?.campaignId) {
-              const participantId = acceptanceResult.data.participantId
               const campaignId = acceptanceResult.data.campaignId
               // Construct the donor ID from the participant ID (participantId format: campaignId_donorId)
               const donorId = user?.uid

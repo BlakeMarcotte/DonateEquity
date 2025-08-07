@@ -4,8 +4,19 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { CampaignInvitation } from '@/types/invitations'
+import { NonprofitSubrole } from '@/types/auth'
 import AuthLayout from '@/components/auth/AuthLayout'
 import RegisterForm from '@/components/auth/RegisterForm'
+
+interface TeamInvitation {
+  organizationName: string
+  inviterName: string
+  invitedEmail: string
+  subrole: NonprofitSubrole
+  personalMessage?: string
+  createdAt: Date
+  expiresAt: Date
+}
 
 export default function RegisterPage() {
   const { user, loading } = useAuth()
@@ -13,7 +24,7 @@ export default function RegisterPage() {
   const searchParams = useSearchParams()
   const [invitation, setInvitation] = useState<CampaignInvitation | null>(null)
   const [invitationLoading, setInvitationLoading] = useState(false)
-  const [teamInvitation, setTeamInvitation] = useState<any>(null)
+  const [teamInvitation, setTeamInvitation] = useState<TeamInvitation | null>(null)
   const [teamInvitationLoading, setTeamInvitationLoading] = useState(false)
 
   const invitationToken = searchParams.get('invitation')
@@ -77,7 +88,13 @@ export default function RegisterPage() {
       if (response.ok) {
         const data = await response.json()
         if (data.invitation) {
-          setTeamInvitation(data.invitation)
+          // Convert date strings back to Date objects
+          const teamInvitation = {
+            ...data.invitation,
+            createdAt: new Date(data.invitation.createdAt),
+            expiresAt: new Date(data.invitation.expiresAt)
+          }
+          setTeamInvitation(teamInvitation)
         }
       }
     } catch (error) {

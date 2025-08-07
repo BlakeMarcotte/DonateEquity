@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { campaignId } = body
 
-    const testResults: any = {
+    const testResults: Record<string, unknown> = {
       user: {
         uid: authResult.user.uid,
         email: authResult.user.email,

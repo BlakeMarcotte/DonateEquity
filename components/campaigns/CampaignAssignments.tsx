@@ -12,7 +12,6 @@ import {
   X,
   Calendar,
   Mail,
-  AlertCircle,
   Trash2,
   CheckCircle
 } from 'lucide-react'

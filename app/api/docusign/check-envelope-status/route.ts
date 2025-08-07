@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const task = taskDoc.data()
 
     // Update task metadata with current status
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       'metadata.envelopeStatus': envelopeStatus.status,
       'metadata.docuSignLastUpdate': new Date().toISOString(),
       updatedAt: FieldValue.serverTimestamp()

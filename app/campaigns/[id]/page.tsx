@@ -97,7 +97,6 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [donations, setDonations] = useState<Donation[]>([])
   const [participants, setParticipants] = useState<CampaignParticipant[]>([])
-  const [invitations, setInvitations] = useState<CampaignInvitation[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<CampaignInvitation[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'team' | 'pending'>('donations')
@@ -163,17 +162,17 @@ export default function CampaignDetailPage() {
 
     try {
       // First try with orderBy, if that fails due to index issues, try without
-      let donationsQuery = query(
+      const donationsQuery = query(
         collection(db, 'donations'),
         where('campaignId', '==', params.id),
         orderBy('createdAt', 'desc')
       )
 
       console.log('fetchDonations: Executing query with orderBy...')
-      let snapshot = await getDocs(donationsQuery)
+      const snapshot = await getDocs(donationsQuery)
       console.log('fetchDonations: Found donations:', snapshot.docs.length)
       
-      let donationData = snapshot.docs.map(doc => ({
+      const donationData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate() || new Date(),
@@ -283,7 +282,15 @@ export default function CampaignDetailPage() {
         id: doc.id,
         ...doc.data(),
         joinedAt: doc.data().joinedAt?.toDate() || new Date(),
-      })) as any[]
+      })) as Array<{
+        id: string
+        userId: string
+        invitedEmail: string
+        inviterName: string
+        status: string
+        joinedAt: Date
+        [key: string]: unknown
+      }>
 
       // Fetch user data for all participants to get proper names
       const userIds = participantData.map(p => p.userId).filter(Boolean)
@@ -558,7 +565,7 @@ export default function CampaignDetailPage() {
           <Heart className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">Campaign not found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            The campaign you're looking for doesn't exist or has been removed.
+            {`The campaign you're looking for doesn't exist or has been removed.`}
           </p>
         </div>
       </div>
@@ -756,7 +763,7 @@ export default function CampaignDetailPage() {
                       <Users className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-gray-900">No participants yet</h3>
                       <p className="mt-1 text-sm text-gray-500">
-                        When people join your campaign, they'll appear here.
+                        {`When people join your campaign, they'll appear here.`}
                       </p>
                     </div>
                   ) : (
@@ -906,7 +913,7 @@ export default function CampaignDetailPage() {
                       <Clock className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-gray-900">No pending invitations</h3>
                       <p className="mt-1 text-sm text-gray-500">
-                        All invitations have been responded to, or you haven't sent any yet.
+                        {`All invitations have been responded to, or you haven't sent any yet.`}
                       </p>
                       <div className="mt-6">
                         <button
@@ -1139,9 +1146,9 @@ function InviteModal({
   campaign: Campaign | null
   onClose: () => void
   onSuccess: () => void
-  user: any
-  userProfile: any
-  customClaims: any
+  user: { getIdToken(): Promise<string> } | null
+  userProfile: { uid: string; displayName?: string; email?: string } | null
+  customClaims: { organizationId?: string } | null
 }) {
   const [formData, setFormData] = useState({
     email: '',
@@ -1210,9 +1217,9 @@ function InviteModal({
       } else {
         setError('Failed to send invitation. Please try again.')
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error sending invitation:', error)
-      setError(error.message || 'Failed to send invitation. Please try again.')
+      setError(error instanceof Error ? error.message : 'Failed to send invitation. Please try again.')
     } finally {
       setSending(false)
     }
@@ -1252,7 +1259,7 @@ function InviteModal({
             disabled={sending}
           />
           <p className="text-sm text-gray-500 mt-1">
-            We'll check if they have an account and send them the appropriate invitation.
+            {`We'll check if they have an account and send them the appropriate invitation.`}
           </p>
         </div>
 
@@ -1277,10 +1284,10 @@ function InviteModal({
             </div>
             <div>
               <h4 className="text-sm font-medium text-blue-900">
-                You're inviting them to: {campaign?.title}
+                {`You're inviting them to: ${campaign?.title}`}
               </h4>
               <p className="text-sm text-blue-800 mt-1">
-                They'll receive an email with details about your campaign and how to get started.
+                {`They'll receive an email with details about your campaign and how to get started.`}
               </p>
             </div>
           </div>

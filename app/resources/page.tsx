@@ -11,7 +11,6 @@ import {
   Video,
   File,
   Users,
-  DollarSign,
   Scale,
   Calculator,
   HelpCircle,

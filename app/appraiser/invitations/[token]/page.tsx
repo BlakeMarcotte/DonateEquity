@@ -18,8 +18,8 @@ interface InvitationData {
   status: 'pending' | 'accepted' | 'declined' | 'expired'
   userExists: boolean
   existingUserId: string | null
-  invitedAt: any
-  expiresAt: any
+  invitedAt: Date
+  expiresAt: Date
 }
 
 export default function AppraiserInvitationPage() {
@@ -196,7 +196,7 @@ export default function AppraiserInvitationPage() {
           </h1>
           <p className="text-gray-600 mb-6">
             This invitation was sent to <strong>{invitation.appraiserEmail}</strong>, 
-            but you're signed in as <strong>{user.email}</strong>.
+            {`but you're signed in as`} <strong>{user.email}</strong>.
           </p>
           <div className="space-y-3">
             <Button
@@ -250,7 +250,7 @@ export default function AppraiserInvitationPage() {
             Already Accepted
           </h1>
           <p className="text-gray-600 mb-6">
-            You've already accepted this invitation and can now work on the donation appraisal.
+            {`You've already accepted this invitation and can now work on the donation appraisal.`}
           </p>
           <Button
             onClick={() => router.push(`/donations/${invitation.donationId}/tasks`)}
@@ -274,7 +274,7 @@ export default function AppraiserInvitationPage() {
               Appraiser Invitation
             </h1>
             <p className="text-gray-600">
-              You've been invited to appraise an equity donation
+              {`You've been invited to appraise an equity donation`}
             </p>
           </div>
 
@@ -318,7 +318,7 @@ export default function AppraiserInvitationPage() {
                   Personal Message
                 </h4>
                 <p className="text-sm text-blue-800 italic">
-                  "{invitation.personalMessage}"
+                  {`"${invitation.personalMessage}"`}
                 </p>
               </div>
             )}
@@ -331,7 +331,7 @@ export default function AppraiserInvitationPage() {
               <ul className="space-y-2 text-sm text-green-800">
                 <li className="flex items-start space-x-2">
                   <div className="w-2 h-2 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
-                  <span>You'll be assigned as the appraiser for this equity donation</span>
+                  <span>{`You'll be assigned as the appraiser for this equity donation`}</span>
                 </li>
                 <li className="flex items-start space-x-2">
                   <div className="w-2 h-2 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
@@ -339,7 +339,7 @@ export default function AppraiserInvitationPage() {
                 </li>
                 <li className="flex items-start space-x-2">
                   <div className="w-2 h-2 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
-                  <span>You'll collaborate with the donor and nonprofit through shared tasks</span>
+                  <span>{`You'll collaborate with the donor and nonprofit through shared tasks`}</span>
                 </li>
               </ul>
             </div>

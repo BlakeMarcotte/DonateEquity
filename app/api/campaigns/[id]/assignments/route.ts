@@ -91,9 +91,10 @@ export async function GET(
         success: true,
         assignments
       })
-    } catch (queryError: any) {
+    } catch (queryError) {
       // If it's an index error, return empty assignments for now
-      if (queryError.code === 9 || queryError.message?.includes('index')) {
+      if ((queryError as { code?: number }).code === 9 || 
+          (queryError instanceof Error && queryError.message?.includes('index'))) {
         console.log('Firestore index not ready, returning empty assignments')
         return NextResponse.json({
           success: true,
@@ -232,8 +233,7 @@ export async function POST(
 
 // DELETE: Remove assignment from campaign
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   try {
     // Verify authentication

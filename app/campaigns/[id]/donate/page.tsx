@@ -3,7 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
+import { User } from 'firebase/auth'
+import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import { Campaign } from '@/types/campaign'
+import { UserProfile } from '@/types/auth'
 import { getCampaignById } from '@/lib/firebase/campaigns'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
@@ -186,7 +189,7 @@ export default function DonateCampaignPage() {
               {error || 'Campaign not found'}
             </h2>
             <p className="text-gray-600 mb-6">
-              The campaign you&apos;re looking for may have been removed or is no longer available.
+              {`The campaign you're looking for may have been removed or is no longer available.`}
             </p>
             <div className="flex space-x-4 justify-center">
               <Button onClick={() => router.back()} variant="outline">
@@ -256,12 +259,12 @@ export default function DonateCampaignPage() {
                   </h3>
                   <p className="text-blue-800 mb-3">
                     Thank you for accepting the invitation to support this campaign. 
-                    {inviterMessage && " They included a personal message for you:"}
+                    {inviterMessage && ` They included a personal message for you:`}
                   </p>
                   {inviterMessage && (
                     <div className="bg-white border border-blue-200 rounded-lg p-3 mb-3">
                       <p className="text-gray-700 italic">
-                        &ldquo;{decodeURIComponent(inviterMessage)}&rdquo;
+                        {`"${decodeURIComponent(inviterMessage)}"`}
                       </p>
                     </div>
                   )}
@@ -321,7 +324,7 @@ export default function DonateCampaignPage() {
                           : 'bg-green-100 text-green-700'
                     }`}>
                       <CalendarDays className="w-4 h-4 mr-1" />
-                      {daysLeft === 0 ? 'Last day' : `${daysLeft} days left`}
+                      {daysLeft === 0 ? `Last day` : `${daysLeft} days left`}
                     </span>
                   </div>
                 )}
@@ -476,7 +479,7 @@ export default function DonateCampaignPage() {
                         Time left
                       </span>
                       <span className="font-medium text-gray-900">
-                        {daysLeft === 0 ? 'Last day' : `${daysLeft} days`}
+                        {daysLeft === 0 ? `Last day` : `${daysLeft} days`}
                       </span>
                     </div>
                   )}
@@ -577,9 +580,9 @@ function DonationModal({
 }: {
   campaign: Campaign
   onClose: () => void
-  user: any
-  userProfile: any
-  router: any
+  user: User
+  userProfile: UserProfile | null
+  router: AppRouterInstance
 }) {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
@@ -610,7 +613,7 @@ function DonationModal({
     fetchOrganizationName()
   }, [userProfile?.organizationId])
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     setError(null)
   }
@@ -829,7 +832,7 @@ function DonationModal({
                   {formData.message && (
                     <div className="pt-4 border-t border-gray-200">
                       <span className="text-gray-600 block mb-2">Message:</span>
-                      <p className="text-gray-900 italic">"{formData.message}"</p>
+                      <p className="text-gray-900 italic">{`"${formData.message}"`}</p>
                     </div>
                   )}
                 </div>
@@ -839,10 +842,9 @@ function DonationModal({
                 <div className="flex items-start">
                   <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
                   <div className="text-sm text-blue-800">
-                    <h4 className="font-medium mb-1">What happens next?</h4>
+                    <h4 className="font-medium mb-1">{`What happens next?`}</h4>
                     <p>
-                      Your equity commitment will be recorded and a professional appraiser will be assigned 
-                      to facilitate the process. You'll receive updates throughout the workflow.
+                      {`Your equity commitment will be recorded and a professional appraiser will be assigned to facilitate the process. You'll receive updates throughout the workflow.`}
                     </p>
                   </div>
                 </div>
@@ -878,7 +880,7 @@ function DonationModal({
                 Equity Commitment Created!
               </h3>
               <p className="text-gray-600 mb-6">
-                Your equity commitment has been recorded. You'll receive updates as we process your commitment through the appraisal and documentation workflow.
+                {`Your equity commitment has been recorded. You'll receive updates as we process your commitment through the appraisal and documentation workflow.`}
               </p>
               <div className="space-y-3">
                 <Button onClick={onClose} className="w-full">

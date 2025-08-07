@@ -162,8 +162,7 @@ export default function JoinTeamPage() {
           <CheckCircle className="mx-auto h-12 w-12 text-green-400" />
           <h3 className="mt-2 text-lg font-medium text-gray-900">Welcome to the Team!</h3>
           <p className="mt-2 text-sm text-gray-600">
-            You've successfully joined {invitation?.organizationName}. 
-            Redirecting you to your organization dashboard...
+            {`You've successfully joined ${invitation?.organizationName}. Redirecting you to your organization dashboard...`}
           </p>
           <div className="mt-4">
             <Loader2 className="animate-spin h-6 w-6 text-blue-600 mx-auto" />
@@ -200,7 +199,7 @@ export default function JoinTeamPage() {
               Team Invitation
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              You've been invited to join a nonprofit organization
+              {`You've been invited to join a nonprofit organization`}
             </p>
           </div>
 
@@ -237,7 +236,7 @@ export default function JoinTeamPage() {
             {invitation.personalMessage && (
               <div className="border-l-4 border-gray-300 pl-4">
                 <p className="text-sm text-gray-600 italic">
-                  "{invitation.personalMessage}"
+                  {`"${invitation.personalMessage}"`}
                 </p>
               </div>
             )}
@@ -277,7 +276,7 @@ export default function JoinTeamPage() {
               ) : user.email !== invitation.invitedEmail ? (
                 <div className="text-center space-y-4">
                   <p className="text-sm text-red-600">
-                    This invitation is for {invitation.invitedEmail}, but you're signed in as {user.email}
+                    {`This invitation is for ${invitation.invitedEmail}, but you're signed in as ${user.email}`}
                   </p>
                   <button
                     onClick={() => router.push('/auth/login')}

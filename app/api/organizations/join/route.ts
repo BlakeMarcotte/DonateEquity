@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     const currentMemberIds = organization?.memberIds || []
     const currentAdminIds = organization?.adminIds || []
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
     }
 

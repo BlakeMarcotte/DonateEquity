@@ -9,7 +9,6 @@ import {
   Download, 
   Trash2, 
   Upload, 
-  FileText, 
   Plus, 
   X,
   Eye,

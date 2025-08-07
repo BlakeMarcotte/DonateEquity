@@ -2,13 +2,28 @@
 
 import { useState } from 'react'
 import { Task } from '@/types/task'
-import { Heart, Clock, CheckCircle } from 'lucide-react'
+import { Heart, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { EquityCommitmentModal } from './EquityCommitmentModal'
 
+interface CommitmentData {
+  type: 'dollar' | 'percentage'
+  amount: number
+  message?: string
+  createdAt: string
+}
+
+type CommitmentDecision = 'commit_now' | 'commit_after_appraisal'
+
+interface TaskOption {
+  id: string
+  label: string
+  description: string
+}
+
 interface CommitmentDecisionTaskProps {
   task: Task
-  onDecision: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: any) => Promise<void>
+  onDecision: (taskId: string, decision: CommitmentDecision, commitmentData?: CommitmentData) => Promise<void>
   campaignTitle?: string
   donorName?: string
   organizationName?: string
@@ -29,7 +44,7 @@ export function CommitmentDecisionTask({
   const displayName = donorName || userProfile?.name || 'Anonymous Donor'
   const displayOrgName = organizationName || userProfile?.organizationName
 
-  const handleDecision = async (decision: 'commit_now' | 'commit_after_appraisal') => {
+  const handleDecision = async (decision: CommitmentDecision) => {
     setLoading(true)
     try {
       await onDecision(task.id, decision)
@@ -46,7 +61,7 @@ export function CommitmentDecisionTask({
     message?: string
   }) => {
     try {
-      const commitmentData = {
+      const commitmentData: CommitmentData = {
         ...commitment,
         createdAt: new Date().toISOString()
       }
@@ -70,8 +85,8 @@ export function CommitmentDecisionTask({
             <h3 className="text-lg font-semibold text-green-900">{task.title}</h3>
             <p className="text-green-700 mt-1">
               {decision === 'commit_now' 
-                ? 'You chose to make your commitment now. You can proceed with specifying your donation amount.'
-                : 'You chose to wait for the appraisal. You\'ll be asked for your commitment after the appraisal is complete.'
+                ? `You chose to make your commitment now. You can proceed with specifying your donation amount.`
+                : `You chose to wait for the appraisal. You'll be asked for your commitment after the appraisal is complete.`
               }
             </p>
           </div>
@@ -95,7 +110,7 @@ export function CommitmentDecisionTask({
       </div>
 
       <div className="space-y-4">
-        {options.map((option: any) => (
+        {options.map((option: TaskOption) => (
           <div
             key={option.id}
             className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
@@ -134,7 +149,7 @@ export function CommitmentDecisionTask({
         <div className="mt-6 flex justify-end">
           <button
             onClick={() => {
-              handleDecision(selectedOption as 'commit_now' | 'commit_after_appraisal')
+              handleDecision(selectedOption as CommitmentDecision)
             }}
             disabled={loading}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors duration-200"

@@ -124,8 +124,7 @@ export function AppraiserInvitationForm({
     <div className={className}>
       <div className="mb-6">
         <p className="text-gray-600 text-sm leading-relaxed">
-          To proceed with your equity donation, you'll need to invite a qualified appraiser to assess the value of your equity. 
-          This ensures accurate valuation for both you and the nonprofit organization.
+          {`To proceed with your equity donation, you'll need to invite a qualified appraiser to assess the value of your equity. This ensures accurate valuation for both you and the nonprofit organization.`}
         </p>
       </div>
 
@@ -155,7 +154,7 @@ export function AppraiserInvitationForm({
             />
           </div>
           <p className="text-xs text-gray-500">
-            Enter the email address of the appraiser you'd like to invite
+            {`Enter the email address of the appraiser you'd like to invite`}
           </p>
         </div>
 
@@ -205,11 +204,11 @@ export function AppraiserInvitationForm({
           <div className="flex items-start space-x-2">
             <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
             <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">What happens next?</p>
+              <p className="font-medium mb-1">{`What happens next?`}</p>
               <ul className="space-y-1 text-blue-700">
                 <li>• The appraiser will receive an invitation email</li>
                 <li>• If they have an account, they can sign in immediately</li>
-                <li>• If they're new, they'll be guided through account creation</li>
+                <li>{`• If they're new, they'll be guided through account creation`}</li>
                 <li>• Once they accept, you can proceed with providing company information</li>
               </ul>
             </div>

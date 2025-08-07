@@ -2,7 +2,6 @@ import {
   doc, 
   collection, 
   addDoc, 
-  getDoc, 
   getDocs, 
   updateDoc, 
   query, 
@@ -217,7 +216,11 @@ export async function respondToInvitation(
   userId?: string
 ): Promise<boolean> {
   try {
-    const updateData: any = {
+    const updateData: {
+      status: 'accepted' | 'declined'
+      respondedAt: Timestamp
+      invitedUserId?: string
+    } = {
       status: response,
       respondedAt: Timestamp.now(),
     }

@@ -1,6 +1,121 @@
 // DocuSign Simple Client using direct HTTP API calls (2025 approach)
 // Following the official DocuSign REST API quickstart guide
-import jwt from 'jsonwebtoken'
+import * as jwt from 'jsonwebtoken'
+
+interface DocuSignTokenResponse {
+  access_token: string
+  token_type: string
+  expires_in: number
+  scope: string
+}
+
+interface DocuSignAccount {
+  account_id: string
+  is_default: boolean
+  account_name: string
+  base_uri: string
+  organization?: {
+    organization_id: string
+  }
+}
+
+interface DocuSignUserInfo {
+  sub: string
+  name: string
+  given_name: string
+  family_name: string
+  email: string
+  accounts: DocuSignAccount[]
+}
+
+interface DocuSignAuthResult {
+  accessToken: string
+  accountId: string
+}
+
+interface DocuSignDocument {
+  documentBase64: string
+  name: string
+  fileExtension: string
+  documentId: string
+}
+
+interface DocuSignSigner {
+  email: string
+  name: string
+  recipientId: string
+  routingOrder: string
+  clientUserId?: string
+  tabs?: Record<string, unknown>
+}
+
+interface DocuSignEventNotification {
+  url: string
+  loggingEnabled: string
+  requireAcknowledgment: string
+  envelopeEvents: Array<{ envelopeEventStatusCode: string }>
+  recipientEvents: Array<{ recipientEventStatusCode: string }>
+}
+
+interface DocuSignEnvelopeDefinition {
+  emailSubject: string
+  documents: DocuSignDocument[]
+  recipients: {
+    signers: DocuSignSigner[]
+  }
+  status: string
+  eventNotification?: DocuSignEventNotification
+}
+
+interface DocuSignEnvelopeResponse {
+  envelopeId: string
+  status: string
+  statusDateTime: string
+  uri: string
+}
+
+interface DocuSignEnvelopeParams {
+  signerEmail: string
+  signerName: string
+  documentPath: string
+  documentName: string
+  emailSubject: string
+  allowFreeFormSigning?: boolean
+}
+
+interface DocuSignRecipientViewRequest {
+  authenticationMethod: string
+  email: string
+  userName: string
+  recipientId: string
+  returnUrl: string
+  clientUserId?: string
+}
+
+interface DocuSignRecipientViewResponse {
+  url: string
+}
+
+interface DocuSignRecipientViewParams {
+  envelopeId: string
+  recipientEmail: string
+  recipientName: string
+  recipientId: string
+  returnUrl: string
+}
+
+interface DocuSignSenderViewParams {
+  envelopeId: string
+  returnUrl: string
+}
+
+interface DocuSignSenderViewRequest {
+  returnUrl: string
+}
+
+interface DocuSignSenderViewResponse {
+  url: string
+}
 
 export class DocuSignSimpleClient {
   private accessToken: string | null = null
@@ -13,7 +128,7 @@ export class DocuSignSimpleClient {
   /**
    * Authenticate using JWT (following 2025 quickstart guide)
    */
-  async authenticateJWT(): Promise<{ accessToken: string; accountId: string }> {
+  async authenticateJWT(): Promise<DocuSignAuthResult> {
     const integrationKey = process.env.DOCUSIGN_INTEGRATION_KEY
     const userId = process.env.DOCUSIGN_USER_ID
     const privateKeyBase64 = process.env.DOCUSIGN_PRIVATE_KEY
@@ -59,7 +174,7 @@ export class DocuSignSimpleClient {
         throw new Error(`Failed to get access token: ${tokenResponse.status}`)
       }
 
-      const tokenData = await tokenResponse.json()
+      const tokenData = await tokenResponse.json() as DocuSignTokenResponse
       this.accessToken = tokenData.access_token
       this.tokenExpiry = now + (tokenData.expires_in || 3600)
 
@@ -75,7 +190,7 @@ export class DocuSignSimpleClient {
         throw new Error(`Failed to get user info: ${userInfoResponse.status}`)
       }
 
-      const userInfo = await userInfoResponse.json()
+      const userInfo = await userInfoResponse.json() as DocuSignUserInfo
       if (!userInfo.accounts || userInfo.accounts.length === 0) {
         throw new Error('No DocuSign accounts found')
       }
@@ -86,7 +201,7 @@ export class DocuSignSimpleClient {
         accessToken: this.accessToken, 
         accountId: this.accountId 
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('DocuSign JWT authentication failed:', error)
       throw new Error('Failed to authenticate with DocuSign')
     }
@@ -95,7 +210,7 @@ export class DocuSignSimpleClient {
   /**
    * Ensure we have a valid access token
    */
-  private async ensureAuthenticated(): Promise<{ accessToken: string; accountId: string }> {
+  private async ensureAuthenticated(): Promise<DocuSignAuthResult> {
     const now = Math.floor(Date.now() / 1000)
     
     if (!this.accessToken || !this.accountId || now >= this.tokenExpiry) {
@@ -109,14 +224,7 @@ export class DocuSignSimpleClient {
    * Create an envelope with a document for signing
    * Uses free-form signing - signers can place signatures/dates anywhere
    */
-  async createEnvelope(params: {
-    signerEmail: string
-    signerName: string
-    documentPath: string
-    documentName: string
-    emailSubject: string
-    allowFreeFormSigning?: boolean
-  }): Promise<any> {
+  async createEnvelope(params: DocuSignEnvelopeParams): Promise<DocuSignEnvelopeResponse> {
     const { signerEmail, signerName, documentPath, documentName, emailSubject } = params
 
     try {
@@ -131,7 +239,7 @@ export class DocuSignSimpleClient {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
       const isHttps = baseUrl.startsWith('https://')
       
-      const envelopeDefinition: any = {
+      const envelopeDefinition: DocuSignEnvelopeDefinition = {
         emailSubject,
         documents: [{
           documentBase64,
@@ -196,8 +304,8 @@ export class DocuSignSimpleClient {
         throw new Error(`Failed to create envelope: ${response.status}`)
       }
 
-      return await response.json()
-    } catch (error) {
+      return await response.json() as DocuSignEnvelopeResponse
+    } catch (error: unknown) {
       console.error('Failed to create DocuSign envelope:', error)
       throw new Error('Failed to create envelope for signing')
     }
@@ -206,7 +314,7 @@ export class DocuSignSimpleClient {
   /**
    * Get envelope status
    */
-  async getEnvelopeStatus(envelopeId: string): Promise<any> {
+  async getEnvelopeStatus(envelopeId: string): Promise<Record<string, unknown>> {
     try {
       const { accessToken, accountId } = await this.ensureAuthenticated()
 
@@ -221,8 +329,8 @@ export class DocuSignSimpleClient {
         throw new Error(`Failed to get envelope status: ${response.status}`)
       }
 
-      return await response.json()
-    } catch (error) {
+      return await response.json() as Record<string, unknown>
+    } catch (error: unknown) {
       console.error('Failed to get DocuSign envelope status:', error)
       throw new Error('Failed to get envelope status')
     }
@@ -231,19 +339,13 @@ export class DocuSignSimpleClient {
   /**
    * Get recipient view URL for embedded signing
    */
-  async getRecipientView(params: {
-    envelopeId: string
-    recipientEmail: string
-    recipientName: string
-    recipientId: string
-    returnUrl: string
-  }): Promise<any> {
+  async getRecipientView(params: DocuSignRecipientViewParams): Promise<DocuSignRecipientViewResponse> {
     const { envelopeId, recipientEmail, recipientName, recipientId, returnUrl } = params
 
     try {
       const { accessToken, accountId } = await this.ensureAuthenticated()
 
-      const viewRequest = {
+      const viewRequest: DocuSignRecipientViewRequest = {
         authenticationMethod: 'none',
         email: recipientEmail,
         userName: recipientName,
@@ -268,8 +370,8 @@ export class DocuSignSimpleClient {
         throw new Error(`Failed to get recipient view: ${response.status}`)
       }
 
-      return await response.json()
-    } catch (error) {
+      return await response.json() as DocuSignRecipientViewResponse
+    } catch (error: unknown) {
       console.error('Failed to get DocuSign recipient view:', error)
       throw new Error('Failed to get recipient view URL')
     }
@@ -278,13 +380,7 @@ export class DocuSignSimpleClient {
   /**
    * Create and immediately send an envelope for free-form signing
    */
-  async createAndSendEnvelope(params: {
-    signerEmail: string
-    signerName: string
-    documentPath: string
-    documentName: string
-    emailSubject: string
-  }): Promise<any> {
+  async createAndSendEnvelope(params: Omit<DocuSignEnvelopeParams, 'allowFreeFormSigning'>): Promise<DocuSignEnvelopeResponse> {
     const { signerEmail, signerName, documentPath, documentName, emailSubject } = params
 
     try {
@@ -299,7 +395,7 @@ export class DocuSignSimpleClient {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
       const isHttps = baseUrl.startsWith('https://')
       
-      const envelopeDefinition: any = {
+      const envelopeDefinition: DocuSignEnvelopeDefinition = {
         emailSubject,
         documents: [{
           documentBase64,
@@ -364,8 +460,8 @@ export class DocuSignSimpleClient {
         throw new Error(`Failed to create and send envelope: ${response.status}`)
       }
 
-      return await response.json()
-    } catch (error) {
+      return await response.json() as DocuSignEnvelopeResponse
+    } catch (error: unknown) {
       console.error('Failed to create and send DocuSign envelope:', error)
       throw new Error('Failed to create and send envelope for signing')
     }
@@ -374,7 +470,7 @@ export class DocuSignSimpleClient {
   /**
    * Send an envelope (change status from created to sent)
    */
-  async sendEnvelope(envelopeId: string): Promise<any> {
+  async sendEnvelope(envelopeId: string): Promise<Record<string, unknown>> {
     try {
       const { accessToken, accountId } = await this.ensureAuthenticated()
 
@@ -394,8 +490,8 @@ export class DocuSignSimpleClient {
         throw new Error(`Failed to send envelope: ${response.status}`)
       }
 
-      return await response.json()
-    } catch (error) {
+      return await response.json() as Record<string, unknown>
+    } catch (error: unknown) {
       console.error('Failed to send DocuSign envelope:', error)
       throw new Error('Failed to send envelope')
     }
@@ -404,16 +500,13 @@ export class DocuSignSimpleClient {
   /**
    * Get sender view URL for tagging/placing fields
    */
-  async getSenderView(params: {
-    envelopeId: string
-    returnUrl: string
-  }): Promise<any> {
+  async getSenderView(params: DocuSignSenderViewParams): Promise<DocuSignSenderViewResponse> {
     const { envelopeId, returnUrl } = params
 
     try {
       const { accessToken, accountId } = await this.ensureAuthenticated()
 
-      const viewRequest = {
+      const viewRequest: DocuSignSenderViewRequest = {
         returnUrl
       }
 
@@ -433,8 +526,8 @@ export class DocuSignSimpleClient {
         throw new Error(`Failed to get sender view: ${response.status}`)
       }
 
-      return await response.json()
-    } catch (error) {
+      return await response.json() as DocuSignSenderViewResponse
+    } catch (error: unknown) {
       console.error('Failed to get DocuSign sender view:', error)
       throw new Error('Failed to get sender view URL')
     }
@@ -463,7 +556,7 @@ export class DocuSignSimpleClient {
       // Return the PDF as a buffer
       const arrayBuffer = await response.arrayBuffer()
       return Buffer.from(arrayBuffer)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to download DocuSign documents:', error)
       throw new Error('Failed to download signed documents')
     }

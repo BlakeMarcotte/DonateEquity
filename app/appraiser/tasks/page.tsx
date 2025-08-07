@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { 
   Search,
-  Filter,
   Clock, 
   CheckCircle, 
   AlertCircle, 
@@ -31,9 +30,9 @@ interface Task {
   status: TaskStatus
   priority: TaskPriority
   assignedRole: string
-  createdAt: any
-  updatedAt: any
-  completedAt?: any
+  createdAt: Date
+  updatedAt: Date
+  completedAt?: Date
   donorName: string
   donorEmail: string
   organizationName: string

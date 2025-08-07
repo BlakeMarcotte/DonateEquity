@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { initializeApp, getApps, cert } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
+import { CustomClaims } from '@/types/auth'
 
 // Initialize Firebase Admin if not already initialized
 if (!getApps().length) {
@@ -20,7 +21,7 @@ export interface AuthResult {
   user?: {
     uid: string
     email?: string
-    customClaims?: any
+    customClaims?: CustomClaims
   }
   error?: string
 }

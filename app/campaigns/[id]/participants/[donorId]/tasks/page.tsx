@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { DonationTaskList } from '@/components/tasks/DonationTaskList'
 import { DonationFiles } from '@/components/files/DonationFiles'
-import { Heart, ArrowLeft, Users, CheckSquare, FileText } from 'lucide-react'
+import { ArrowLeft, Users, CheckSquare, FileText } from 'lucide-react'
 
 export default function ParticipantTasksPage() {
   const { user, customClaims, loading } = useAuth()
@@ -54,7 +54,6 @@ export default function ParticipantTasksPage() {
   }
 
   const isNonprofitAdmin = customClaims.role === 'nonprofit_admin'
-  const isAppraiser = customClaims.role === 'appraiser'
   const isDonor = customClaims.role === 'donor' && user.uid === donorId
 
   return (

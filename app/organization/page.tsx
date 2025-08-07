@@ -3,8 +3,6 @@
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { useState, useEffect } from 'react'
-import { updateDoc, doc } from 'firebase/firestore'
-import { db } from '@/lib/firebase/config'
 import { getOrCreateOrganization, type Organization, updateOrganization } from '@/lib/firebase/organizations'
 import InviteTeamMemberModal from '@/components/organization/InviteTeamMemberModal'
 import TeamMemberList from '@/components/organization/TeamMemberList'

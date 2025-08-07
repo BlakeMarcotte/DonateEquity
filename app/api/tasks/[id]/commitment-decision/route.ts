@@ -56,7 +56,7 @@ export async function POST(
 
     // Complete the commitment decision task
     const taskRef = adminDb.collection('tasks').doc(taskId)
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: 'completed',
       completedAt: new Date(),
       updatedAt: new Date(),
@@ -214,7 +214,7 @@ export async function POST(
   } catch (error) {
     console.error('Error processing commitment decision:', error)
     return NextResponse.json(
-      { error: `Failed to process decision: ${error.message}` },
+      { error: `Failed to process decision: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

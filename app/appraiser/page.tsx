@@ -12,7 +12,6 @@ import {
   AlertCircle, 
   FileText, 
   Users, 
-  CalendarDays,
   ArrowRight,
   BarChart3
 } from 'lucide-react'
@@ -31,7 +30,7 @@ interface Task {
   title: string
   status: 'pending' | 'in_progress' | 'blocked' | 'completed'
   priority: 'high' | 'medium' | 'low'
-  createdAt: any
+  createdAt: Date
   donorName: string
   organizationName: string
 }
@@ -231,7 +230,7 @@ export default function AppraiserDashboard() {
                               Created {new Date(task.createdAt).toLocaleDateString()}
                             </p>
                           </div>
-                          <Link href={`/donations/${(task as any).donationId || task.participantId}/tasks`}>
+                          <Link href={`/donations/${task.donationId}/tasks`}>
                             <Button variant="outline" size="sm">
                               View
                             </Button>

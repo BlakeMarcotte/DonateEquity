@@ -1,25 +1,70 @@
 // DocuSign client configuration following 2025 best practices
+import { ApiClient, EnvelopesApi } from 'docusign-esign'
+
+interface DocuSignAuthResult {
+  accessToken: string
+  accountId: string
+}
+
+interface DocuSignEnvelopeParams {
+  signerEmail: string
+  signerName: string
+  documentPath: string
+  documentName: string
+  emailSubject: string
+  accountId: string
+}
+
+interface DocuSignRecipientViewParams {
+  accountId: string
+  envelopeId: string
+  recipientEmail: string
+  recipientName: string
+  recipientId: string
+  returnUrl: string
+}
+
+interface DocuSignAccount {
+  accountId: string
+  isDefault: boolean
+  accountName: string
+  baseUri: string
+}
+
+interface DocuSignUserInfo {
+  accounts: DocuSignAccount[]
+  name: string
+  email: string
+}
+
+interface DocuSignEnvelopeResult {
+  envelopeId: string
+  status: string
+  uri: string
+}
+
+interface DocuSignRecipientViewResult {
+  url: string
+}
+
 export class DocuSignClient {
-  private apiClient: any
-  private envelopesApi: any
-  private docusign: any
+  private apiClient: ApiClient
+  private envelopesApi: EnvelopesApi
   
   constructor() {
-    // Dynamic import to fix Next.js compatibility issues
-    this.docusign = require('docusign-esign')
-    this.apiClient = new this.docusign.ApiClient()
+    this.apiClient = new ApiClient()
     
     // Set base path for DocuSign API (demo environment)
     // For production, use: https://na1.docusign.net/restapi
     this.apiClient.setBasePath('https://demo.docusign.net/restapi')
     
-    this.envelopesApi = new this.docusign.EnvelopesApi(this.apiClient)
+    this.envelopesApi = new EnvelopesApi(this.apiClient)
   }
 
   /**
    * Authenticate using JWT (recommended for server-side applications)
    */
-  async authenticateJWT(): Promise<{ accessToken: string; accountId: string }> {
+  async authenticateJWT(): Promise<DocuSignAuthResult> {
     const integrationKey = process.env.DOCUSIGN_INTEGRATION_KEY
     const userId = process.env.DOCUSIGN_USER_ID
     const privateKey = process.env.DOCUSIGN_PRIVATE_KEY
@@ -39,7 +84,7 @@ export class DocuSignClient {
         ['signature', 'impersonation'],
         Buffer.from(privateKey, 'base64'),
         3600 // 1 hour expiration
-      )
+      ) as { body: { access_token: string } }
 
       const accessToken = results.body.access_token
       
@@ -47,7 +92,7 @@ export class DocuSignClient {
       this.apiClient.addDefaultHeader('Authorization', `Bearer ${accessToken}`)
       
       // Get user info to find account ID
-      const userInfo = await this.apiClient.getUserInfo(accessToken)
+      const userInfo = await this.apiClient.getUserInfo(accessToken) as DocuSignUserInfo
       const accounts = userInfo.accounts
       
       if (!accounts || accounts.length === 0) {
@@ -61,7 +106,7 @@ export class DocuSignClient {
       this.apiClient.setBasePath(`https://demo.docusign.net/restapi`)
       
       return { accessToken, accountId }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('DocuSign JWT authentication failed:', error)
       throw new Error('Failed to authenticate with DocuSign')
     }
@@ -70,14 +115,7 @@ export class DocuSignClient {
   /**
    * Create an envelope with a document for signing
    */
-  async createEnvelope(params: {
-    signerEmail: string
-    signerName: string
-    documentPath: string
-    documentName: string
-    emailSubject: string
-    accountId: string
-  }): Promise<any> {
+  async createEnvelope(params: DocuSignEnvelopeParams): Promise<DocuSignEnvelopeResult> {
     const { signerEmail, signerName, documentPath, documentName, emailSubject, accountId } = params
 
     try {
@@ -119,10 +157,10 @@ export class DocuSignClient {
       // Create the envelope
       const result = await this.envelopesApi.createEnvelope(accountId, {
         envelopeDefinition
-      })
+      }) as DocuSignEnvelopeResult
 
       return result
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to create DocuSign envelope:', error)
       throw new Error('Failed to create envelope for signing')
     }
@@ -131,11 +169,11 @@ export class DocuSignClient {
   /**
    * Get envelope status
    */
-  async getEnvelopeStatus(accountId: string, envelopeId: string): Promise<any> {
+  async getEnvelopeStatus(accountId: string, envelopeId: string): Promise<Record<string, unknown>> {
     try {
-      const result = await this.envelopesApi.getEnvelope(accountId, envelopeId)
+      const result = await this.envelopesApi.getEnvelope(accountId, envelopeId) as Record<string, unknown>
       return result
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to get DocuSign envelope status:', error)
       throw new Error('Failed to get envelope status')
     }
@@ -144,18 +182,11 @@ export class DocuSignClient {
   /**
    * Get recipient view URL for embedded signing
    */
-  async getRecipientView(params: {
-    accountId: string
-    envelopeId: string
-    recipientEmail: string
-    recipientName: string
-    recipientId: string
-    returnUrl: string
-  }): Promise<any> {
+  async getRecipientView(params: DocuSignRecipientViewParams): Promise<DocuSignRecipientViewResult> {
     const { accountId, envelopeId, recipientEmail, recipientName, recipientId, returnUrl } = params
 
     try {
-      const viewRequest: any = {
+      const viewRequest: Record<string, unknown> = {
         authenticationMethod: 'none',
         email: recipientEmail,
         userName: recipientName,
@@ -165,10 +196,10 @@ export class DocuSignClient {
 
       const result = await this.envelopesApi.createRecipientView(accountId, envelopeId, {
         recipientViewRequest: viewRequest
-      })
+      }) as DocuSignRecipientViewResult
 
       return result
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to get DocuSign recipient view:', error)
       throw new Error('Failed to get recipient view URL')
     }

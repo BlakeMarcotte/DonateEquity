@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, forwardRef, useImperativeHandle, useEffect } from 'react'
-import { Upload, X, FileText, AlertCircle, CheckCircle } from 'lucide-react'
+import { Upload, X, AlertCircle, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatFileSize, getFileIcon } from '@/lib/firebase/storage'
 

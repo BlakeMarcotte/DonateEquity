@@ -49,7 +49,7 @@ export default function TeamInvitationEmail({
           </Section>
           
           <Section style={content}>
-            <Heading style={h1}>You're invited to join {organizationName}</Heading>
+            <Heading style={h1}>{`You're invited to join ${organizationName}`}</Heading>
             
             <Text style={text}>
               <strong>{inviterName}</strong> has invited you to join <strong>{organizationName}</strong> as a <strong>{subroleDisplay}</strong> on Donate Equity.
@@ -58,7 +58,7 @@ export default function TeamInvitationEmail({
             {personalMessage && (
               <Section style={messageSection}>
                 <Text style={messageLabel}>Personal message:</Text>
-                <Text style={personalMessageText}>"{personalMessage}"</Text>
+                <Text style={personalMessageText}>{`"${personalMessage}"`}</Text>
               </Section>
             )}
 
@@ -69,11 +69,11 @@ export default function TeamInvitationEmail({
             </Section>
 
             <Text style={smallText}>
-              This invitation will expire on {expiresAt}. If you don't want to join this organization, you can simply ignore this email.
+              {`This invitation will expire on ${expiresAt}. If you don't want to join this organization, you can simply ignore this email.`}
             </Text>
 
             <Text style={smallText}>
-              If you're having trouble with the button above, copy and paste this URL into your web browser:
+              {`If you're having trouble with the button above, copy and paste this URL into your web browser:`}
             </Text>
             <Text style={linkText}>{invitationUrl}</Text>
           </Section>

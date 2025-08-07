@@ -11,7 +11,6 @@ import {
   CheckCircle, 
   TrendingUp,
   User,
-  Building,
   Calendar,
   ArrowRight,
   DollarSign
@@ -27,8 +26,8 @@ interface Assignment {
   campaignTitle: string
   estimatedValue: number
   status: 'assigned' | 'in_progress' | 'completed'
-  assignedAt: any
-  completedAt?: any
+  assignedAt: Date
+  completedAt?: Date
   tasksCompleted: number
   totalTasks: number
   nextTask?: {

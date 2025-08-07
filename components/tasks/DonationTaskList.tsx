@@ -6,7 +6,6 @@ import { CommitmentDecisionTask } from './CommitmentDecisionTask'
 import { useAuth } from '@/contexts/AuthContext'
 import { Task } from '@/types/task'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload } from 'lucide-react'
 import { AppraiserInvitationForm } from './AppraiserInvitationForm'
 import { FileUpload } from '@/components/files/FileUpload'
@@ -21,8 +20,8 @@ interface DonationTaskListProps {
   // Allow passing tasks and handlers from parent
   tasks?: Task[]
   loading?: boolean
-  completeTask?: (taskId: string, completionData?: any) => Promise<void>
-  handleCommitmentDecision?: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: any) => Promise<void>
+  completeTask?: (taskId: string, completionData?: Record<string, unknown>) => Promise<void>
+  handleCommitmentDecision?: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: Record<string, unknown>) => Promise<void>
   campaignTitle?: string
   donorName?: string
   organizationName?: string
@@ -30,7 +29,7 @@ interface DonationTaskListProps {
 
 export function DonationTaskList({ 
   participantId, 
-  campaignId, 
+ 
   showAllTasks = false,
   tasks: externalTasks,
   loading: externalLoading,
@@ -56,11 +55,11 @@ export function DonationTaskList({
   const [currentCommitmentTask, setCurrentCommitmentTask] = useState<Task | null>(null)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const { uploadFile } = useDonationFiles(participantId ? `participants/${participantId}` : null)
-  const fileUploadRef = useRef<any>(null)
+  const fileUploadRef = useRef<{ triggerUpload: () => void } | null>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
   // Wrapper for handling commitment decisions that manages modal state
-  const handleCommitmentDecisionWrapper = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: any) => {
+  const handleCommitmentDecisionWrapper = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: Record<string, unknown>) => {
     if (decision === 'commit_now' && !commitmentData) {
       // Open modal to get commitment details
       const task = tasks.find(t => t.id === taskId)
@@ -199,7 +198,7 @@ export function DonationTaskList({
   
   const handleUploadSuccess = async (file: File, folder: string) => {
     try {
-      await uploadFile(file, folder as any)
+      await uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
       // After all files are uploaded, close modal and mark task complete
       setShowUploadModal(false)
       setCurrentUploadTask(null)
@@ -351,7 +350,7 @@ export function DonationTaskList({
         try {
           const errorData = await response.json()
           errorMessage = errorData.error || errorMessage
-        } catch (e) {
+        } catch {
           // If response is not JSON (like HTML), use status text
           errorMessage = `Server error: ${response.status} ${response.statusText}`
         }

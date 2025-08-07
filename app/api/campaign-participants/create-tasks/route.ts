@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await adminAuth.verifyIdToken(token)
+    await adminAuth.verifyIdToken(token)
     
     const { campaignId, participantId } = await request.json()
 

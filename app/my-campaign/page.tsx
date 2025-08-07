@@ -9,7 +9,7 @@ import { TaskTimeline } from '@/components/tasks/TaskTimeline'
 import { DonationFiles } from '@/components/files/DonationFiles'
 import { EquityCommitmentModal } from '@/components/tasks/EquityCommitmentModal'
 import { useParticipantTasks } from '@/hooks/useParticipantTasks'
-import { Heart, Clock, Users, CheckSquare, FileText, DollarSign } from 'lucide-react'
+import { Heart, CheckSquare, FileText } from 'lucide-react'
 
 export default function MyCampaignPage() {
   const { user, customClaims, loading } = useAuth()
@@ -95,7 +95,7 @@ export default function MyCampaignPage() {
             <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">No Campaign Found</h2>
             <p className="text-gray-600 mb-6">
-              You don't appear to be participating in any campaigns yet.
+              {`You don't appear to be participating in any campaigns yet.`}
             </p>
             <button
               onClick={() => router.push('/browse')}
@@ -147,9 +147,9 @@ export default function MyCampaignPage() {
                 <Heart className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-blue-900">You're interested in this campaign!</h3>
+                <h3 className="text-lg font-semibold text-blue-900">{`You're interested in this campaign!`}</h3>
                 <p className="text-blue-700 mt-1">
-                  Ready to make your equity donation? Start by creating your donation commitment.
+                  {`Ready to make your equity donation? Start by creating your donation commitment.`}
                 </p>
               </div>
             </div>
