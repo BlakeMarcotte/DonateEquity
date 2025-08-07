@@ -39,8 +39,8 @@ Next.js/TypeScript platform enabling pre-committed equity donations to nonprofit
 - Role-based navigation & context preservation
 - Auto campaign statistics sync
 
-### 7-Step Task System ✅
-- Sequential workflow with dependencies
+### 9-Step Task System ✅
+- Sequential workflow with dependencies and conditional branching
 - Universal visibility for transparency
 - Role-based completion rights
 - Real-time updates with color-coded badges
@@ -195,16 +195,21 @@ Firebase Auth with custom claims for RBAC, split-screen professional UI, protect
 ## Recent Updates ✅
 
 ### Core Features Completed
-- **7-Step Task System**: Auto-creation, sequential dependencies, role-based completion, real-time updates
+- **9-Step Task System**: Auto-creation, sequential dependencies, conditional branching, role-based completion, real-time updates
 - **Donation Workflow**: Streamlined process, removed anonymous donations, role-based navigation
 - **Campaign System**: Browsing, invitations with context, statistics sync
 - **Authentication**: Enhanced UI/UX, professional containers, improved accessibility
 
 ### Key Files
-- `/app/api/donations/create/route.ts` - Task creation API
+- `/app/api/campaign-participants/create-tasks/route.ts` - New 9-step task creation API
+- `/app/api/campaign-participants/[id]/reset-tasks/route.ts` - New task reset functionality
 - `/components/tasks/DonationTaskList.tsx` - Task UI
-- `/hooks/useDonationTasks.ts` - Real-time task management
+- `/hooks/useParticipantTasks.ts` - Real-time participant-based task management
 - `/app/donations/[id]/tasks/page.tsx` - Task interface
+
+### Legacy Files (Deprecated)
+- `/hooks/useDonationTasks.ts` - Legacy donation-based task management
+- `/app/api/donations/[id]/reset-tasks/route.ts` - Legacy 10-step task reset
 
 ### Technical Improvements
 - Router context fixes, Firestore indexes, security rules updates

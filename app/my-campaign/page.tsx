@@ -203,7 +203,7 @@ export default function MyCampaignPage() {
                 <DonationTaskList 
                   participantId={participantId}
                   campaignId={campaign?.id}
-                  showAllTasks={false}
+                  showAllTasks={customClaims?.role === 'nonprofit_admin'}
                   // Pass required props for EquityCommitmentModal
                   campaignTitle={campaign?.title}
                   donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}

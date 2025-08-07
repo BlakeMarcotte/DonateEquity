@@ -125,6 +125,7 @@ export function DonationTaskList({
   console.log('Debug - Total tasks:', tasks.length)
   console.log('Debug - User role:', customClaims?.role)
   console.log('Debug - User ID:', user?.uid)
+  console.log('Debug - showAllTasks:', showAllTasks)
   console.log('Debug - Filtered tasks:', filteredTasks.length)
   console.log('Debug - Tasks:', tasks.map(t => ({ 
     id: t.id, 
@@ -343,11 +344,19 @@ export function DonationTaskList({
         throw new Error('No participant ID available to reset tasks')
       }
 
-      const result = await response.json()
-
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to reset tasks')
+        let errorMessage = 'Failed to reset tasks'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (e) {
+          // If response is not JSON (like HTML), use status text
+          errorMessage = `Server error: ${response.status} ${response.statusText}`
+        }
+        throw new Error(errorMessage)
       }
+
+      const result = await response.json()
 
       console.log('Tasks reset successfully:', result.message)
       

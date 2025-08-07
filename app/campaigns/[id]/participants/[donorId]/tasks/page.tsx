@@ -142,7 +142,7 @@ export default function ParticipantTasksPage() {
                 <DonationTaskList 
                   participantId={participantId}
                   campaignId={campaignId}
-                  showAllTasks={!isDonor}
+                  showAllTasks={customClaims.role === 'nonprofit_admin' || customClaims.role === 'appraiser'}
                   tasks={tasks}
                   loading={tasksLoading}
                   handleCommitmentDecision={handleCommitmentDecision}

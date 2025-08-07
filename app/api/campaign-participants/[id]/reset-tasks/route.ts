@@ -3,7 +3,7 @@ import { adminAuth, adminDb } from '@/lib/firebase/admin'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
@@ -14,7 +14,7 @@ export async function POST(
 
     const token = authHeader.split('Bearer ')[1]
     const decodedToken = await adminAuth.verifyIdToken(token)
-    const participantId = params.id
+    const { id: participantId } = await params
 
     if (!participantId) {
       return NextResponse.json(
@@ -72,8 +72,38 @@ export async function POST(
       batch.delete(doc.ref)
     })
 
-    // Recreate initial tasks
-    // Task 1: Donation Commitment Decision
+    // Recreate initial tasks matching the new 9-step structure
+    // Task 1: Donor - Sign NDA
+    const signNDATaskId = `${participantId}_sign_nda`
+    const signNDATask = {
+      id: signNDATaskId,
+      participantId: participantId,
+      campaignId: participantData.campaignId,
+      donorId: participantData.userId,
+      assignedTo: participantData.userId,
+      assignedRole: 'donor',
+      title: 'Donor: Sign NDA',
+      description: 'Review and digitally sign the Non-Disclosure Agreement before proceeding with the donation process.',
+      type: 'docusign_signature',
+      status: 'pending',
+      priority: 'high',
+      order: 1,
+      dependencies: [],
+      metadata: {
+        documentPath: '/public/nda-general.pdf',
+        documentName: 'General NDA',
+        envelopeId: null,
+        signedAt: null,
+        signingUrl: null,
+        automatedReminders: true
+      },
+      comments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: participantData.userId
+    }
+
+    // Task 2: Donor - Commitment
     const commitmentTaskId = `${participantId}_commitment_decision`
     const commitmentTask = {
       id: commitmentTaskId,
@@ -82,13 +112,13 @@ export async function POST(
       donorId: participantData.userId,
       assignedTo: participantData.userId,
       assignedRole: 'donor',
-      title: 'Donation Commitment Decision',
+      title: 'Donor: Commitment',
       description: 'Choose when you want to make your donation commitment: now or after appraisal.',
       type: 'commitment_decision',
-      status: 'pending',
+      status: 'blocked',
       priority: 'high',
-      order: 1,
-      dependencies: [],
+      order: 2,
+      dependencies: [signNDATaskId],
       metadata: {
         options: [
           {
@@ -98,7 +128,7 @@ export async function POST(
           },
           {
             id: 'commit_after_appraisal',
-            label: 'Wait for Appraisal',
+            label: 'Make Commitment After Appraisal',
             description: 'I want to see the appraisal results before making my commitment decision.'
           }
         ],
@@ -111,34 +141,7 @@ export async function POST(
       createdBy: participantData.userId
     }
 
-    // Task 2: Company Information
-    const companyInfoTaskId = `${participantId}_company_info`
-    const companyInfoTask = {
-      id: companyInfoTaskId,
-      participantId: participantId,
-      campaignId: participantData.campaignId,
-      donorId: participantData.userId,
-      assignedTo: participantData.userId,
-      assignedRole: 'donor',
-      title: 'Provide Company Information',
-      description: 'Upload your company information and details for the appraisal process.',
-      type: 'document_upload',
-      status: 'blocked',
-      priority: 'high',
-      order: 2,
-      dependencies: [commitmentTaskId],
-      metadata: {
-        documentTypes: ['company_info', 'financial_statements'],
-        documentPath: `participants/${participantId}/company_info/`,
-        requiresApproval: false
-      },
-      comments: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: participantData.userId
-    }
-
-    // Task 3: Invite Appraiser
+    // Task 3: Donor - Invite Appraiser
     const inviteAppraiserTaskId = `${participantId}_invite_appraiser`
     const inviteAppraiserTask = {
       id: inviteAppraiserTaskId,
@@ -147,13 +150,13 @@ export async function POST(
       donorId: participantData.userId,
       assignedTo: participantData.userId,
       assignedRole: 'donor',
-      title: 'Invite Appraiser to Platform',
-      description: 'Invite a professional appraiser to conduct your equity valuation.',
+      title: 'Donor: Invite Appraiser',
+      description: 'Invite a professional appraiser to join the platform and conduct your equity valuation.',
       type: 'invitation',
       status: 'blocked',
       priority: 'high',
       order: 3,
-      dependencies: [companyInfoTaskId],
+      dependencies: [commitmentTaskId],
       metadata: {
         invitationType: 'appraiser',
         role: 'appraiser'
@@ -164,14 +167,195 @@ export async function POST(
       createdBy: participantData.userId
     }
 
-    // Add new tasks to batch
-    const commitmentTaskRef = adminDb.collection('tasks').doc(commitmentTaskId)
-    const companyInfoTaskRef = adminDb.collection('tasks').doc(companyInfoTaskId)
-    const inviteAppraiserTaskRef = adminDb.collection('tasks').doc(inviteAppraiserTaskId)
+    // Create all 9 tasks for complete workflow visibility
+    // Task 4: Donor - Upload Company Information (File Upload)
+    const companyInfoTaskId = `${participantId}_company_info`
+    const companyInfoTask = {
+      id: companyInfoTaskId,
+      participantId: participantId,
+      campaignId: participantData.campaignId,
+      donorId: participantData.userId,
+      assignedTo: participantData.userId,
+      assignedRole: 'donor',
+      title: 'Donor: Upload Company Information (File Upload)',
+      description: 'Upload your company information and financial documents for the appraisal process.',
+      type: 'document_upload',
+      status: 'blocked',
+      priority: 'high',
+      order: 4,
+      dependencies: [inviteAppraiserTaskId],
+      metadata: {
+        documentTypes: ['company_info', 'financial_statements'],
+        documentPath: `participants/${participantId}/financial/`,
+        requiresApproval: false,
+        uploadFolders: ['legal', 'financial']
+      },
+      comments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: participantData.userId
+    }
 
+    // Task 5: Appraiser - Sign NDA
+    const appraiserNDATaskId = `${participantId}_appraiser_sign_nda`
+    const appraiserNDATask = {
+      id: appraiserNDATaskId,
+      participantId: participantId,
+      campaignId: participantData.campaignId,
+      donorId: participantData.userId,
+      assignedTo: null, // Will be set when appraiser accepts invitation
+      assignedRole: 'appraiser',
+      title: 'Appraiser: Sign NDA',
+      description: 'Review and digitally sign the Non-Disclosure Agreement to access donor information.',
+      type: 'docusign_signature',
+      status: 'blocked',
+      priority: 'high',
+      order: 5,
+      dependencies: [companyInfoTaskId],
+      metadata: {
+        documentPath: '/public/nda-appraiser.pdf',
+        documentName: 'Appraiser NDA',
+        envelopeId: null,
+        signedAt: null,
+        signingUrl: null,
+        automatedReminders: true
+      },
+      comments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: participantData.userId
+    }
+
+    // Task 6: Appraiser - Upload Documents (File Upload)
+    const appraiserUploadTaskId = `${participantId}_appraiser_upload`
+    const appraiserUploadTask = {
+      id: appraiserUploadTaskId,
+      participantId: participantId,
+      campaignId: participantData.campaignId,
+      donorId: participantData.userId,
+      assignedTo: null, // Will be set when appraiser accepts invitation
+      assignedRole: 'appraiser',
+      title: 'Appraiser: Upload Documents (File Upload)',
+      description: 'Upload appraisal documents and valuation reports.',
+      type: 'document_upload',
+      status: 'blocked',
+      priority: 'high',
+      order: 6,
+      dependencies: [appraiserNDATaskId],
+      metadata: {
+        documentTypes: ['appraisal_report', 'valuation_documents'],
+        documentPath: `participants/${participantId}/appraisals/`,
+        requiresApproval: false,
+        uploadFolders: ['appraisals']
+      },
+      comments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: participantData.userId
+    }
+
+    // Task 7: Donor - Approve Documents
+    const donorApproveTaskId = `${participantId}_donor_approve`
+    const donorApproveTask = {
+      id: donorApproveTaskId,
+      participantId: participantId,
+      campaignId: participantData.campaignId,
+      donorId: participantData.userId,
+      assignedTo: participantData.userId,
+      assignedRole: 'donor',
+      title: 'Donor: Approve Documents',
+      description: 'Review and approve the appraisal documents and valuation reports.',
+      type: 'document_review',
+      status: 'blocked',
+      priority: 'medium',
+      order: 7,
+      dependencies: [appraiserUploadTaskId],
+      metadata: {
+        documentIds: [],
+        approvalRequired: true,
+        automatedReminders: true
+      },
+      comments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: participantData.userId
+    }
+
+    // Task 8: Nonprofit - Approve Documents
+    const nonprofitApproveTaskId = `${participantId}_nonprofit_approve`
+    const nonprofitApproveTask = {
+      id: nonprofitApproveTaskId,
+      participantId: participantId,
+      campaignId: participantData.campaignId,
+      donorId: participantData.userId,
+      assignedTo: campaignData.createdBy,
+      assignedRole: 'nonprofit_admin',
+      title: 'Nonprofit: Approve Documents',
+      description: 'Review and approve all donation documentation and appraisal reports.',
+      type: 'document_review',
+      status: 'blocked',
+      priority: 'high',
+      order: 8,
+      dependencies: [donorApproveTaskId],
+      metadata: {
+        documentIds: [],
+        approvalRequired: true,
+        automatedReminders: true
+      },
+      comments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: participantData.userId
+    }
+
+    // Task 9: Nonprofit - Upload Documents (File Upload)
+    const nonprofitUploadTaskId = `${participantId}_nonprofit_upload`
+    const nonprofitUploadTask = {
+      id: nonprofitUploadTaskId,
+      participantId: participantId,
+      campaignId: participantData.campaignId,
+      donorId: participantData.userId,
+      assignedTo: campaignData.createdBy,
+      assignedRole: 'nonprofit_admin',
+      title: 'Nonprofit: Upload Documents (File Upload)',
+      description: 'Upload final donation receipt and acknowledgement documents.',
+      type: 'document_upload',
+      status: 'blocked',
+      priority: 'medium',
+      order: 9,
+      dependencies: [nonprofitApproveTaskId],
+      metadata: {
+        documentTypes: ['donation_receipt', 'acknowledgement'],
+        documentPath: `participants/${participantId}/signed-documents/`,
+        requiresApproval: false,
+        uploadFolders: ['signed-documents']
+      },
+      comments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: participantData.userId
+    }
+
+    // Add all tasks to batch
+    const signNDATaskRef = adminDb.collection('tasks').doc(signNDATaskId)
+    const commitmentTaskRef = adminDb.collection('tasks').doc(commitmentTaskId)
+    const inviteAppraiserTaskRef = adminDb.collection('tasks').doc(inviteAppraiserTaskId)
+    const companyInfoTaskRef = adminDb.collection('tasks').doc(companyInfoTaskId)
+    const appraiserNDATaskRef = adminDb.collection('tasks').doc(appraiserNDATaskId)
+    const appraiserUploadTaskRef = adminDb.collection('tasks').doc(appraiserUploadTaskId)
+    const donorApproveTaskRef = adminDb.collection('tasks').doc(donorApproveTaskId)
+    const nonprofitApproveTaskRef = adminDb.collection('tasks').doc(nonprofitApproveTaskId)
+    const nonprofitUploadTaskRef = adminDb.collection('tasks').doc(nonprofitUploadTaskId)
+
+    batch.set(signNDATaskRef, signNDATask)
     batch.set(commitmentTaskRef, commitmentTask)
-    batch.set(companyInfoTaskRef, companyInfoTask)
     batch.set(inviteAppraiserTaskRef, inviteAppraiserTask)
+    batch.set(companyInfoTaskRef, companyInfoTask)
+    batch.set(appraiserNDATaskRef, appraiserNDATask)
+    batch.set(appraiserUploadTaskRef, appraiserUploadTask)
+    batch.set(donorApproveTaskRef, donorApproveTask)
+    batch.set(nonprofitApproveTaskRef, nonprofitApproveTask)
+    batch.set(nonprofitUploadTaskRef, nonprofitUploadTask)
 
     // Reset participant status
     batch.update(participantDoc.ref, {
@@ -187,13 +371,13 @@ export async function POST(
       success: true,
       message: 'Tasks have been reset successfully',
       tasksDeleted: tasksSnapshot.docs.length,
-      tasksCreated: 3
+      tasksCreated: 9
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error resetting participant tasks:', error)
     return NextResponse.json(
-      { error: `Failed to reset tasks: ${error.message}` },
+      { error: `Failed to reset tasks: ${error?.message || 'Unknown error'}` },
       { status: 500 }
     )
   }
