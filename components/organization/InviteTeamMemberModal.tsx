@@ -69,8 +69,8 @@ export default function InviteTeamMemberModal({
       setSubrole('member')
       setPersonalMessage('')
       onClose()
-    } catch (error: any) {
-      setError(error.message || 'Failed to send invitation')
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Failed to send invitation')
     }
   }
 

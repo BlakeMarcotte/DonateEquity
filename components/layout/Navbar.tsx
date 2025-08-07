@@ -17,7 +17,6 @@ import {
   BarChart3,
   Users,
   Settings,
-  Mail
 } from 'lucide-react'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import { useDonorCampaign } from '@/hooks/useDonorCampaign'

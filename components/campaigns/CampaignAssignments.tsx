@@ -96,7 +96,7 @@ export default function CampaignAssignments({ campaignId, campaignTitle }: Campa
 
       const result = await response.json()
       if (result.success) {
-        setAssignments(result.assignments.map((assignment: any) => ({
+        setAssignments(result.assignments.map((assignment: Record<string, unknown>) => ({
           ...assignment,
           assignedAt: new Date(assignment.assignedAt)
         })))
@@ -123,7 +123,7 @@ export default function CampaignAssignments({ campaignId, campaignTitle }: Campa
 
       const result = await response.json()
       if (result.success) {
-        setTeamMembers(result.members.map((member: any) => ({
+        setTeamMembers(result.members.map((member: Record<string, unknown>) => ({
           ...member,
           joinedAt: new Date(member.joinedAt),
           lastLoginAt: member.lastLoginAt ? new Date(member.lastLoginAt) : undefined

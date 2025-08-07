@@ -10,7 +10,6 @@ import {
   Trash2, 
   Upload, 
   Plus, 
-  X,
   Eye,
   Filter
 } from 'lucide-react'
@@ -40,7 +39,7 @@ export function DonationFiles({
   showUpload = true,
   className = '' 
 }: DonationFilesProps) {
-  const { user, customClaims } = useAuth()
+  const { customClaims } = useAuth()
   const { 
     files, 
     loading, 
@@ -61,7 +60,7 @@ export function DonationFiles({
 
   const handleUpload = async (file: File, folder: string) => {
     try {
-      await uploadFile(file, folder as any)
+      await uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
     } catch (error) {
       console.error('Upload failed:', error)
       throw error
@@ -96,7 +95,7 @@ export function DonationFiles({
     })
   }
 
-  const canDelete = (file: any) => {
+  const canDelete = () => {
     // Allow deletion if user is admin or if they have appropriate role
     return customClaims?.role === 'admin' || 
            customClaims?.role === 'donor' || 

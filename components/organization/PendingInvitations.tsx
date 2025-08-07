@@ -75,12 +75,12 @@ export default function PendingInvitations({
     }
   }
 
-  const isExpired = (expiresAt: Date | any) => {
+  const isExpired = (expiresAt: Date | unknown) => {
     const expiryDate = expiresAt.toDate ? expiresAt.toDate() : new Date(expiresAt)
     return new Date() > expiryDate
   }
 
-  const formatTimeRemaining = (expiresAt: Date | any) => {
+  const formatTimeRemaining = (expiresAt: Date | unknown) => {
     const now = new Date()
     const expiryDate = expiresAt.toDate ? expiresAt.toDate() : new Date(expiresAt)
     const timeRemaining = expiryDate.getTime() - now.getTime()
@@ -197,7 +197,7 @@ export default function PendingInvitations({
                     </div>
                     {invitation.personalMessage && (
                       <p className="mt-2 text-sm text-gray-600">
-                        "{invitation.personalMessage}"
+                        {`"${invitation.personalMessage}"`}
                       </p>
                     )}
                   </div>

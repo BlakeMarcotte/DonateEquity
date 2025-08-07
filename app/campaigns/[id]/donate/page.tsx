@@ -129,7 +129,7 @@ export default function DonateCampaignPage() {
           text: campaign?.description,
           url
         })
-      } catch (error) {
+      } catch {
         // User cancelled sharing
       }
     } else {

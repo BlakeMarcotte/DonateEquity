@@ -106,7 +106,7 @@ export default function InvitationPage() {
           updatedAt: new Date(campaignData.updatedAt),
         } as Campaign)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching invitation:', error)
       
       // Provide specific error messages based on error type
@@ -294,7 +294,7 @@ export default function InvitationPage() {
               <Mail className="w-8 h-8 text-blue-600" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">You're Invited!</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{`You're Invited!`}</h1>
           <p className="text-lg text-gray-600">
             {invitation?.inviterName} has invited you to support their campaign
           </p>

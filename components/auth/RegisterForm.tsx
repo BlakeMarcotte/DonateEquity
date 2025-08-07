@@ -25,7 +25,7 @@ interface RegisterFormProps {
   invitation?: CampaignInvitation | null
   onSuccessRedirect?: string
   preselectedRole?: 'donor' | 'nonprofit_admin' | 'appraiser' | null
-  teamInvitation?: any
+  teamInvitation?: Record<string, unknown>
   teamInviteToken?: string | null
 }
 
@@ -300,14 +300,14 @@ export default function RegisterForm({
                   </div>
                   <div>
                     <h4 className="text-sm font-medium text-green-900">
-                      You're invited to join {teamInvitation.organizationName}!
+                      {`You're invited to join ${teamInvitation.organizationName}!`}
                     </h4>
                     <p className="text-sm text-green-800 mt-1">
                       {teamInvitation.inviterName} has invited you to join their nonprofit organization as a {teamInvitation.subrole}.
                     </p>
                     {teamInvitation.personalMessage && (
                       <p className="text-sm text-green-700 mt-2 italic">
-                        "{teamInvitation.personalMessage}"
+                        {`"${teamInvitation.personalMessage}"`}
                       </p>
                     )}
                   </div>

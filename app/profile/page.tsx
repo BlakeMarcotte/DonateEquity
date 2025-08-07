@@ -54,7 +54,7 @@ export default function ProfilePage() {
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
-  const [organization, setOrganization] = useState<any>(null)
+  const [organization, setOrganization] = useState<Record<string, unknown> | null>(null)
 
   const [profileData, setProfileData] = useState<UserProfileData>({
     displayName: '',
@@ -131,13 +131,13 @@ export default function ProfilePage() {
     }
   }
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     if (field.includes('.')) {
       const [parent, child] = field.split('.')
       setProfileData(prev => ({
         ...prev,
         [parent]: {
-          ...(prev[parent as keyof UserProfileData] as any),
+          ...(prev[parent as keyof UserProfileData] as Record<string, unknown>),
           [child]: value
         }
       }))

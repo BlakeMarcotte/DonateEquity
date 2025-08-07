@@ -7,7 +7,6 @@ import {
   Heading,
   Hr,
   Html,
-  Img,
   Link,
   Preview,
   Section,
@@ -52,7 +51,7 @@ export const CampaignInvitationEmail = ({
           </Section>
 
           {/* Main Content */}
-          <Heading style={heading}>You're Invited to Make a Difference!</Heading>
+          <Heading style={heading}>{`You're Invited to Make a Difference!`}</Heading>
           
           <Text style={paragraph}>
             Hi{invitedEmail ? ` ${invitedEmail.split('@')[0]}` : ''},
@@ -180,12 +179,6 @@ const campaignCard = {
   margin: '24px 20px',
 }
 
-const campaignTitle = {
-  fontSize: '20px',
-  fontWeight: '600',
-  color: '#111827',
-  margin: '0 0 8px',
-}
 
 const campaignDescriptionStyle = {
   fontSize: '14px',

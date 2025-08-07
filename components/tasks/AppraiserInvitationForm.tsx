@@ -5,8 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Card } from '@/components/ui/card'
-import { Mail, User, MessageSquare, CheckCircle, AlertCircle, X } from 'lucide-react'
+import { Mail, User, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react'
 
 interface AppraiserInvitationFormProps {
   donationId?: string // Backward compatibility

@@ -51,7 +51,7 @@ export default function CampaignCard({ campaign, className = '' }: CampaignCardP
           text: campaign.description,
           url: `/campaigns/${campaign.id}/donate`
         })
-      } catch (_error) {
+      } catch {
         // User cancelled sharing
       }
     } else {

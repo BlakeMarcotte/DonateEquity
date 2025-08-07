@@ -38,7 +38,6 @@ export async function getPublicCampaigns(options: CampaignQueryOptions = {}) {
     const {
       filters = {},
       limit: queryLimit = 12,
-      lastDoc,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = options

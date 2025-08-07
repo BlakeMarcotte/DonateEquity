@@ -101,7 +101,7 @@ export default function OrganizationPage() {
         console.log('Failed to get or create organization')
         setError('Failed to load organization')
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching organization:', error)
       setError(`Failed to fetch organization: ${error.message}`)
     } finally {
@@ -140,13 +140,13 @@ export default function OrganizationPage() {
     }
   }
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     if (field.includes('.')) {
       const [parent, child] = field.split('.')
       setEditForm(prev => ({
         ...prev,
         [parent]: {
-          ...(prev[parent as keyof Organization] as any),
+          ...(prev[parent as keyof Organization] as Record<string, unknown>),
           [child]: value
         }
       }))

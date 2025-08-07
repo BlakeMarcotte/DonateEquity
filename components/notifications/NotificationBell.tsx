@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getUserNotifications, markNotificationAsRead } from '@/lib/firebase/invitations'
 import { Notification } from '@/types/invitations'
-import { Bell, Heart, Mail, Info, CheckCircle } from 'lucide-react'
+import { Bell, Heart, Info, CheckCircle } from 'lucide-react'
 
 export default function NotificationBell() {
-  const { user, userProfile } = useAuth()
+  const { user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showDropdown, setShowDropdown] = useState(false)

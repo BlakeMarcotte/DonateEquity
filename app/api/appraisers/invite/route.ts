@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     let existingUser = null
     try {
       existingUser = await adminAuth.getUserByEmail(appraiserEmail)
-    } catch (userError) {
+    } catch {
       // User doesn't exist, which is fine
       console.log('User not found (expected for new users):', appraiserEmail)
     }

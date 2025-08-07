@@ -244,3 +244,5 @@ export const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(({
     </div>
   )
 })
+
+FileUpload.displayName = 'FileUpload'
