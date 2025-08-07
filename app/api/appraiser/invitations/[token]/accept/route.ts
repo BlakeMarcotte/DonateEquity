@@ -4,7 +4,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
     // Verify authentication
@@ -21,7 +21,7 @@ export async function POST(
       return NextResponse.json({ error: 'Only appraisers can accept appraiser invitations' }, { status: 403 })
     }
 
-    const token = params.token
+    const { token } = await params
 
     if (!token) {
       return NextResponse.json({ error: 'Token is required' }, { status: 400 })

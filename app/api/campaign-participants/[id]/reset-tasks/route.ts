@@ -33,6 +33,12 @@ export async function POST(
     }
 
     const participantData = participantDoc.data()
+    if (!participantData) {
+      return NextResponse.json(
+        { error: 'Invalid participant data' },
+        { status: 400 }
+      )
+    }
 
     // Verify the user owns this participant record
     if (participantData.userId !== decodedToken.uid) {
@@ -65,6 +71,13 @@ export async function POST(
     }
 
     const campaignData = campaignDoc.data()
+    if (!campaignData) {
+      return NextResponse.json(
+        { error: 'Invalid campaign data' },
+        { status: 400 }
+      )
+    }
+    
     const batch = adminDb.batch()
 
     // Delete all existing tasks

@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { token: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const token = params.token
+    const { token } = await params
 
     if (!token) {
       return NextResponse.json({ error: 'Token is required' }, { status: 400 })

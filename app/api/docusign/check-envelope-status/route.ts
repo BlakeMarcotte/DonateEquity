@@ -13,6 +13,10 @@ export async function POST(request: NextRequest) {
     }
 
     const { user } = authResult
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+    
     const body = await request.json()
     const { envelopeId, donationId } = body
 

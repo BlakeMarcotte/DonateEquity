@@ -4,7 +4,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
     // Verify authentication
@@ -16,7 +16,7 @@ export async function POST(
     const authToken = authHeader.split('Bearer ')[1]
     const decodedToken = await adminAuth.verifyIdToken(authToken)
     
-    const token = params.token
+    const { token } = await params
 
     if (!token) {
       return NextResponse.json({ error: 'Token is required' }, { status: 400 })

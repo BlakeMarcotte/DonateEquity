@@ -14,14 +14,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { campaignId } = body
 
-    const testResults: Record<string, unknown> = {
+    const testResults = {
       user: {
         uid: authResult.user.uid,
         email: authResult.user.email,
         role: authResult.decodedToken?.role,
         organizationId: authResult.decodedToken?.organizationId
       },
-      tests: {}
+      tests: {} as Record<string, unknown>
     }
 
     // Test 1: Basic collection access
@@ -37,11 +37,11 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       testResults.tests.basicAccess = {
         success: false,
-        error: {
-          code: error.code,
+        error: error instanceof Error ? {
+          code: (error as { code?: string }).code,
           message: error.message,
           name: error.name
-        }
+        } : String(error)
       }
     }
 
@@ -66,11 +66,11 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         testResults.tests.campaignQuery = {
           success: false,
-          error: {
-            code: error.code,
+          error: error instanceof Error ? {
+            code: (error as { code?: string }).code,
             message: error.message,
             name: error.name
-          }
+          } : String(error)
         }
       }
     }
@@ -98,11 +98,11 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         testResults.tests.campaignAccess = {
           success: false,
-          error: {
-            code: error.code,
+          error: error instanceof Error ? {
+            code: (error as { code?: string }).code,
             message: error.message,
             name: error.name
-          }
+          } : String(error)
         }
       }
     }
@@ -117,11 +117,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         error: 'Test failed',
-        details: {
-          code: error.code,
+        details: error instanceof Error ? {
+          code: (error as { code?: string }).code,
           message: error.message,
           name: error.name
-        }
+        } : String(error)
       },
       { status: 500 }
     )

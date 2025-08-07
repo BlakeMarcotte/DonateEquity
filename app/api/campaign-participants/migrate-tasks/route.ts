@@ -31,6 +31,12 @@ export async function POST(request: NextRequest) {
     }
 
     const participantData = participantDoc.data()
+    if (!participantData) {
+      return NextResponse.json(
+        { error: 'Invalid participant data' },
+        { status: 400 }
+      )
+    }
 
     // Verify the user owns this participant record
     if (participantData.userId !== decodedToken.uid) {
@@ -50,6 +56,12 @@ export async function POST(request: NextRequest) {
     }
 
     const campaignData = campaignDoc.data()
+    if (!campaignData) {
+      return NextResponse.json(
+        { error: 'Invalid campaign data' },
+        { status: 400 }
+      )
+    }
 
     // Check if tasks already exist with the new structure
     const existingTasksSnapshot = await adminDb

@@ -36,6 +36,13 @@ export async function POST(request: NextRequest) {
 
     const campaignData = campaignDoc.data()
     const participantData = participantDoc.data()
+    
+    if (!campaignData || !participantData) {
+      return NextResponse.json(
+        { error: 'Invalid campaign or participant data' },
+        { status: 400 }
+      )
+    }
 
     // Create complete task workflow matching the specified order
     const batch = adminDb.batch()
@@ -352,7 +359,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating participant tasks:', error)
     return NextResponse.json(
-      { error: `Failed to create tasks: ${error.message}` },
+      { error: `Failed to create tasks: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

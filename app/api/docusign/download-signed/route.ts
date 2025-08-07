@@ -11,8 +11,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { decodedToken } = authResult
-    if (decodedToken.role !== 'admin') {
+    const { user } = authResult
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+    
+    if (user.customClaims?.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 

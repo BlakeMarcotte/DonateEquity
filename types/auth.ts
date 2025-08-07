@@ -1,4 +1,4 @@
-export type UserRole = 'donor' | 'nonprofit_admin' | 'appraiser'
+export type UserRole = 'donor' | 'nonprofit_admin' | 'appraiser' | 'admin'
 
 export type NonprofitSubrole = 'admin' | 'member' | 'marketer' | 'signatory'
 
