@@ -645,6 +645,7 @@ export function DonationTaskList({
       >
         <AppraiserInvitationForm
           participantId={participantId}
+          donationId={participantId} // For backward compatibility
           onSuccess={handleInvitationSuccess}
         />
       </Modal>

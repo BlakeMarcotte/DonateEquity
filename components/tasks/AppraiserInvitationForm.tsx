@@ -9,7 +9,8 @@ import { Card } from '@/components/ui/card'
 import { Mail, User, MessageSquare, CheckCircle, AlertCircle, X } from 'lucide-react'
 
 interface AppraiserInvitationFormProps {
-  donationId: string
+  donationId?: string // Backward compatibility
+  participantId?: string // New participant-based system
   onClose?: () => void
   onSuccess?: () => void
   className?: string
@@ -17,6 +18,7 @@ interface AppraiserInvitationFormProps {
 
 export function AppraiserInvitationForm({ 
   donationId, 
+  participantId,
   onClose, 
   onSuccess,
   className 
@@ -52,6 +54,12 @@ export function AppraiserInvitationForm({
     try {
       const token = await user?.getIdToken()
       
+      console.log('🔥 Sending appraiser invitation:', {
+        participantId,
+        donationId,
+        effectiveId: participantId || donationId
+      })
+      
       const response = await fetch('/api/appraisers/invite', {
         method: 'POST',
         headers: {
@@ -59,7 +67,7 @@ export function AppraiserInvitationForm({
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          donationId,
+          donationId: participantId || donationId, // Use participantId if available, fallback to donationId
           appraiserEmail: formData.appraiserEmail.trim(),
           appraiserName: formData.appraiserName.trim() || null,
           personalMessage: formData.personalMessage.trim() || null

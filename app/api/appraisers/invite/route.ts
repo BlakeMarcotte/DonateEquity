@@ -37,17 +37,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate donation exists and belongs to the user
-    const donationRef = adminDb.collection('donations').doc(donationId)
-    const donationDoc = await donationRef.get()
+    // Validate participant/donation exists and belongs to the user
+    let participantData = null
+    let donationData = null
     
-    if (!donationDoc.exists) {
-      return NextResponse.json({ error: 'Donation not found' }, { status: 404 })
+    // First try to find as participantId (new system)
+    if (donationId.includes('_')) { // participantId format: campaignId_userId
+      const participantRef = adminDb.collection('campaign_participants').doc(donationId)
+      const participantDoc = await participantRef.get()
+      
+      if (participantDoc.exists) {
+        participantData = participantDoc.data()
+        if (participantData?.userId !== decodedToken.uid) {
+          return NextResponse.json({ error: 'You can only invite appraisers for your own participation' }, { status: 403 })
+        }
+      }
     }
+    
+    // If not found as participant, try as donation (legacy system)
+    if (!participantData) {
+      const donationRef = adminDb.collection('donations').doc(donationId)
+      const donationDoc = await donationRef.get()
+      
+      if (!donationDoc.exists) {
+        return NextResponse.json({ error: 'Donation or participation record not found' }, { status: 404 })
+      }
 
-    const donationData = donationDoc.data()
-    if (donationData?.donorId !== decodedToken.uid) {
-      return NextResponse.json({ error: 'You can only invite appraisers for your own donations' }, { status: 403 })
+      donationData = donationDoc.data()
+      if (donationData?.donorId !== decodedToken.uid) {
+        return NextResponse.json({ error: 'You can only invite appraisers for your own donations' }, { status: 403 })
+      }
     }
 
     // Get user profile for inviter information
@@ -86,11 +105,22 @@ export async function POST(request: NextRequest) {
 
     const invitationRef = await adminDb.collection('appraiser_invitations').add(invitationData)
 
-    // Update the first task to mark invitation as sent
-    const tasksQuery = adminDb.collection('tasks')
-      .where('donationId', '==', donationId)
-      .where('type', '==', 'invitation')
-      .where('assignedRole', '==', 'donor')
+    // Update the invitation task to mark it as completed
+    let tasksQuery
+    
+    // First try to find tasks by participantId (new system)
+    if (participantData) {
+      tasksQuery = adminDb.collection('tasks')
+        .where('participantId', '==', donationId)
+        .where('type', '==', 'invitation')
+        .where('assignedRole', '==', 'donor')
+    } else {
+      // Legacy system - find by donationId
+      tasksQuery = adminDb.collection('tasks')
+        .where('donationId', '==', donationId)
+        .where('type', '==', 'invitation')
+        .where('assignedRole', '==', 'donor')
+    }
     
     const tasksSnapshot = await tasksQuery.get()
     
@@ -106,10 +136,17 @@ export async function POST(request: NextRequest) {
         updatedAt: FieldValue.serverTimestamp()
       })
 
-      // Find and unblock the next task (Provide Company Information)
-      const nextTaskQuery = adminDb.collection('tasks')
-        .where('donationId', '==', donationId)
-        .where('dependencies', 'array-contains', firstTask.id)
+      // Find and unblock the next task (Upload Company Information)
+      let nextTaskQuery
+      if (participantData) {
+        nextTaskQuery = adminDb.collection('tasks')
+          .where('participantId', '==', donationId)
+          .where('dependencies', 'array-contains', firstTask.id)
+      } else {
+        nextTaskQuery = adminDb.collection('tasks')
+          .where('donationId', '==', donationId)
+          .where('dependencies', 'array-contains', firstTask.id)
+      }
       
       const nextTaskSnapshot = await nextTaskQuery.get()
       
