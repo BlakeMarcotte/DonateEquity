@@ -12,7 +12,13 @@ import { FileUpload } from '@/components/files/FileUpload'
 import { useDonationFiles } from '@/hooks/useDonationFiles'
 import { Modal } from '@/components/ui/modal'
 import { EquityCommitmentModal } from './EquityCommitmentModal'
-import { debugParticipantTasks } from '@/utils/debug-participant-tasks'
+
+interface CommitmentData {
+  type: 'dollar' | 'percentage'
+  amount: number
+  message?: string
+  createdAt: string
+}
 
 interface DonationTaskListProps {
   participantId?: string
@@ -61,7 +67,7 @@ export function DonationTaskList({
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
   // Wrapper for handling commitment decisions that manages modal state
-  const handleCommitmentDecisionWrapper = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: Record<string, unknown>) => {
+  const handleCommitmentDecisionWrapper = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: CommitmentData) => {
     if (decision === 'commit_now' && !commitmentData) {
       // Open modal to get commitment details
       const task = tasks.find(t => t.id === taskId)
@@ -74,7 +80,7 @@ export function DonationTaskList({
 
     // Process the decision with the original handler
     if (handleCommitmentDecision) {
-      await handleCommitmentDecision(taskId, decision, commitmentData)
+      await handleCommitmentDecision(taskId, decision, commitmentData as unknown as Record<string, unknown>)
     }
   }
 
@@ -115,9 +121,9 @@ export function DonationTaskList({
     : tasks.filter(task => {
         // For appraisers, show tasks assigned to their role (including null assignedTo)
         if ((customClaims?.role as string) === 'appraiser') {
-          return task.assignedRole === 'appraiser' || 
+          return (task.assignedRole as string) === 'appraiser' || 
                  task.assignedTo === user?.uid ||
-                 (task.assignedTo?.startsWith?.('mock-') && task.assignedRole === 'appraiser')
+                 (task.assignedTo?.startsWith?.('mock-') && (task.assignedRole as string) === 'appraiser')
         }
         // For other roles, check direct assignment or role match
         return task.assignedTo === user?.uid || task.assignedRole === customClaims?.role

@@ -114,7 +114,7 @@ export default function BrowseCampaignsPage() {
     return () => {
       if (timer) clearTimeout(timer)
     }
-  }, [searchInput, filters.searchTerm]) // Remove searchDebounceTimer from dependencies
+  }, [searchInput, filters.searchTerm, searchDebounceTimer])
 
   // Reload campaigns when filters change
   useEffect(() => {

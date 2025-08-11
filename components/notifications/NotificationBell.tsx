@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getUserNotifications, markNotificationAsRead } from '@/lib/firebase/invitations'
 import { Notification } from '@/types/invitations'
@@ -13,17 +13,7 @@ export default function NotificationBell() {
   const [showDropdown, setShowDropdown] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      fetchNotifications()
-      // Set up periodic refresh for notifications
-      const interval = setInterval(fetchNotifications, 30000) // Check every 30 seconds
-      return () => clearInterval(interval)
-    }
-    return undefined
-  }, [user])
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user) return
 
     try {
@@ -33,7 +23,18 @@ export default function NotificationBell() {
     } catch (error) {
       console.error('Error fetching notifications:', error)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications()
+      // Set up periodic refresh for notifications
+      const interval = setInterval(fetchNotifications, 30000) // Check every 30 seconds
+      return () => clearInterval(interval)
+    }
+    return undefined
+  }, [user, fetchNotifications])
+
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.read) {

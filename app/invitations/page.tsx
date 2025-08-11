@@ -2,7 +2,7 @@
 
 import { DonorRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getUserInvitations, respondToInvitation } from '@/lib/firebase/invitations'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
@@ -30,13 +30,7 @@ export default function InvitationsPage() {
   const [loading, setLoading] = useState(true)
   const [responding, setResponding] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (user) {
-      fetchInvitations()
-    }
-  }, [user])
-
-  const fetchInvitations = async () => {
+  const fetchInvitations = useCallback(async () => {
     if (!user) return
 
     try {
@@ -72,7 +66,11 @@ export default function InvitationsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    fetchInvitations()
+  }, [fetchInvitations])
 
   const handleResponse = async (invitationId: string, response: 'accepted' | 'declined') => {
     setResponding(invitationId)

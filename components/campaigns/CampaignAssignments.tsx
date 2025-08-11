@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import Image from 'next/image'
 import {
   Users,
   Crown,
@@ -76,14 +77,7 @@ export default function CampaignAssignments({ campaignId, campaignTitle }: Campa
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [processing, setProcessing] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (campaignId && user) {
-      fetchAssignments()
-      fetchTeamMembers()
-    }
-  }, [campaignId, user])
-
-  const fetchAssignments = async () => {
+  const fetchAssignments = useCallback(async () => {
     if (!user) return
 
     try {
@@ -108,9 +102,9 @@ export default function CampaignAssignments({ campaignId, campaignTitle }: Campa
     } catch (error) {
       console.error('Error fetching assignments:', error)
     }
-  }
+  }, [user, campaignId])
 
-  const fetchTeamMembers = async () => {
+  const fetchTeamMembers = useCallback(async () => {
     if (!user) return
 
     try {
@@ -136,7 +130,15 @@ export default function CampaignAssignments({ campaignId, campaignTitle }: Campa
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (campaignId && user) {
+      fetchAssignments()
+      fetchTeamMembers()
+    }
+  }, [campaignId, user, fetchAssignments, fetchTeamMembers])
+
 
   const handleAssignMembers = async (userIds: string[]) => {
     if (!user || userIds.length === 0) return
@@ -401,9 +403,11 @@ function AssignMembersModal({
                       
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                         {member.photoURL ? (
-                          <img
+                          <Image
                             src={member.photoURL}
                             alt={member.displayName}
+                            width={40}
+                            height={40}
                             className="h-10 w-10 rounded-full object-cover"
                           />
                         ) : (

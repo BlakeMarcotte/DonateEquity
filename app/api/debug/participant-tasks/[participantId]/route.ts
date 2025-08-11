@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
 
+interface TaskData {
+  title?: string
+  type?: string
+  assignedRole?: string
+  assignedTo?: string
+  status?: string
+  order?: number
+  dependencies?: string[]
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ participantId: string }> }
@@ -43,15 +53,15 @@ export async function GET(
       participantData,
       tasks: tasks.map(task => ({
         id: task.id,
-        title: task.title,
-        type: task.type,
-        assignedRole: task.assignedRole,
-        assignedTo: task.assignedTo,
-        status: task.status,
-        order: task.order,
-        dependencies: task.dependencies
+        title: (task as TaskData).title,
+        type: (task as TaskData).type,
+        assignedRole: (task as TaskData).assignedRole,
+        assignedTo: (task as TaskData).assignedTo,
+        status: (task as TaskData).status,
+        order: (task as TaskData).order,
+        dependencies: (task as TaskData).dependencies
       })),
-      appraiserTasks: tasks.filter(t => t.assignedRole === 'appraiser'),
+      appraiserTasks: tasks.filter(t => (t as TaskData).assignedRole === 'appraiser'),
       totalTasks: tasks.length
     })
 

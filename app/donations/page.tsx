@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
@@ -47,13 +47,7 @@ export default function DonationsPage() {
   const [selectedDonation, setSelectedDonation] = useState<DonationWithCampaign | null>(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      fetchDonations()
-    }
-  }, [user])
-
-  const fetchDonations = async () => {
+  const fetchDonations = useCallback(async () => {
     if (!user) return
 
     try {
@@ -106,7 +100,13 @@ export default function DonationsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchDonations()
+    }
+  }, [user, fetchDonations])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -500,7 +500,7 @@ function DonationDetailsModal({
               <div className="flex justify-between">
                 <span className="text-gray-600">Your Organization:</span>
                 <span className="font-medium text-gray-900">
-                  {(donation as Record<string, any>).donationDetails?.donorOrganizationName || 'Individual Donor'}
+                  {(donation as DonationWithCampaign & { donationDetails?: { donorOrganizationName?: string } }).donationDetails?.donorOrganizationName || 'Individual Donor'}
                 </span>
               </div>
               <div className="flex justify-between">

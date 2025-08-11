@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, forwardRef, useImperativeHandle, useEffect } from 'react'
+import { useState, useRef, forwardRef, useImperativeHandle, useEffect, useCallback } from 'react'
 import { Upload, X, AlertCircle, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatFileSize, getFileIcon } from '@/lib/firebase/storage'
@@ -40,10 +40,30 @@ export const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(({
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const handleUpload = useCallback(async () => {
+    if (selectedFiles.length === 0) return
+
+    setUploading(true)
+    setError(null)
+
+    try {
+      for (const file of selectedFiles) {
+        await onUpload(file, selectedFolder)
+      }
+      // Files uploaded successfully - component will close automatically
+      setSelectedFiles([])
+      setSelectedFolder('general')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }, [selectedFiles, selectedFolder, onUpload])
+
   useImperativeHandle(ref, () => ({
     hasFiles: () => selectedFiles.length > 0,
     triggerUpload: handleUpload
-  }), [selectedFiles.length])
+  }), [selectedFiles.length, handleUpload])
 
   useEffect(() => {
     onFilesChange?.(selectedFiles.length > 0)
@@ -89,25 +109,6 @@ export const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(({
     setSelectedFiles(prev => prev.filter((_, i) => i !== index))
   }
 
-  const handleUpload = async () => {
-    if (selectedFiles.length === 0) return
-
-    setUploading(true)
-    setError(null)
-
-    try {
-      for (const file of selectedFiles) {
-        await onUpload(file, selectedFolder)
-      }
-      // Files uploaded successfully - component will close automatically
-      setSelectedFiles([])
-      setSelectedFolder('general')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
-    } finally {
-      setUploading(false)
-    }
-  }
 
   const openFileDialog = () => {
     if (!disabled && fileInputRef.current) {

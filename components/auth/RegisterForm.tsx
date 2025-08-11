@@ -458,7 +458,7 @@ export default function RegisterForm({
                       <Input
                         id="subrole"
                         type="text"
-                        value={teamInvitation.subrole.charAt(0).toUpperCase() + teamInvitation.subrole.slice(1)}
+                        value={String(teamInvitation.subrole).charAt(0).toUpperCase() + String(teamInvitation.subrole).slice(1)}
                         disabled={true}
                         className="text-base h-12 bg-gray-50 text-gray-600 cursor-not-allowed"
                       />

@@ -194,7 +194,7 @@ export async function POST(
     let redirectUrl
     if (isParticipantBased) {
       // Extract campaign and user IDs from participantId (format: campaignId_userId)
-      const [campaignId, userId] = participantId.split('_')
+      const [campaignId] = participantId.split('_')
       redirectUrl = `/campaigns/${campaignId}/participants/${participantId}/tasks`
     } else {
       redirectUrl = `/donations/${donationId}/tasks`

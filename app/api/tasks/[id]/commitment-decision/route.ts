@@ -63,7 +63,7 @@ export async function POST(
 
     // Complete the commitment decision task
     const taskRef = adminDb.collection('tasks').doc(taskId)
-    const updateData: { [key: string]: FieldValue | string | Date | unknown } = {
+    const updateData = {
       status: 'completed',
       completedAt: new Date(),
       updatedAt: new Date(),
@@ -71,12 +71,12 @@ export async function POST(
       'metadata.decidedAt': new Date()
     }
 
-    // If commitment data is provided, store it in metadata
+    // If commitment data is provided, store it in metadata  
     if (commitmentData) {
-      updateData['metadata.commitmentData'] = commitmentData
+      (updateData as Record<string, unknown>)['metadata.commitmentData'] = commitmentData
     }
 
-    batch.update(taskRef, updateData as Parameters<typeof batch.update>[1])
+    batch.update(taskRef, updateData as { [key: string]: FieldValue | Partial<unknown> | undefined })
 
     if (decision === 'commit_now') {
       // Create donation record with commitment data

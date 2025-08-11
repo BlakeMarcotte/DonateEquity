@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { 
   Users, 
   Crown, 
@@ -149,9 +150,11 @@ export default function TeamMemberList({
                     {/* Avatar */}
                     <div className="relative">
                       {member.photoURL ? (
-                        <img
+                        <Image
                           src={member.photoURL}
                           alt={member.displayName}
+                          width={48}
+                          height={48}
                           className="h-12 w-12 rounded-full object-cover"
                         />
                       ) : (

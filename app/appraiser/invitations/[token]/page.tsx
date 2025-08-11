@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card } from '@/components/ui/card'
@@ -33,13 +33,7 @@ export default function AppraiserInvitationPage() {
   const [error, setError] = useState<string | null>(null)
   const [accepting, setAccepting] = useState(false)
 
-  useEffect(() => {
-    if (token) {
-      fetchInvitation()
-    }
-  }, [token])
-
-  const fetchInvitation = async () => {
+  const fetchInvitation = useCallback(async () => {
     try {
       const response = await fetch(`/api/appraiser/invitations/${token}`)
       const result = await response.json()
@@ -55,7 +49,13 @@ export default function AppraiserInvitationPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    if (token) {
+      fetchInvitation()
+    }
+  }, [token, fetchInvitation])
 
   const handleAcceptInvitation = async () => {
     if (!invitation || !user) return

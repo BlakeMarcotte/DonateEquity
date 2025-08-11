@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { respondToInvitation } from '@/lib/firebase/invitations'
@@ -31,25 +31,7 @@ export default function InvitationPage() {
   const [error, setError] = useState('')
   const [responded, setResponded] = useState(false)
 
-  useEffect(() => {
-    // Always fetch invitation first to get campaignId
-    if (params.token) {
-      fetchInvitation()
-    }
-  }, [params.token])
-
-  useEffect(() => {
-    // Check authentication after invitation is loaded
-    if (!authLoading && invitation) {
-      if (!user) {
-        // User is not authenticated, redirect to signup with invitation token and campaign
-        router.push(`/auth/register?invitation=${params.token}&campaign=${invitation.campaignId}`)
-        return
-      }
-    }
-  }, [user, authLoading, router, params.token, invitation])
-
-  const fetchInvitation = async () => {
+  const fetchInvitation = useCallback(async () => {
     if (!params.token) return
 
     try {
@@ -122,7 +104,25 @@ export default function InvitationPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.token])
+
+  useEffect(() => {
+    // Always fetch invitation first to get campaignId
+    if (params.token) {
+      fetchInvitation()
+    }
+  }, [params.token, fetchInvitation])
+
+  useEffect(() => {
+    // Check authentication after invitation is loaded
+    if (!authLoading && invitation) {
+      if (!user) {
+        // User is not authenticated, redirect to signup with invitation token and campaign
+        router.push(`/auth/register?invitation=${params.token}&campaign=${invitation.campaignId}`)
+        return
+      }
+    }
+  }, [user, authLoading, router, params.token, invitation])
 
   const handleResponse = async (response: 'accepted' | 'declined') => {
     if (!invitation) return

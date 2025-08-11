@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useDonorCampaign } from '@/hooks/useDonorCampaign'
 import { DonationTaskList } from '@/components/tasks/DonationTaskList'
 import { TaskTimeline } from '@/components/tasks/TaskTimeline'
@@ -11,7 +11,7 @@ import { EquityCommitmentModal } from '@/components/tasks/EquityCommitmentModal'
 import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { Heart, CheckSquare, FileText } from 'lucide-react'
 
-export default function MyCampaignPage() {
+function MyCampaignPage() {
   const { user, customClaims, loading } = useAuth()
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign()
   const searchParams = useSearchParams()
@@ -218,9 +218,9 @@ export default function MyCampaignPage() {
                 <CheckSquare className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-green-900">You're assigned to this campaign!</h3>
+                <h3 className="text-lg font-semibold text-green-900">You&apos;re assigned to this campaign!</h3>
                 <p className="text-green-700 mt-1">
-                  You've been assigned as the appraiser for this donation. Tasks will appear here once they're ready for you.
+                  You&apos;ve been assigned as the appraiser for this donation. Tasks will appear here once they&apos;re ready for you.
                 </p>
               </div>
             </div>
@@ -266,7 +266,7 @@ export default function MyCampaignPage() {
                 <DonationTaskList 
                   participantId={participantId || undefined}
                   campaignId={campaign?.id}
-                  showAllTasks={customClaims?.role === 'nonprofit_admin' || customClaims?.role === 'appraiser'}
+                  showAllTasks={(customClaims?.role as string) === 'nonprofit_admin' || (customClaims?.role as string) === 'appraiser'}
                   // Pass required props for EquityCommitmentModal
                   campaignTitle={campaign?.title}
                   donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}
@@ -316,3 +316,17 @@ export default function MyCampaignPage() {
     </div>
   )
 }
+
+function MyCampaignPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <MyCampaignPage />
+    </Suspense>
+  )
+}
+
+export default MyCampaignPageWrapper

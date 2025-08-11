@@ -2,7 +2,7 @@
 
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getOrCreateOrganization, type Organization, updateOrganization } from '@/lib/firebase/organizations'
 import InviteTeamMemberModal from '@/components/organization/InviteTeamMemberModal'
 import TeamMemberList from '@/components/organization/TeamMemberList'
@@ -67,18 +67,7 @@ export default function OrganizationPage() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [teamLoading, setTeamLoading] = useState(false)
 
-  useEffect(() => {
-    // Wait for auth to fully load before attempting to fetch
-    if (!authLoading && customClaims?.organizationId) {
-      fetchOrganization()
-    } else if (!authLoading && !customClaims?.organizationId) {
-      setLoading(false)
-      setError('No organization ID found in user claims')
-    }
-
-  }, [customClaims?.organizationId, authLoading, customClaims])
-
-  const fetchOrganization = async () => {
+  const fetchOrganization = useCallback(async () => {
     if (!customClaims?.organizationId || !userProfile) return
 
     setError(null)
@@ -107,7 +96,18 @@ export default function OrganizationPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [customClaims?.organizationId, customClaims?.role, userProfile])
+
+  useEffect(() => {
+    // Wait for auth to fully load before attempting to fetch
+    if (!authLoading && customClaims?.organizationId) {
+      fetchOrganization()
+    } else if (!authLoading && !customClaims?.organizationId) {
+      setLoading(false)
+      setError('No organization ID found in user claims')
+    }
+
+  }, [customClaims?.organizationId, authLoading, customClaims, fetchOrganization])
 
   const handleEdit = () => {
     setEditing(true)
@@ -159,7 +159,7 @@ export default function OrganizationPage() {
   }
 
   // Team management functions
-  const fetchTeamMembers = async () => {
+  const fetchTeamMembers = useCallback(async () => {
     if (!customClaims?.organizationId || !user) return
 
     setTeamLoading(true)
@@ -186,9 +186,9 @@ export default function OrganizationPage() {
     } finally {
       setTeamLoading(false)
     }
-  }
+  }, [customClaims?.organizationId, user])
 
-  const fetchPendingInvitations = async () => {
+  const fetchPendingInvitations = useCallback(async () => {
     if (!customClaims?.organizationId || !user) return
 
     try {
@@ -212,7 +212,7 @@ export default function OrganizationPage() {
     } catch (error) {
       console.error('Error fetching invitations:', error)
     }
-  }
+  }, [customClaims?.organizationId, user])
 
   const handleInviteTeamMember = async (email: string, subrole: NonprofitSubrole, personalMessage?: string) => {
     if (!user) throw new Error('Not authenticated')
@@ -309,7 +309,7 @@ export default function OrganizationPage() {
       fetchTeamMembers()
       fetchPendingInvitations()
     }
-  }, [activeTab, customClaims?.organizationId])
+  }, [activeTab, customClaims?.organizationId, fetchTeamMembers, fetchPendingInvitations])
 
   if (loading || authLoading) {
     return (

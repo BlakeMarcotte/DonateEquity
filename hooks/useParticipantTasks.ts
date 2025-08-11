@@ -138,31 +138,6 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
   return tasks.map(task => {
     // If task has dependencies, check if they're all completed
     if (task.dependencies && task.dependencies.length > 0) {
-      const depStatuses = task.dependencies.map(depId => {
-        let actualTaskId = depId
-        let status = taskStatusMap.get(depId)
-        
-        // If dependency ID is not found directly, try to find by task type
-        if (!status) {
-          // Extract task type from dependency ID (format: participantId_taskType)
-          const parts = depId.split('_')
-          if (parts.length >= 2) {
-            const taskType = parts.slice(1).join('_') // Handle task types with underscores
-            const foundTaskId = taskTypeMap.get(taskType)
-            if (foundTaskId) {
-              actualTaskId = foundTaskId
-              status = taskStatusMap.get(foundTaskId)
-            }
-          }
-        }
-        
-        return {
-          depId,
-          actualTaskId,
-          status: status || 'NOT FOUND'
-        }
-      })
-      
       const allDependenciesCompleted = task.dependencies.every(depId => {
         let status = taskStatusMap.get(depId)
         
@@ -192,7 +167,7 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
         }
         
         // Additional check: sometimes the completed status might be a string 'completed' vs an enum
-        const isCompleted = status === 'completed' || status === 'complete'
+        const isCompleted = (status as string) === 'completed' || (status as string) === 'complete'
         
         if (task.title?.includes('Appraiser: Sign NDA')) {
           console.log(`Dependency ${depId} final check: status=${status}, isCompleted=${isCompleted}`)

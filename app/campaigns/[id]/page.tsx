@@ -2,7 +2,7 @@
 
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   doc,
@@ -97,7 +97,7 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [donations, setDonations] = useState<Donation[]>([])
   const [participants, setParticipants] = useState<CampaignParticipant[]>([])
-  const [invitations, setInvitations] = useState<unknown[]>([])
+  const [, setInvitations] = useState<unknown[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<CampaignInvitation[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'team' | 'pending'>('donations')
@@ -105,20 +105,7 @@ export default function CampaignDetailPage() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [syncingStats, setSyncingStats] = useState(false)
 
-  useEffect(() => {
-    if (params.id) {
-      fetchCampaignDetails()
-      fetchDonations().then((donationData) => {
-        // Fetch participants after donations are loaded
-        fetchParticipants(donationData)
-      })
-      fetchInvitations()
-      fetchPendingInvitations()
-      setShareUrl(`${window.location.origin}/campaigns/${params.id}/donate`)
-    }
-  }, [params.id, customClaims?.organizationId])
-
-  const fetchCampaignDetails = async () => {
+  const fetchCampaignDetails = useCallback(async () => {
     if (!params.id) return
 
     try {
@@ -152,9 +139,9 @@ export default function CampaignDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id, customClaims?.organizationId])
 
-  const fetchDonations = async () => {
+  const fetchDonations = useCallback(async () => {
     if (!params.id) return []
 
     console.log('fetchDonations: Starting for campaign:', params.id)
@@ -216,9 +203,9 @@ export default function CampaignDetailPage() {
         return []
       }
     }
-  }
+  }, [params.id, customClaims?.organizationId, customClaims?.role])
 
-  const fetchParticipants = async (donationData: Donation[] = donations) => {
+  const fetchParticipants = useCallback(async (donationData: Donation[] = donations) => {
     if (!params.id) return
 
     console.log('fetchParticipants: Looking for campaign participants for campaign:', params.id)
@@ -389,9 +376,9 @@ export default function CampaignDetailPage() {
       })
       setParticipants([])
     }
-  }
+  }, [params.id, user?.uid, user?.email, customClaims?.role, customClaims?.organizationId, donations])
 
-  const fetchInvitations = async () => {
+  const fetchInvitations = useCallback(async () => {
     if (!params.id) return
 
     try {
@@ -401,9 +388,9 @@ export default function CampaignDetailPage() {
       console.error('Error fetching invitations:', error)
       setInvitations([])
     }
-  }
+  }, [params.id])
 
-  const fetchPendingInvitations = async () => {
+  const fetchPendingInvitations = useCallback(async () => {
     if (!params.id) return
 
     console.log('fetchPendingInvitations: Looking for pending invitations for campaign:', params.id)
@@ -448,7 +435,20 @@ export default function CampaignDetailPage() {
       console.error('fetchPendingInvitations: Error fetching pending invitations:', error)
       setPendingInvitations([])
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    if (params.id) {
+      fetchCampaignDetails()
+      fetchDonations().then((donationData) => {
+        // Fetch participants after donations are loaded
+        fetchParticipants(donationData)
+      })
+      fetchInvitations()
+      fetchPendingInvitations()
+      setShareUrl(`${window.location.origin}/campaigns/${params.id}/donate`)
+    }
+  }, [params.id, customClaims?.organizationId, fetchCampaignDetails, fetchDonations, fetchParticipants, fetchInvitations, fetchPendingInvitations])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -1174,7 +1174,7 @@ function InviteModal({
           message: formData.message,
         },
         userProfile?.uid || '',
-        userProfile.displayName || userProfile.email,
+        userProfile?.displayName || userProfile?.email || '',
         customClaims.organizationId,
         {
           title: campaign.title,

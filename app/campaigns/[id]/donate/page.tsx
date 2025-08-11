@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { User } from 'firebase/auth'
@@ -54,13 +54,9 @@ export default function DonateCampaignPage() {
   const inviterName = searchParams.get('inviter')
   const inviterMessage = searchParams.get('message')
 
-  useEffect(() => {
-    if (params.id) {
-      fetchCampaignDetails()
-    }
-  }, [params.id])
-
-  const fetchCampaignDetails = async () => {
+  const fetchCampaignDetails = useCallback(async () => {
+    if (!params.id) return
+    
     try {
       setLoading(true)
       setError(null)
@@ -90,7 +86,11 @@ export default function DonateCampaignPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    fetchCampaignDetails()
+  }, [fetchCampaignDetails])
 
   const formatAmount = (amount: number) => {
     if (amount >= 1000000) {

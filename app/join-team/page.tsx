@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { 
@@ -41,7 +41,7 @@ const SUBROLE_DESCRIPTIONS = {
   signatory: 'Document signing and legal approval authority'
 }
 
-export default function JoinTeamPage() {
+function JoinTeamPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
@@ -54,17 +54,7 @@ export default function JoinTeamPage() {
   
   const token = searchParams.get('token')
 
-  useEffect(() => {
-    if (!token) {
-      setError('Invalid invitation link')
-      setLoading(false)
-      return
-    }
-
-    fetchInvitationDetails()
-  }, [token])
-
-  const fetchInvitationDetails = async () => {
+  const fetchInvitationDetails = useCallback(async () => {
     try {
       const response = await fetch(`/api/organizations/join?token=${token}`)
       
@@ -81,7 +71,17 @@ export default function JoinTeamPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    if (!token) {
+      setError('Invalid invitation link')
+      setLoading(false)
+      return
+    }
+
+    fetchInvitationDetails()
+  }, [token, fetchInvitationDetails])
 
   const handleAcceptInvitation = async () => {
     if (!user) {
@@ -318,3 +318,17 @@ export default function JoinTeamPage() {
     </div>
   )
 }
+
+function JoinTeamPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <JoinTeamPage />
+    </Suspense>
+  )
+}
+
+export default JoinTeamPageWrapper

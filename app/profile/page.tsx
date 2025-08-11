@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { updateProfile, updatePassword } from 'firebase/auth'
 import { doc, updateDoc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
@@ -85,6 +85,19 @@ export default function ProfilePage() {
     confirmPassword: ''
   })
 
+  const fetchOrganization = useCallback(async () => {
+    if (!customClaims?.organizationId) return
+
+    try {
+      const orgDoc = await getDoc(doc(db, 'organizations', customClaims.organizationId))
+      if (orgDoc.exists()) {
+        setOrganization({ id: orgDoc.id, ...orgDoc.data() })
+      }
+    } catch (error) {
+      console.error('Error fetching organization:', error)
+    }
+  }, [customClaims?.organizationId])
+
   useEffect(() => {
     if (userProfile && user) {
       setProfileData({
@@ -116,20 +129,7 @@ export default function ProfilePage() {
       
       setLoading(false)
     }
-  }, [userProfile, user, customClaims])
-
-  const fetchOrganization = async () => {
-    if (!customClaims?.organizationId) return
-
-    try {
-      const orgDoc = await getDoc(doc(db, 'organizations', customClaims.organizationId))
-      if (orgDoc.exists()) {
-        setOrganization({ id: orgDoc.id, ...orgDoc.data() })
-      }
-    } catch (error) {
-      console.error('Error fetching organization:', error)
-    }
-  }
+  }, [userProfile, user, customClaims, fetchOrganization])
 
   const handleInputChange = (field: string, value: unknown) => {
     if (field.includes('.')) {

@@ -11,16 +11,16 @@ export default function AppraiserWelcomePage() {
   const [countdown, setCountdown] = useState(3)
 
   useEffect(() => {
-    if (loading) return
+    if (loading) return undefined
 
     // If user is not authenticated, redirect to login
     if (!user) {
       router.push('/auth/login')
-      return
+      return undefined
     }
 
     // Check if user has appraiser role
-    if (customClaims?.role === 'appraiser') {
+    if ((customClaims?.role as string) === 'appraiser') {
       // Start countdown and redirect
       const timer = setInterval(() => {
         setCountdown((prev) => {
@@ -34,11 +34,13 @@ export default function AppraiserWelcomePage() {
       }, 1000)
 
       return () => clearInterval(timer)
-    } else if (customClaims?.role && customClaims.role !== 'appraiser') {
+    } else if (customClaims?.role && (customClaims.role as string) !== 'appraiser') {
       // User has a role but it's not appraiser - something went wrong
       router.push('/unauthorized')
+      return undefined
     }
     // If no role yet, keep waiting (loading state)
+    return undefined
   }, [user, customClaims, loading, router])
 
   if (loading || !user) {

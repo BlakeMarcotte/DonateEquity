@@ -37,7 +37,6 @@ export function debugTaskDependencies(tasks: any[]) {
   
   // Check if dependency IDs match
   if (task4 && task5) {
-    const expectedDependency = task4.id;
     const actualDependencies = task5.dependencies || [];
     console.log('\nDependency ID Match:', {
       task4Id: task4.id,
