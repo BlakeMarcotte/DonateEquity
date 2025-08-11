@@ -34,7 +34,7 @@ export default function HomePage() {
           router.push('/organization')
           break
         case 'appraiser':
-          router.push('/appraiser')
+          router.push('/my-campaign')
           break
         case 'admin':
           router.push('/organization') // Admin can use nonprofit admin dashboard

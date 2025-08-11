@@ -26,7 +26,7 @@ export default function AppraiserWelcomePage() {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer)
-            router.push('/appraiser')
+            router.push('/my-campaign')
             return 0
           }
           return prev - 1
@@ -86,7 +86,7 @@ export default function AppraiserWelcomePage() {
         </div>
 
         <button
-          onClick={() => router.push('/appraiser')}
+          onClick={() => router.push('/my-campaign')}
           className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center"
         >
           <ArrowRight className="h-4 w-4 mr-2" />

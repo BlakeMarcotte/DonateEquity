@@ -20,8 +20,32 @@ export default function ParticipantTasksPage() {
   const participantId = isParticipantId ? donorIdOrParticipantId : (campaignId && donorIdOrParticipantId ? `${campaignId}_${donorIdOrParticipantId}` : null)
   const actualDonorId = isParticipantId ? donorIdOrParticipantId.split('_')[1] : donorIdOrParticipantId
   const { tasks, loading: tasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
+  const [participantData, setParticipantData] = useState<any>(null)
+  const [participantLoading, setParticipantLoading] = useState(true)
 
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
+
+  // Fetch participant data to check appraiser assignment
+  useEffect(() => {
+    if (participantId && user) {
+      const fetchParticipantData = async () => {
+        try {
+          const response = await fetch(`/api/campaign-participants/${participantId}`)
+          if (response.ok) {
+            const { participant } = await response.json()
+            setParticipantData(participant)
+          }
+        } catch (error) {
+          console.error('Error fetching participant data:', error)
+        } finally {
+          setParticipantLoading(false)
+        }
+      }
+      fetchParticipantData()
+    } else {
+      setParticipantLoading(false)
+    }
+  }, [participantId, user])
 
   useEffect(() => {
     if (!loading && !user) {
@@ -29,21 +53,36 @@ export default function ParticipantTasksPage() {
       return
     }
 
-    // Allow access for nonprofit_admin, appraiser, and the specific donor
-    if (!loading && user && customClaims?.role) {
-      const isAuthorized = 
-        customClaims.role === 'nonprofit_admin' ||
-        customClaims.role === 'appraiser' ||
-        (customClaims.role === 'donor' && user.uid === actualDonorId)
+    // Allow access for nonprofit_admin, assigned appraiser, and the specific donor
+    if (!loading && !participantLoading && user && customClaims?.role) {
+      const isNonprofitAdmin = customClaims.role === 'nonprofit_admin'
+      const isDonorOwner = customClaims.role === 'donor' && user.uid === actualDonorId
+      const isAssignedAppraiser = customClaims.role === 'appraiser' && participantData?.appraiserId === user.uid
+      
+      const isAuthorized = isNonprofitAdmin || isDonorOwner || isAssignedAppraiser
+      
+      // Debug logging
+      console.log('Authorization check:', {
+        userRole: customClaims.role,
+        userId: user.uid,
+        actualDonorId: actualDonorId,
+        participantAppraiserId: participantData?.appraiserId,
+        isNonprofitAdmin,
+        isDonorOwner,
+        isAssignedAppraiser,
+        isAuthorized: isAuthorized,
+        participantId: participantId
+      })
       
       if (!isAuthorized) {
+        console.log('Authorization failed, redirecting to /organization')
         router.push('/organization')
         return
       }
     }
-  }, [user, loading, customClaims, router, actualDonorId])
+  }, [user, loading, customClaims, router, actualDonorId, participantLoading, participantData])
 
-  if (loading || tasksLoading) {
+  if (loading || tasksLoading || participantLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>

@@ -67,7 +67,7 @@ const ROLES = [
 
 export default function RegisterForm({ 
   onSuccess, 
-  redirectTo = '/organization', 
+  redirectTo, 
   invitation,
   onSuccessRedirect,
   preselectedRole,
@@ -287,7 +287,27 @@ export default function RegisterForm({
           if (onSuccess) {
             onSuccess()
           } else {
-            router.push(onSuccessRedirect || redirectTo)
+            // Use onSuccessRedirect if provided, otherwise use role-based defaults
+            if (onSuccessRedirect) {
+              router.push(onSuccessRedirect)
+            } else if (redirectTo) {
+              router.push(redirectTo)
+            } else {
+              // Default role-based redirects
+              switch (formData.role) {
+                case 'donor':
+                  router.push('/my-campaign')
+                  break
+                case 'appraiser':
+                  router.push('/my-campaign')
+                  break
+                case 'nonprofit_admin':
+                  router.push('/organization')
+                  break
+                default:
+                  router.push('/dashboard')
+              }
+            }
           }
         } catch (signInError) {
           console.error('Auto sign-in error after registration:', signInError)

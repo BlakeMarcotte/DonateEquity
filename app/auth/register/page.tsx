@@ -34,7 +34,7 @@ interface AppraiserInvitation {
 }
 
 function RegisterPage() {
-  const { user, loading } = useAuth()
+  const { user, loading, customClaims } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [invitation, setInvitation] = useState<CampaignInvitation | null>(null)
@@ -65,7 +65,20 @@ function RegisterPage() {
       } else if (campaignId) {
         router.push(`/campaigns/${campaignId}/donate`)
       } else {
-        router.push('/organization')
+        // Role-based redirect
+        switch (customClaims?.role) {
+          case 'donor':
+            router.push('/my-campaign')
+            break
+          case 'appraiser':
+            router.push('/my-campaign')
+            break
+          case 'nonprofit_admin':
+            router.push('/organization')
+            break
+          default:
+            router.push('/dashboard')
+        }
       }
     }
   }, [user, loading, router, campaignId, invitationToken, invitation, redirectParam])
@@ -204,7 +217,7 @@ function RegisterPage() {
                   ? '/my-campaign'
                   : campaignId 
                     ? `/campaigns/${campaignId}/donate` 
-                    : '/organization'
+                    : undefined
         }
       />
     </AuthLayout>

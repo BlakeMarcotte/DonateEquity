@@ -80,14 +80,39 @@ export default function AppraiserInvitationPage() {
         throw new Error(result.error || 'Failed to accept invitation')
       }
 
-      // If role was updated, refresh user token
-      if (result.roleUpdated) {
-        await user.getIdToken(true) // Force refresh
-        // Redirect to welcome page which will wait for auth context to update
-        router.push('/appraiser/welcome')
+      // Use the redirect URL from the API response to go directly to the campaign tasks
+      if (result.redirectUrl) {
+        // Force refresh token if role was updated
+        if (result.roleUpdated) {
+          await user.getIdToken(true)
+          // Wait for the auth context to fully update
+          let attempts = 0
+          const maxAttempts = 10
+          while (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+            const token = await user.getIdToken(true)
+            const payload = JSON.parse(atob(token.split('.')[1]))
+            if (payload.role === 'appraiser') {
+              console.log('Auth context updated with appraiser role')
+              break
+            }
+            attempts++
+            console.log(`Waiting for auth context to update... attempt ${attempts}`)
+          }
+        }
+        // Redirect directly to the campaign task list
+        console.log('Appraiser invitation: Redirecting to', result.redirectUrl)
+        router.push(result.redirectUrl)
       } else {
-        // Role was already set, go directly to dashboard
-        router.push('/appraiser')
+        // Fallback: if no specific redirect URL, go to general dashboard
+        if (result.roleUpdated) {
+          await user.getIdToken(true) // Force refresh
+          // Redirect to welcome page which will wait for auth context to update
+          router.push('/appraiser/welcome')
+        } else {
+          // Role was already set, go directly to dashboard
+          router.push('/my-campaign')
+        }
       }
 
     } catch (err) {
@@ -113,7 +138,7 @@ export default function AppraiserInvitationPage() {
       })
 
       if (response.ok) {
-        router.push('/appraiser')
+        router.push('/my-campaign')
       }
     } catch (err) {
       console.error('Error declining invitation:', err)
@@ -143,7 +168,7 @@ export default function AppraiserInvitationPage() {
           </h1>
           <p className="text-gray-600 mb-6">{error}</p>
           <Button
-            onClick={() => router.push('/appraiser')}
+            onClick={() => router.push('/my-campaign')}
             variant="outline"
             className="w-full"
           >
@@ -166,7 +191,7 @@ export default function AppraiserInvitationPage() {
             This invitation link may be invalid or expired.
           </p>
           <Button
-            onClick={() => router.push('/appraiser')}
+            onClick={() => router.push('/my-campaign')}
             variant="outline"
             className="w-full"
           >
@@ -213,7 +238,7 @@ export default function AppraiserInvitationPage() {
               Sign Out & Use Correct Account
             </Button>
             <Button
-              onClick={() => router.push('/appraiser')}
+              onClick={() => router.push('/my-campaign')}
               variant="outline"
               className="w-full"
             >
@@ -237,7 +262,7 @@ export default function AppraiserInvitationPage() {
             This invitation has expired. Please contact the donor to request a new invitation.
           </p>
           <Button
-            onClick={() => router.push('/appraiser')}
+            onClick={() => router.push('/my-campaign')}
             variant="outline"
             className="w-full"
           >
@@ -260,7 +285,7 @@ export default function AppraiserInvitationPage() {
             {`You've already accepted this invitation and can now work on the donation appraisal.`}
           </p>
           <Button
-            onClick={() => router.push('/appraiser')}
+            onClick={() => router.push('/my-campaign')}
             className="w-full"
           >
             <ArrowRight className="h-4 w-4 mr-2" />

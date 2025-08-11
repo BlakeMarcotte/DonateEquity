@@ -12,10 +12,11 @@ import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { Heart, CheckSquare, FileText } from 'lucide-react'
 
 function MyCampaignPage() {
-  const { user, customClaims, loading } = useAuth()
+  const { user, customClaims, loading, refreshUserData } = useAuth()
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign()
   const searchParams = useSearchParams()
   const campaignIdFromUrl = searchParams.get('campaignId')
+  const [hasTriedRefresh, setHasTriedRefresh] = useState(false)
   
   // Create participant ID for task querying
   // For appraisers, we need to get the donor's participant ID since tasks are stored there
@@ -86,17 +87,26 @@ function MyCampaignPage() {
   }
 
   useEffect(() => {
+    console.log('MyCampaign auth check:', {
+      loading,
+      user: !!user,
+      userRole: customClaims?.role,
+      userId: user?.uid
+    })
+
+    // Only redirect to login if no user at all
     if (!loading && !user) {
+      console.log('MyCampaign: No user, redirecting to login')
       router.push('/auth/login')
       return
     }
 
-    // Allow both donors and appraisers, redirect others
-    if (!loading && user && customClaims?.role !== 'donor' && customClaims?.role !== 'appraiser') {
-      router.push('/organization')
-      return
+    // For everyone else (donors, appraisers, anyone), just show the page
+    // The page content will handle showing appropriate UI based on role
+    if (!loading && user) {
+      console.log('MyCampaign: User authenticated, showing page regardless of role')
     }
-  }, [user, loading, customClaims, router])
+  }, [user, loading, router])
 
   if (loading || campaignLoading || tasksLoading) {
     return (
@@ -106,7 +116,8 @@ function MyCampaignPage() {
     )
   }
 
-  if (!user || (customClaims?.role !== 'donor' && customClaims?.role !== 'appraiser')) {
+  // Always show the page if user is authenticated
+  if (!user) {
     return null
   }
 

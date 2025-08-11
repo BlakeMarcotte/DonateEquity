@@ -190,15 +190,8 @@ export async function POST(
       roleUpdated = true
     }
 
-    // Determine the correct redirect URL based on whether it's participant-based or donation-based
-    let redirectUrl
-    if (isParticipantBased) {
-      // Extract campaign and user IDs from participantId (format: campaignId_userId)
-      const [campaignId] = participantId.split('_')
-      redirectUrl = `/campaigns/${campaignId}/participants/${participantId}/tasks`
-    } else {
-      redirectUrl = `/donations/${donationId}/tasks`
-    }
+    // Redirect appraisers to the unified campaign view which handles both donors and appraisers
+    const redirectUrl = '/my-campaign'
 
     return NextResponse.json({
       success: true,

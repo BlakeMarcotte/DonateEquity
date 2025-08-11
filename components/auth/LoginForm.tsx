@@ -15,7 +15,7 @@ interface LoginFormProps {
   redirectTo?: string
 }
 
-export default function LoginForm({ onSuccess, redirectTo = '/organization' }: LoginFormProps) {
+export default function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -24,7 +24,7 @@ export default function LoginForm({ onSuccess, redirectTo = '/organization' }: L
   const [successMessage, setSuccessMessage] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { refreshUserData } = useAuth()
+  const { refreshUserData, customClaims } = useAuth()
 
   useEffect(() => {
     const message = searchParams.get('message')
@@ -39,13 +39,36 @@ export default function LoginForm({ onSuccess, redirectTo = '/organization' }: L
     setError('')
 
     try {
-      await signIn(email, password)
+      const userCredential = await signIn(email, password)
       await refreshUserData()
       
       if (onSuccess) {
         onSuccess()
       } else {
-        router.push(redirectTo)
+        // Get the user's custom claims to determine redirect
+        const token = await userCredential.user.getIdToken()
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        const userRole = payload.role
+
+        // If there's a specific redirect, use it
+        if (redirectTo) {
+          router.push(redirectTo)
+        } else {
+          // Otherwise, use role-based redirect
+          switch (userRole) {
+            case 'donor':
+              router.push('/my-campaign')
+              break
+            case 'appraiser':
+              router.push('/my-campaign')
+              break
+            case 'nonprofit_admin':
+              router.push('/organization')
+              break
+            default:
+              router.push('/dashboard')
+          }
+        }
       }
     } catch (error: unknown) {
       console.error('Login error:', error)

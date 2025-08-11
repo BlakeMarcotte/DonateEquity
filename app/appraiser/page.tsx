@@ -14,18 +14,12 @@ export default function AppraiserDashboard() {
       return
     }
 
-    // Redirect appraisers to use the same clean interface as donors
-    if (!loading && user && customClaims?.role === 'appraiser') {
+    // Always redirect authenticated users to my-campaign
+    if (!loading && user) {
       router.push('/my-campaign')
       return
     }
-
-    // Redirect other roles
-    if (!loading && user && customClaims?.role !== 'appraiser') {
-      router.push('/organization')
-      return
-    }
-  }, [user, loading, customClaims, router])
+  }, [user, loading, router])
 
   // Show loading while redirecting
   return (

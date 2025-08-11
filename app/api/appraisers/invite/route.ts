@@ -166,9 +166,9 @@ export async function POST(request: NextRequest) {
     let ctaUrl: string
 
     if (isExistingUser) {
-      // Existing user - sign in and view donation
+      // Existing user - go directly to invitation page which handles authentication
       emailSubject = `${userProfile?.displayName || 'A donor'} has invited you to appraise an equity donation`
-      ctaUrl = `${baseUrl}/auth/login?redirect=/appraiser/invitations/${invitationToken}`
+      ctaUrl = `${baseUrl}/appraiser/invitations/${invitationToken}`
       
       emailHtml = `
         <div style="font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
             
             <div style="text-align: center; margin: 32px 0;">
               <a href="${ctaUrl}" style="display: inline-block; background: #2563eb; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                Sign In & View Invitation
+                View Invitation
               </a>
             </div>
             
@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
       invitationId: invitationRef.id,
       message: emailSent 
         ? (isExistingUser 
-          ? 'Invitation sent successfully! The appraiser will receive an email to sign in and view the donation.'
+          ? 'Invitation sent successfully! The appraiser will receive an email to view the invitation.'
           : 'Invitation sent successfully! The appraiser will receive an email to create an account and get started.')
         : 'Invitation created but email failed to send. Please contact the appraiser directly.',
       userExists: isExistingUser,
