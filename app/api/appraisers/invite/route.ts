@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
-import { Resend } from 'resend'
+import { resend, EMAIL_CONFIG } from '@/lib/email/resend'
 import { v4 as uuidv4 } from 'uuid'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   try {
@@ -271,7 +269,7 @@ export async function POST(request: NextRequest) {
       console.log('Resend API key present:', !!process.env.RESEND_API_KEY)
       
       const emailResult = await resend.emails.send({
-        from: 'Donate Equity <noreply@bpnsolutions.com>', // Using your verified domain
+        from: EMAIL_CONFIG.from,
         to: [appraiserEmail],
         subject: emailSubject,
         html: emailHtml
