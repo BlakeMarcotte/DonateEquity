@@ -43,6 +43,7 @@ interface RegisterFormProps {
   teamInvitation?: Record<string, unknown>
   teamInviteToken?: string | null
   appraiserInvitation?: AppraiserInvitation | null
+  appraiserInvitationToken?: string | null
   emailParam?: string | null
 }
 
@@ -73,6 +74,7 @@ export default function RegisterForm({
   teamInvitation,
   teamInviteToken,
   appraiserInvitation,
+  appraiserInvitationToken,
   emailParam
 }: RegisterFormProps) {
   const [step, setStep] = useState<'basic' | 'organization'>('basic')
@@ -238,6 +240,7 @@ export default function RegisterForm({
           organizationId: formData.joinExistingOrg ? formData.organizationId || undefined : undefined,
           organizationName: formData.joinExistingOrg ? undefined : formData.organizationName,
           teamInviteToken: teamInviteToken || undefined,
+          appraiserInvitationToken: appraiserInvitationToken || undefined,
         }),
       })
 

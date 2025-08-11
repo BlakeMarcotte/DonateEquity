@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
+import { FieldValue } from 'firebase-admin/firestore'
 import { UserRole, NonprofitSubrole } from '@/types/auth'
 
 interface RegisterRequest {
@@ -12,6 +13,7 @@ interface RegisterRequest {
   organizationName?: string
   phoneNumber?: string
   teamInviteToken?: string
+  appraiserInvitationToken?: string
 }
 
 const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
     const body: RegisterRequest = await request.json()
     
     // Validate required fields
-    const { email, password, displayName, role, subrole, organizationId, organizationName, phoneNumber, teamInviteToken } = body
+    const { email, password, displayName, role, subrole, organizationId, organizationName, phoneNumber, teamInviteToken, appraiserInvitationToken } = body
     
     if (!email || !password || !displayName || !role) {
       return NextResponse.json(
@@ -259,6 +261,95 @@ export async function POST(request: NextRequest) {
         }
       } catch (inviteError) {
         console.error('Error processing team invitation:', inviteError)
+        // Don't fail registration if invitation processing fails
+      }
+    }
+
+    // Handle appraiser invitation acceptance if provided
+    if (appraiserInvitationToken && role === 'appraiser') {
+      try {
+        console.log('Processing appraiser invitation during registration:', appraiserInvitationToken)
+        
+        // Find the invitation
+        const invitationsQuery = adminDb.collection('appraiser_invitations')
+          .where('invitationToken', '==', appraiserInvitationToken)
+          .limit(1)
+
+        const invitationsSnapshot = await invitationsQuery.get()
+        
+        if (!invitationsSnapshot.empty) {
+          const invitationDoc = invitationsSnapshot.docs[0]
+          const invitationData = invitationDoc.data()
+          
+          // Verify the invitation email matches registration email
+          if (invitationData.appraiserEmail === email) {
+            const donationId = invitationData.donationId
+            const batch = adminDb.batch()
+            
+            // Update the invitation status
+            batch.update(invitationDoc.ref, {
+              status: 'accepted',
+              respondedAt: FieldValue.serverTimestamp(),
+              acceptedBy: userRecord.uid
+            })
+
+            // Handle participant-based system
+            if (donationId.includes('_')) {
+              const participantId = donationId
+              console.log('Processing participant-based appraiser invitation:', participantId)
+              
+              // Update participant-based appraiser tasks
+              const participantTasksQuery = adminDb.collection('tasks')
+                .where('participantId', '==', participantId)
+                .where('assignedRole', '==', 'appraiser')
+
+              const participantTasksSnapshot = await participantTasksQuery.get()
+              
+              participantTasksSnapshot.docs.forEach(taskDoc => {
+                batch.update(taskDoc.ref, {
+                  assignedTo: userRecord.uid,
+                  updatedAt: FieldValue.serverTimestamp()
+                })
+              })
+              
+              // Update the donor participant record
+              const donorParticipantRef = adminDb.collection('campaign_participants').doc(participantId)
+              batch.update(donorParticipantRef, {
+                appraiserId: userRecord.uid,
+                appraiserEmail: email,
+                appraisalStatus: 'appraiser_assigned',
+                updatedAt: FieldValue.serverTimestamp()
+              })
+              
+              // Create separate appraiser participant record
+              const [campaignId, donorUserId] = participantId.split('_')
+              const appraiserParticipantId = `${campaignId}_${userRecord.uid}`
+              const appraiserParticipantRef = adminDb.collection('campaign_participants').doc(appraiserParticipantId)
+              
+              batch.set(appraiserParticipantRef, {
+                campaignId: campaignId,
+                userId: userRecord.uid,
+                userEmail: email,
+                role: 'appraiser',
+                status: 'active',
+                joinedAt: FieldValue.serverTimestamp(),
+                createdAt: FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp(),
+                linkedDonorParticipantId: participantId,
+                linkedDonorId: donorUserId
+              })
+            }
+            
+            await batch.commit()
+            console.log('Appraiser invitation processed successfully during registration')
+          } else {
+            console.log('Invitation email mismatch during registration:', invitationData.appraiserEmail, 'vs', email)
+          }
+        } else {
+          console.log('Appraiser invitation not found during registration:', appraiserInvitationToken)
+        }
+      } catch (invitationError) {
+        console.error('Error processing appraiser invitation during registration:', invitationError)
         // Don't fail registration if invitation processing fails
       }
     }

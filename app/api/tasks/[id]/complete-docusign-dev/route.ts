@@ -6,9 +6,10 @@ import { uploadDonationBufferAdmin } from '@/lib/firebase/storage-admin'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     // Only allow this in development
     if (process.env.NODE_ENV !== 'development') {
       return NextResponse.json({ error: 'This endpoint is only available in development' }, { status: 403 })
@@ -24,7 +25,7 @@ export async function POST(
     const decodedToken = await adminAuth.verifyIdToken(idToken)
 
     // Get the task
-    const taskDoc = await adminDb.collection('tasks').doc(params.id).get()
+    const taskDoc = await adminDb.collection('tasks').doc(id).get()
     if (!taskDoc.exists) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
@@ -42,9 +43,41 @@ export async function POST(
     }
 
     // Get the DocuSign envelope ID from task metadata
-    const envelopeId = task.metadata?.docuSignEnvelopeId
+    let envelopeId = task.metadata?.docuSignEnvelopeId
+    
+    // If no envelope ID on this task, try to find it in related tasks (for appraiser tasks)
+    if (!envelopeId && task.participantId) {
+      try {
+        console.log(`[DEV] No envelope ID found on task ${id}, searching related tasks for participantId: ${task.participantId}`)
+        
+        // Look for other DocuSign signature tasks for the same participant that might have the envelope ID
+        const relatedTasksQuery = await adminDb.collection('tasks')
+          .where('participantId', '==', task.participantId)
+          .where('type', '==', 'docusign_signature')
+          .get()
+        
+        for (const relatedTaskDoc of relatedTasksQuery.docs) {
+          const relatedTask = relatedTaskDoc.data()
+          if (relatedTask.metadata?.docuSignEnvelopeId) {
+            envelopeId = relatedTask.metadata.docuSignEnvelopeId
+            console.log(`[DEV] Found envelope ID ${envelopeId} in related task ${relatedTaskDoc.id}`)
+            
+            // Update the current task with the envelope ID for future use
+            await adminDb.collection('tasks').doc(id).update({
+              'metadata.docuSignEnvelopeId': envelopeId,
+              'metadata.foundFromRelatedTask': true,
+              updatedAt: FieldValue.serverTimestamp()
+            })
+            break
+          }
+        }
+      } catch (searchError) {
+        console.error('Error searching for related task envelope ID:', searchError)
+      }
+    }
+    
     if (!envelopeId) {
-      return NextResponse.json({ error: 'No DocuSign envelope ID found in task metadata' }, { status: 400 })
+      return NextResponse.json({ error: 'No DocuSign envelope ID found in task metadata or related tasks' }, { status: 400 })
     }
 
     let signedDocumentUrl = null
@@ -83,7 +116,7 @@ export async function POST(
         signedDocumentUrl = uploadResult.url
         console.log(`[DEV] Signed document stored at: ${signedDocumentUrl} (legacy path)`)
       } else {
-        console.warn(`[DEV] No participantId or donationId found in task ${params.id} metadata`)
+        console.warn(`[DEV] No participantId or donationId found in task ${id} metadata`)
         return NextResponse.json({ error: 'No participant ID or donation ID found in task' }, { status: 400 })
       }
     } catch (downloadError) {
@@ -95,7 +128,7 @@ export async function POST(
     }
 
     // Update the task status to completed
-    await adminDb.collection('tasks').doc(params.id).update({
+    await adminDb.collection('tasks').doc(id).update({
       status: 'completed',
       completedAt: FieldValue.serverTimestamp(),
       completedBy: decodedToken.uid,
@@ -108,7 +141,7 @@ export async function POST(
       }
     })
 
-    console.log(`[DEV] Task ${params.id} marked as completed manually in development mode`)
+    console.log(`[DEV] Task ${id} marked as completed manually in development mode`)
 
     return NextResponse.json({ 
       success: true, 

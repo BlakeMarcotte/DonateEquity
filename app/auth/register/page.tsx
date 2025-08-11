@@ -186,6 +186,7 @@ export default function RegisterPage() {
         teamInvitation={teamInvitation ? {...teamInvitation} as Record<string, unknown> : undefined}
         teamInviteToken={teamInviteToken}
         appraiserInvitation={appraiserInvitation}
+        appraiserInvitationToken={appraiserInvitationToken}
         emailParam={emailParam}
         preselectedRole={
           invitation ? 'donor' : 
@@ -197,11 +198,13 @@ export default function RegisterPage() {
             ? returnUrl
             : redirectParam 
               ? redirectParam
-              : campaignId && invitationToken && invitation
+              : appraiserInvitation
                 ? '/my-campaign'
-                : campaignId 
-                  ? `/campaigns/${campaignId}/donate` 
-                  : '/organization'
+                : campaignId && invitationToken && invitation
+                  ? '/my-campaign'
+                  : campaignId 
+                    ? `/campaigns/${campaignId}/donate` 
+                    : '/organization'
         }
       />
     </AuthLayout>

@@ -6,12 +6,13 @@ import { CommitmentDecisionTask } from './CommitmentDecisionTask'
 import { useAuth } from '@/contexts/AuthContext'
 import { Task } from '@/types/task'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload, RefreshCw } from 'lucide-react'
 import { AppraiserInvitationForm } from './AppraiserInvitationForm'
 import { FileUpload } from '@/components/files/FileUpload'
 import { useDonationFiles } from '@/hooks/useDonationFiles'
 import { Modal } from '@/components/ui/modal'
 import { EquityCommitmentModal } from './EquityCommitmentModal'
+import { debugParticipantTasks } from '@/utils/debug-participant-tasks'
 
 interface DonationTaskListProps {
   participantId?: string
@@ -54,6 +55,7 @@ export function DonationTaskList({
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
   const [currentCommitmentTask, setCurrentCommitmentTask] = useState<Task | null>(null)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const { uploadFile } = useDonationFiles(participantId ? `participants/${participantId}` : null)
   const fileUploadRef = useRef<{ triggerUpload: () => Promise<void>; hasFiles: () => boolean } | null>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
@@ -121,6 +123,11 @@ export function DonationTaskList({
         return task.assignedTo === user?.uid || task.assignedRole === customClaims?.role
       })
 
+  // Debug participant tasks (only run once on initial load to avoid spam)
+  // if (tasks.length > 0 && participantId) {
+  //   debugParticipantTasks(tasks)
+  // }
+  
   // console.log('Debug - Total tasks:', tasks.length)
   // console.log('Debug - User role:', customClaims?.role)
   // console.log('Debug - User ID:', user?.uid)
@@ -310,6 +317,41 @@ export function DonationTaskList({
   }
   
 
+  const handleRefreshTasks = async () => {
+    if (refreshing || !participantId) return
+    
+    setRefreshing(true)
+    
+    try {
+      const token = await user?.getIdToken()
+      
+      const response = await fetch('/api/tasks/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ participantId })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to refresh tasks')
+      }
+
+      const result = await response.json()
+      console.log('Tasks refreshed:', result.message)
+      
+      // The real-time listener should pick up any changes automatically
+      // This is just to force a server-side check
+      
+    } catch (err) {
+      console.error('Error refreshing tasks:', err)
+      alert('Failed to refresh tasks')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   const handleResetTasks = async () => {
     if (resettingTasks) return
     
@@ -491,6 +533,26 @@ export function DonationTaskList({
               {sortedTasks.filter(t => t.status === 'completed').length} of {sortedTasks.length} completed
             </span>
           </div>
+          {/* Refresh button */}
+          <Button
+            onClick={handleRefreshTasks}
+            disabled={refreshing}
+            variant="outline"
+            size="sm"
+            className="text-blue-600 border-blue-200 hover:bg-blue-50 rounded-xl transition-all duration-200"
+          >
+            {refreshing ? (
+              <>
+                <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full" />
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </>
+            )}
+          </Button>
           {/* Reset button - only show for donors */}
           {customClaims?.role === 'donor' && (
             <Button

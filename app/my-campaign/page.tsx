@@ -18,7 +18,31 @@ export default function MyCampaignPage() {
   const campaignIdFromUrl = searchParams.get('campaignId')
   
   // Create participant ID for task querying
-  const participantId = campaign && user ? `${campaign.id}_${user.uid}` : null
+  // For appraisers, we need to get the donor's participant ID since tasks are stored there
+  const [donorParticipantId, setDonorParticipantId] = useState<string | null>(null)
+  const baseParticipantId = campaign && user ? `${campaign.id}_${user.uid}` : null
+  const participantId = customClaims?.role === 'appraiser' ? donorParticipantId : baseParticipantId
+  
+  // Fetch the linked donor participant ID for appraisers
+  useEffect(() => {
+    if (customClaims?.role === 'appraiser' && baseParticipantId) {
+      const fetchLinkedDonorId = async () => {
+        try {
+          const response = await fetch(`/api/campaign-participants/${baseParticipantId}`)
+          if (response.ok) {
+            const { participant } = await response.json()
+            if (participant?.linkedDonorParticipantId) {
+              setDonorParticipantId(participant.linkedDonorParticipantId)
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching linked donor participant ID:', error)
+        }
+      }
+      fetchLinkedDonorId()
+    }
+  }, [baseParticipantId, customClaims?.role])
+
   const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
   
   // Use participant tasks exclusively
@@ -67,8 +91,8 @@ export default function MyCampaignPage() {
       return
     }
 
-    // Redirect non-donors to their appropriate pages
-    if (!loading && user && customClaims?.role !== 'donor') {
+    // Allow both donors and appraisers, redirect others
+    if (!loading && user && customClaims?.role !== 'donor' && customClaims?.role !== 'appraiser') {
       router.push('/organization')
       return
     }
@@ -82,7 +106,7 @@ export default function MyCampaignPage() {
     )
   }
 
-  if (!user || customClaims?.role !== 'donor') {
+  if (!user || (customClaims?.role !== 'donor' && customClaims?.role !== 'appraiser')) {
     return null
   }
 
@@ -161,8 +185,8 @@ export default function MyCampaignPage() {
         )}
 
 
-        {/* Show old-style interest message if no tasks yet */}
-        {campaign && !donation && tasks.length === 0 && (
+        {/* Show old-style interest message if no tasks yet (donors only) */}
+        {campaign && !donation && tasks.length === 0 && customClaims?.role === 'donor' && (
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-6">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -182,6 +206,23 @@ export default function MyCampaignPage() {
               >
                 Start Donation Process
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Show appraiser assignment message if no tasks yet (appraisers only) */}
+        {campaign && !donation && tasks.length === 0 && customClaims?.role === 'appraiser' && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckSquare className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-green-900">You're assigned to this campaign!</h3>
+                <p className="text-green-700 mt-1">
+                  You've been assigned as the appraiser for this donation. Tasks will appear here once they're ready for you.
+                </p>
+              </div>
             </div>
           </div>
         )}

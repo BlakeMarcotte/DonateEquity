@@ -103,9 +103,17 @@ async function updateDependentTasksForParticipant(completedTaskId: string, parti
     })))
 
     // Find tasks that depend on the completed task
-    const dependentTasks = allTasks.filter(task => 
-      task.dependencies && task.dependencies.includes(completedTaskId)
-    )
+    const dependentTasks = allTasks.filter(task => {
+      const hasDependency = task.dependencies && task.dependencies.includes(completedTaskId)
+      if (task.title?.includes('Appraiser: Sign NDA')) {
+        console.log(`Checking if Appraiser NDA depends on ${completedTaskId}:`, {
+          taskDependencies: task.dependencies,
+          includes: hasDependency,
+          completedTaskId
+        })
+      }
+      return hasDependency
+    })
 
     console.log(`Found ${dependentTasks.length} dependent tasks:`, dependentTasks.map(t => ({ 
       id: t.id, 

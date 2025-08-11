@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore'
 import { db, auth } from '@/lib/firebase/config'
 import { Task } from '@/types/task'
+import { debugTaskDependencies } from '@/utils/debug-tasks'
 
 export function useParticipantTasks(participantId: string | null) {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -41,16 +42,8 @@ export function useParticipantTasks(participantId: string | null) {
 
         console.log('Participant tasks data:', tasksData.map(t => ({ id: t.id, title: t.title, type: t.type, order: t.order })))
 
-        // Debug dependency checking
-        const task5 = tasksData.find(t => t.title?.includes('Appraiser: Sign NDA'))
-        if (task5) {
-          console.log('Task 5 dependencies:', task5.dependencies)
-          console.log('Available task IDs:', tasksData.map(t => t.id))
-          console.log('Dependency statuses:', task5.dependencies?.map(depId => ({
-            depId,
-            status: tasksData.find(t => t.id === depId)?.status || 'NOT FOUND'
-          })))
-        }
+        // Use debug utility for detailed analysis
+        debugTaskDependencies(tasksData)
 
         // Calculate blocking status based on dependencies
         console.log('About to calculate blocking status for tasks:', tasksData.length)
@@ -178,7 +171,8 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
           console.log(`Checking dependency ${depId}:`, {
             directStatus: status,
             inMap: taskStatusMap.has(depId),
-            mapSize: taskStatusMap.size
+            mapSize: taskStatusMap.size,
+            allTaskIds: Array.from(taskStatusMap.keys())
           })
         }
         
@@ -197,21 +191,37 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
           }
         }
         
-        return status === 'completed'
+        // Additional check: sometimes the completed status might be a string 'completed' vs an enum
+        const isCompleted = status === 'completed' || status === 'complete'
+        
+        if (task.title?.includes('Appraiser: Sign NDA')) {
+          console.log(`Dependency ${depId} final check: status=${status}, isCompleted=${isCompleted}`)
+        }
+        
+        return isCompleted
       })
       
-      // Update status to blocked if dependencies aren't met and task isn't already completed
-      const newStatus = !allDependenciesCompleted && task.status !== 'completed' ? 'blocked' : task.status
-      
-      if (task.title?.includes('Appraiser: Sign NDA')) {
-        console.log(`calculateBlockingStatus - Task ${task.title}:`, {
-          dependencies: task.dependencies,
-          depStatuses,
-          allDependenciesCompleted,
-          currentStatus: task.status,
-          newStatus
-        })
+      // Update status based on dependencies
+      let newStatus = task.status
+      if (task.status !== 'completed') {
+        if (!allDependenciesCompleted) {
+          newStatus = 'blocked'
+        } else if (task.status === 'blocked' && allDependenciesCompleted) {
+          // Unblock the task when all dependencies are met
+          newStatus = 'pending'
+        }
       }
+      
+      // Only log for debugging specific issues
+      // if (task.title?.includes('Appraiser: Sign NDA')) {
+      //   console.log(`calculateBlockingStatus - Task ${task.title}:`, {
+      //     dependencies: task.dependencies,
+      //     depStatuses,
+      //     allDependenciesCompleted,
+      //     currentStatus: task.status,
+      //     newStatus
+      //   })
+      // }
       
       return {
         ...task,

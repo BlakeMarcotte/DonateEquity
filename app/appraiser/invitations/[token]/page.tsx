@@ -80,14 +80,15 @@ export default function AppraiserInvitationPage() {
         throw new Error(result.error || 'Failed to accept invitation')
       }
 
-      // If role was updated, refresh user token to get new claims
+      // If role was updated, refresh user token
       if (result.roleUpdated) {
         await user.getIdToken(true) // Force refresh
+        // Redirect to welcome page which will wait for auth context to update
+        router.push('/appraiser/welcome')
+      } else {
+        // Role was already set, go directly to dashboard
+        router.push('/appraiser')
       }
-
-      // Navigate to the correct task page (participant-based or donation-based)
-      const redirectUrl = result.redirectUrl || `/donations/${invitation.donationId}/tasks`
-      router.push(redirectUrl)
 
     } catch (err) {
       console.error('Error accepting invitation:', err)
@@ -259,11 +260,11 @@ export default function AppraiserInvitationPage() {
             {`You've already accepted this invitation and can now work on the donation appraisal.`}
           </p>
           <Button
-            onClick={() => router.push(`/donations/${invitation.donationId}/tasks`)}
+            onClick={() => router.push('/appraiser')}
             className="w-full"
           >
             <ArrowRight className="h-4 w-4 mr-2" />
-            View Donation Tasks
+            View My Assignment
           </Button>
         </Card>
       </div>

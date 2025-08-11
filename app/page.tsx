@@ -20,14 +20,32 @@ const inter = Inter({
 
 export default function HomePage() {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading, customClaims } = useAuth()
 
   useEffect(() => {
-    // Redirect authenticated users to dashboard
-    if (!loading && user) {
-      router.push('/organization')
+    // Redirect authenticated users to their role-specific dashboard
+    if (!loading && user && customClaims) {
+      const role = customClaims.role
+      switch (role) {
+        case 'donor':
+          router.push('/my-campaign')
+          break
+        case 'nonprofit_admin':
+          router.push('/organization')
+          break
+        case 'appraiser':
+          router.push('/appraiser')
+          break
+        case 'admin':
+          router.push('/organization') // Admin can use nonprofit admin dashboard
+          break
+        default:
+          // Fallback for unknown roles
+          router.push('/organization')
+          break
+      }
     }
-  }, [user, loading, router])
+  }, [user, loading, customClaims, router])
 
   // Show nothing while checking auth status
   if (loading) {

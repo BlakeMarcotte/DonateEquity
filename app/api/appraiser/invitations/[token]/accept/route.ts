@@ -29,18 +29,26 @@ export async function POST(
     }
 
     // Find invitation by token
+    console.log('Looking for invitation with token:', token)
     const invitationsQuery = adminDb.collection('appraiser_invitations')
       .where('invitationToken', '==', token)
       .limit(1)
 
     const invitationsSnapshot = await invitationsQuery.get()
+    console.log('Found invitations:', invitationsSnapshot.docs.length)
 
     if (invitationsSnapshot.empty) {
+      console.log('No invitation found for token:', token)
       return NextResponse.json({ error: 'Invitation not found' }, { status: 404 })
     }
 
     const invitationDoc = invitationsSnapshot.docs[0]
     const invitationData = invitationDoc.data()
+    console.log('Invitation data:', { 
+      donationId: invitationData.donationId, 
+      appraiserEmail: invitationData.appraiserEmail,
+      status: invitationData.status
+    })
 
     // Verify the invitation is for the authenticated user
     if (invitationData.appraiserEmail !== decodedToken.email) {
@@ -69,6 +77,7 @@ export async function POST(
 
     // Find and update appraiser tasks for this donation
     const donationId = invitationData.donationId
+    console.log('Processing invitation for donationId:', donationId)
     const batch = adminDb.batch()
     
     // Handle both participant-based (new) and donation-based (legacy) tasks
@@ -79,6 +88,7 @@ export async function POST(
       // This is a participantId (new system)
       isParticipantBased = true
       participantId = donationId
+      console.log('Detected participant-based system, participantId:', participantId)
       
       // Update participant-based appraiser tasks
       const participantTasksQuery = adminDb.collection('tasks')
@@ -86,21 +96,45 @@ export async function POST(
         .where('assignedRole', '==', 'appraiser')
 
       const participantTasksSnapshot = await participantTasksQuery.get()
+      console.log(`Found ${participantTasksSnapshot.docs.length} appraiser tasks for participant:`, participantId)
       
       participantTasksSnapshot.docs.forEach(taskDoc => {
+        console.log('Updating task:', taskDoc.id)
         batch.update(taskDoc.ref, {
           assignedTo: decodedToken.uid,
           updatedAt: FieldValue.serverTimestamp()
         })
       })
       
-      // Update the participant record
-      const participantRef = adminDb.collection('campaign_participants').doc(participantId)
-      batch.update(participantRef, {
+      // Update the donor participant record
+      const donorParticipantRef = adminDb.collection('campaign_participants').doc(participantId)
+      console.log('Updating donor participant record:', participantId)
+      batch.update(donorParticipantRef, {
         appraiserId: decodedToken.uid,
         appraiserEmail: decodedToken.email,
         appraisalStatus: 'appraiser_assigned',
         updatedAt: FieldValue.serverTimestamp()
+      })
+      
+      // Create a separate appraiser participant record so they can access the campaign
+      const [campaignId, donorUserId] = participantId.split('_')
+      const appraiserParticipantId = `${campaignId}_${decodedToken.uid}`
+      console.log('Creating appraiser participant record:', appraiserParticipantId)
+      console.log('Campaign ID:', campaignId, 'Donor User ID:', donorUserId, 'Appraiser ID:', decodedToken.uid)
+      
+      const appraiserParticipantRef = adminDb.collection('campaign_participants').doc(appraiserParticipantId)
+      batch.set(appraiserParticipantRef, {
+        campaignId: campaignId,
+        userId: decodedToken.uid,
+        userEmail: decodedToken.email,
+        role: 'appraiser',
+        status: 'active',
+        joinedAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        // Link to the donor they're appraising for
+        linkedDonorParticipantId: participantId,
+        linkedDonorId: donorUserId
       })
     } else {
       // Legacy donation-based system
@@ -128,7 +162,9 @@ export async function POST(
       })
     }
 
+    console.log('Committing batch operations...')
     await batch.commit()
+    console.log('Batch committed successfully')
 
     // Track if we need to update the user's role
     let roleUpdated = false
