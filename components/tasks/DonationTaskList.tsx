@@ -89,12 +89,32 @@ export function DonationTaskList({
     amount: number
     message?: string
   }) => {
-    if (currentCommitmentTask && handleCommitmentDecision) {
+    if (currentCommitmentTask) {
       const commitmentData = {
         ...commitment,
         createdAt: new Date().toISOString()
       }
-      await handleCommitmentDecision(currentCommitmentTask.id, 'commit_now', commitmentData)
+      
+      // Check if this is the conditional equity commitment task (step 8)
+      if (currentCommitmentTask.title === 'Donor: Makes Equity Commitment') {
+        // For step 8, we just complete the task with the commitment data
+        setCompletingTasks(prev => new Set(prev).add(currentCommitmentTask.id))
+        try {
+          await completeTask(currentCommitmentTask.id, commitmentData)
+        } catch (error) {
+          console.error('Failed to complete equity commitment task:', error)
+        } finally {
+          setCompletingTasks(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(currentCommitmentTask.id)
+            return newSet
+          })
+        }
+      } else if (handleCommitmentDecision) {
+        // For step 2, use the commitment decision handler
+        await handleCommitmentDecision(currentCommitmentTask.id, 'commit_now', commitmentData)
+      }
+      
       setShowCommitmentModal(false)
       setCurrentCommitmentTask(null)
     }
@@ -184,6 +204,15 @@ export function DonationTaskList({
     if (task?.type === 'docusign_signature') {
       console.log('🔥 Calling DocuSign handler')
       handleDocuSignTask(taskId)
+      return
+    }
+    
+    // Check if this is the conditional equity commitment task (step 8)
+    // This is different from step 2 commitment decision - it's for making the actual commitment
+    if (task?.type === 'commitment_decision' && task?.title === 'Donor: Makes Equity Commitment') {
+      console.log('🔥 Showing equity commitment modal for conditional task')
+      setCurrentCommitmentTask(task)
+      setShowCommitmentModal(true)
       return
     }
     
@@ -587,7 +616,9 @@ export function DonationTaskList({
       <div className="space-y-3">
         {sortedTasks.map((task, index) => {
           // Special rendering for commitment decision tasks
-          if (task.type === 'commitment_decision' && handleCommitmentDecision) {
+          // Only render CommitmentDecisionTask for step 2 (Commitment Decision)
+          // Step 8 (Makes Equity Commitment) is handled as a regular task
+          if (task.type === 'commitment_decision' && handleCommitmentDecision && task.title !== 'Donor: Makes Equity Commitment') {
             return (
               <div key={task.id} className="group">
                 <CommitmentDecisionTask 
