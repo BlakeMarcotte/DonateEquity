@@ -39,14 +39,14 @@ export default function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
     setError('')
 
     try {
-      const userCredential = await signIn(email, password)
+      const user = await signIn(email, password)
       await refreshUserData()
       
       if (onSuccess) {
         onSuccess()
       } else {
         // Get the user's custom claims to determine redirect
-        const token = await userCredential.user.getIdToken()
+        const token = await user.getIdToken()
         const payload = JSON.parse(atob(token.split('.')[1]))
         const userRole = payload.role
 
