@@ -80,8 +80,14 @@ export default function AppraiserInvitationPage() {
         throw new Error(result.error || 'Failed to accept invitation')
       }
 
-      // Navigate to the donation task page
-      router.push(`/donations/${invitation.donationId}/tasks`)
+      // If role was updated, refresh user token to get new claims
+      if (result.roleUpdated) {
+        await user.getIdToken(true) // Force refresh
+      }
+
+      // Navigate to the correct task page (participant-based or donation-based)
+      const redirectUrl = result.redirectUrl || `/donations/${invitation.donationId}/tasks`
+      router.push(redirectUrl)
 
     } catch (err) {
       console.error('Error accepting invitation:', err)
@@ -171,22 +177,22 @@ export default function AppraiserInvitationPage() {
   }
 
   // Check if invitation is expired
-  const isExpired = new Date() > new Date(invitation.expiresAt)
+  const isExpired = invitation ? new Date() > new Date(invitation.expiresAt) : false
   
   // Check if user is already authenticated and matches the invitation
-  const isCorrectUser = user?.email === invitation.appraiserEmail
+  const isCorrectUser = user?.email === invitation?.appraiserEmail
   
-  if (!user) {
-    // User not authenticated - redirect to auth with invitation context
-    const authUrl = invitation.userExists 
-      ? `/auth/login?redirect=/appraiser/invitations/${token}`
-      : `/auth/register?role=appraiser&redirect=/appraiser/invitations/${token}`
-    
-    router.push(authUrl)
-    return null
+  const handleSignUpToAccept = () => {
+    // Redirect to register with the appraiser invitation token
+    router.push(`/auth/register?appraiserInvitation=${token}`)
   }
 
-  if (!isCorrectUser) {
+  const handleSignInToAccept = () => {
+    // Redirect to login with redirect back to this page
+    router.push(`/auth/login?redirect=/appraiser/invitations/${token}`)
+  }
+
+  if (user && !isCorrectUser) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md p-8 text-center">
@@ -195,7 +201,7 @@ export default function AppraiserInvitationPage() {
             Wrong Account
           </h1>
           <p className="text-gray-600 mb-6">
-            This invitation was sent to <strong>{invitation.appraiserEmail}</strong>, 
+            This invitation was sent to <strong>{invitation?.appraiserEmail}</strong>, 
             {`but you're signed in as`} <strong>{user.email}</strong>.
           </p>
           <div className="space-y-3">
@@ -265,26 +271,26 @@ export default function AppraiserInvitationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        <Card className="p-8">
-          <div className="text-center mb-8">
-            <Mail className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-8 px-4">
+      <div className="max-w-md mx-auto">
+        <Card className="p-6">
+          <div className="text-center mb-6">
+            <Mail className="h-10 w-10 text-blue-600 mx-auto mb-3" />
+            <h1 className="text-xl font-bold text-gray-900 mb-1">
               Appraiser Invitation
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm">
               {`You've been invited to appraise an equity donation`}
             </p>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Inviter Information */}
-            <div className="bg-gray-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-3">
                 Invitation Details
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center space-x-3">
                   <User className="h-5 w-5 text-gray-400" />
                   <div>
@@ -324,21 +330,21 @@ export default function AppraiserInvitationPage() {
             )}
 
             {/* What happens next */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-              <h4 className="text-sm font-medium text-green-900 mb-3">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-green-900 mb-2">
                 What happens when you accept?
               </h4>
-              <ul className="space-y-2 text-sm text-green-800">
+              <ul className="space-y-1 text-xs text-green-800">
                 <li className="flex items-start space-x-2">
-                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-1.5 flex-shrink-0"></div>
                   <span>{`You'll be assigned as the appraiser for this equity donation`}</span>
                 </li>
                 <li className="flex items-start space-x-2">
-                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-1.5 flex-shrink-0"></div>
                   <span>You can view and complete appraisal tasks in the workflow</span>
                 </li>
                 <li className="flex items-start space-x-2">
-                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-1.5 flex-shrink-0"></div>
                   <span>{`You'll collaborate with the donor and nonprofit through shared tasks`}</span>
                 </li>
               </ul>
@@ -354,33 +360,74 @@ export default function AppraiserInvitationPage() {
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-6">
-              <Button
-                onClick={handleAcceptInvitation}
-                disabled={accepting}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {accepting ? (
-                  <>
-                    <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                    Accepting...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Accept Invitation
-                  </>
-                )}
-              </Button>
-              
-              <Button
-                onClick={handleDeclineInvitation}
-                variant="outline"
-                disabled={accepting}
-                className="sm:w-auto"
-              >
-                Decline
-              </Button>
+            <div className="pt-4">
+              {user && isCorrectUser ? (
+                // Authenticated user - show accept/decline buttons
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={handleAcceptInvitation}
+                    disabled={accepting}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {accepting ? (
+                      <>
+                        <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                        Accepting...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Accept Invitation
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    onClick={handleDeclineInvitation}
+                    variant="outline"
+                    disabled={accepting}
+                    className="w-full"
+                  >
+                    Decline
+                  </Button>
+                </div>
+              ) : (
+                // Unauthenticated user or wrong user - show signup/signin buttons
+                <div className="space-y-2">
+                  {!user && (
+                    <>
+                      <Button
+                        onClick={handleSignUpToAccept}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Sign Up to Accept Invitation
+                      </Button>
+                      
+                      <Button
+                        onClick={handleSignInToAccept}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        Already have an account? Sign In
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* User Status Info */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
+                <Clock className="w-3 h-3" />
+                <span>
+                  {user && isCorrectUser ? 
+                    'You are already signed in. Accepting will take you directly to the appraisal workflow.' :
+                    'New to our platform? Signing up will guide you through creating your account with your invitation email pre-filled.'
+                  }
+                </span>
+              </div>
             </div>
           </div>
         </Card>

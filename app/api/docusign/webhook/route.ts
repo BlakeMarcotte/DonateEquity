@@ -58,10 +58,26 @@ export async function POST(request: NextRequest) {
               console.log(`Downloading signed document for envelope ${envelopeId}`)
               const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(envelopeId)
               
-              // Extract donation ID from task
-              const donationId = task.donationId
-              if (donationId) {
-                console.log(`Uploading signed document to storage for donation ${donationId}`)
+              // Extract participant ID from task (new structure)
+              const participantId = task.participantId
+              const donationId = task.donationId // fallback for backward compatibility
+              
+              if (participantId) {
+                console.log(`Uploading signed document to storage for participant ${participantId}`)
+                // Use participant-based storage path
+                const uploadResult = await uploadDonationBufferAdmin(
+                  `participants/${participantId}`,
+                  'signed-documents',
+                  documentBuffer,
+                  `signed-nda-${envelopeId}.pdf`,
+                  'application/pdf'
+                )
+                
+                signedDocumentUrl = uploadResult.url
+                console.log(`Signed document stored at: ${signedDocumentUrl}`)
+              } else if (donationId) {
+                // Fallback to donation-based storage for backward compatibility
+                console.log(`Uploading signed document to storage for donation ${donationId} (legacy)`)
                 const uploadResult = await uploadDonationBufferAdmin(
                   donationId,
                   'signed-documents',
@@ -71,9 +87,9 @@ export async function POST(request: NextRequest) {
                 )
                 
                 signedDocumentUrl = uploadResult.url
-                console.log(`Signed document stored at: ${signedDocumentUrl}`)
+                console.log(`Signed document stored at: ${signedDocumentUrl} (legacy path)`)
               } else {
-                console.warn(`No donationId found in task ${taskDoc.id} metadata`)
+                console.warn(`No participantId or donationId found in task ${taskDoc.id} metadata`)
               }
             } catch (downloadError) {
               console.error(`Failed to download/store signed document for envelope ${envelopeId}:`, downloadError)

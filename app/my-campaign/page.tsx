@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useDonorCampaign } from '@/hooks/useDonorCampaign'
 import { DonationTaskList } from '@/components/tasks/DonationTaskList'
@@ -14,6 +14,8 @@ import { Heart, CheckSquare, FileText } from 'lucide-react'
 export default function MyCampaignPage() {
   const { user, customClaims, loading } = useAuth()
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign()
+  const searchParams = useSearchParams()
+  const campaignIdFromUrl = searchParams.get('campaignId')
   
   // Create participant ID for task querying
   const participantId = campaign && user ? `${campaign.id}_${user.uid}` : null
@@ -25,6 +27,14 @@ export default function MyCampaignPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
+
+  // Handle redirect for campaign ID from URL
+  useEffect(() => {
+    if (campaignIdFromUrl && user && !campaignLoading && !campaign) {
+      // Redirect directly to the participant tasks page
+      router.push(`/campaigns/${campaignIdFromUrl}/participants/${user.uid}/tasks`)
+    }
+  }, [campaignIdFromUrl, user, campaignLoading, campaign, router])
 
   const handleCommitmentCreate = async (commitment: {
     type: 'dollar' | 'percentage'
@@ -77,6 +87,18 @@ export default function MyCampaignPage() {
   }
 
   if (!campaign) {
+    // If we have a campaign ID from URL, show loading while redirecting
+    if (campaignIdFromUrl) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your campaign...</p>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="bg-white shadow">

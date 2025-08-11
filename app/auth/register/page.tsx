@@ -18,6 +18,21 @@ interface TeamInvitation {
   expiresAt: Date
 }
 
+interface AppraiserInvitation {
+  id: string
+  donationId: string
+  appraiserEmail: string
+  appraiserName: string | null
+  inviterName: string
+  inviterEmail: string
+  personalMessage: string
+  status: 'pending' | 'accepted' | 'declined' | 'expired'
+  userExists: boolean
+  existingUserId: string | null
+  invitedAt: Date
+  expiresAt: Date
+}
+
 export default function RegisterPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -26,13 +41,17 @@ export default function RegisterPage() {
   const [invitationLoading, setInvitationLoading] = useState(false)
   const [teamInvitation, setTeamInvitation] = useState<TeamInvitation | null>(null)
   const [teamInvitationLoading, setTeamInvitationLoading] = useState(false)
+  const [appraiserInvitation, setAppraiserInvitation] = useState<AppraiserInvitation | null>(null)
+  const [appraiserInvitationLoading, setAppraiserInvitationLoading] = useState(false)
 
   const invitationToken = searchParams.get('invitation')
   const teamInviteToken = searchParams.get('teamInvite')
+  const appraiserInvitationToken = searchParams.get('appraiserInvitation')
   const campaignId = searchParams.get('campaign')
   const roleParam = searchParams.get('role')
   const redirectParam = searchParams.get('redirect')
   const returnUrl = searchParams.get('returnUrl')
+  const emailParam = searchParams.get('email')
 
   useEffect(() => {
     if (!loading && user) {
@@ -104,6 +123,32 @@ export default function RegisterPage() {
     }
   }, [teamInviteToken])
 
+  const fetchAppraiserInvitation = useCallback(async () => {
+    if (!appraiserInvitationToken) return
+
+    setAppraiserInvitationLoading(true)
+    try {
+      const response = await fetch(`/api/appraiser/invitations/${appraiserInvitationToken}`)
+      
+      if (response.ok) {
+        const { invitation: invitationData } = await response.json()
+        if (invitationData) {
+          // Convert date strings back to Date objects
+          const appraiserInvitation = {
+            ...invitationData,
+            invitedAt: new Date(invitationData.invitedAt),
+            expiresAt: new Date(invitationData.expiresAt)
+          }
+          setAppraiserInvitation(appraiserInvitation)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching appraiser invitation:', error)
+    } finally {
+      setAppraiserInvitationLoading(false)
+    }
+  }, [appraiserInvitationToken])
+
   useEffect(() => {
     if (invitationToken) {
       fetchInvitation()
@@ -116,7 +161,13 @@ export default function RegisterPage() {
     }
   }, [teamInviteToken, fetchTeamInvitation])
 
-  if (loading || invitationLoading || teamInvitationLoading) {
+  useEffect(() => {
+    if (appraiserInvitationToken) {
+      fetchAppraiserInvitation()
+    }
+  }, [appraiserInvitationToken, fetchAppraiserInvitation])
+
+  if (loading || invitationLoading || teamInvitationLoading || appraiserInvitationLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -134,8 +185,11 @@ export default function RegisterPage() {
         invitation={invitation}
         teamInvitation={teamInvitation ? {...teamInvitation} as Record<string, unknown> : undefined}
         teamInviteToken={teamInviteToken}
+        appraiserInvitation={appraiserInvitation}
+        emailParam={emailParam}
         preselectedRole={
           invitation ? 'donor' : 
+          appraiserInvitation ? 'appraiser' :
           roleParam as 'donor' | 'nonprofit_admin' | 'appraiser' | null
         }
         onSuccessRedirect={

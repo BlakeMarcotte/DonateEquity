@@ -13,10 +13,12 @@ export default function ParticipantTasksPage() {
   const router = useRouter()
   const params = useParams()
   const campaignId = params.id as string
-  const donorId = params.donorId as string
+  const donorIdOrParticipantId = params.donorId as string
   
-  // Create participant ID for task querying
-  const participantId = campaignId && donorId ? `${campaignId}_${donorId}` : null
+  // Check if donorId is actually a participant ID (contains underscore) or just a donor ID
+  const isParticipantId = donorIdOrParticipantId?.includes('_')
+  const participantId = isParticipantId ? donorIdOrParticipantId : (campaignId && donorIdOrParticipantId ? `${campaignId}_${donorIdOrParticipantId}` : null)
+  const actualDonorId = isParticipantId ? donorIdOrParticipantId.split('_')[1] : donorIdOrParticipantId
   const { tasks, loading: tasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
 
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
@@ -32,14 +34,14 @@ export default function ParticipantTasksPage() {
       const isAuthorized = 
         customClaims.role === 'nonprofit_admin' ||
         customClaims.role === 'appraiser' ||
-        (customClaims.role === 'donor' && user.uid === donorId)
+        (customClaims.role === 'donor' && user.uid === actualDonorId)
       
       if (!isAuthorized) {
         router.push('/organization')
         return
       }
     }
-  }, [user, loading, customClaims, router, donorId])
+  }, [user, loading, customClaims, router, actualDonorId])
 
   if (loading || tasksLoading) {
     return (
@@ -54,7 +56,7 @@ export default function ParticipantTasksPage() {
   }
 
   const isNonprofitAdmin = customClaims.role === 'nonprofit_admin'
-  const isDonor = customClaims.role === 'donor' && user.uid === donorId
+  const isDonor = customClaims.role === 'donor' && user.uid === actualDonorId
 
   return (
     <div className="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">

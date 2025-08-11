@@ -17,7 +17,8 @@ export async function POST(
     const decodedToken = await adminAuth.verifyIdToken(authToken)
     
     // Only appraisers can accept appraiser invitations
-    if (decodedToken.role !== 'appraiser') {
+    // Allow new users who don't have a role set yet, but if they do have a role, it must be appraiser
+    if (decodedToken.role && decodedToken.role !== 'appraiser') {
       return NextResponse.json({ error: 'Only appraisers can accept appraiser invitations' }, { status: 403 })
     }
 
@@ -68,38 +69,109 @@ export async function POST(
 
     // Find and update appraiser tasks for this donation
     const donationId = invitationData.donationId
-    
-    // Update all appraiser tasks to assign to this user
-    const appraiserTasksQuery = adminDb.collection('tasks')
-      .where('donationId', '==', donationId)
-      .where('assignedRole', '==', 'appraiser')
-
-    const appraiserTasksSnapshot = await appraiserTasksQuery.get()
-    
     const batch = adminDb.batch()
     
-    appraiserTasksSnapshot.docs.forEach(taskDoc => {
-      batch.update(taskDoc.ref, {
-        assignedTo: decodedToken.uid,
+    // Handle both participant-based (new) and donation-based (legacy) tasks
+    let isParticipantBased = false
+    let participantId = null
+    
+    if (donationId.includes('_')) {
+      // This is a participantId (new system)
+      isParticipantBased = true
+      participantId = donationId
+      
+      // Update participant-based appraiser tasks
+      const participantTasksQuery = adminDb.collection('tasks')
+        .where('participantId', '==', participantId)
+        .where('assignedRole', '==', 'appraiser')
+
+      const participantTasksSnapshot = await participantTasksQuery.get()
+      
+      participantTasksSnapshot.docs.forEach(taskDoc => {
+        batch.update(taskDoc.ref, {
+          assignedTo: decodedToken.uid,
+          updatedAt: FieldValue.serverTimestamp()
+        })
+      })
+      
+      // Update the participant record
+      const participantRef = adminDb.collection('campaign_participants').doc(participantId)
+      batch.update(participantRef, {
+        appraiserId: decodedToken.uid,
+        appraiserEmail: decodedToken.email,
+        appraisalStatus: 'appraiser_assigned',
         updatedAt: FieldValue.serverTimestamp()
       })
-    })
+    } else {
+      // Legacy donation-based system
+      // Update all appraiser tasks to assign to this user
+      const appraiserTasksQuery = adminDb.collection('tasks')
+        .where('donationId', '==', donationId)
+        .where('assignedRole', '==', 'appraiser')
 
-    // Update the donation record to include appraiser info
-    const donationRef = adminDb.collection('donations').doc(donationId)
-    batch.update(donationRef, {
-      appraiserId: decodedToken.uid,
-      appraiserEmail: decodedToken.email,
-      appraisalStatus: 'appraiser_assigned',
-      updatedAt: FieldValue.serverTimestamp()
-    })
+      const appraiserTasksSnapshot = await appraiserTasksQuery.get()
+      
+      appraiserTasksSnapshot.docs.forEach(taskDoc => {
+        batch.update(taskDoc.ref, {
+          assignedTo: decodedToken.uid,
+          updatedAt: FieldValue.serverTimestamp()
+        })
+      })
+
+      // Update the donation record to include appraiser info
+      const donationRef = adminDb.collection('donations').doc(donationId)
+      batch.update(donationRef, {
+        appraiserId: decodedToken.uid,
+        appraiserEmail: decodedToken.email,
+        appraisalStatus: 'appraiser_assigned',
+        updatedAt: FieldValue.serverTimestamp()
+      })
+    }
 
     await batch.commit()
+
+    // Track if we need to update the user's role
+    let roleUpdated = false
+    
+    // If user doesn't have appraiser role yet, set it now
+    if (!decodedToken.role || decodedToken.role !== 'appraiser') {
+      const customClaims = {
+        ...decodedToken,
+        role: 'appraiser',
+        permissions: ['view_assigned_tasks', 'submit_appraisals', 'manage_own_profile']
+      }
+      
+      await adminAuth.setCustomUserClaims(decodedToken.uid, customClaims)
+      
+      // Also update the user document
+      const userRef = adminDb.collection('users').doc(decodedToken.uid)
+      await userRef.set({
+        role: 'appraiser',
+        permissions: ['view_assigned_tasks', 'submit_appraisals', 'manage_own_profile'],
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true })
+      
+      roleUpdated = true
+    }
+
+    // Determine the correct redirect URL based on whether it's participant-based or donation-based
+    let redirectUrl
+    if (isParticipantBased) {
+      // Extract campaign and user IDs from participantId (format: campaignId_userId)
+      const [campaignId, userId] = participantId.split('_')
+      redirectUrl = `/campaigns/${campaignId}/participants/${participantId}/tasks`
+    } else {
+      redirectUrl = `/donations/${donationId}/tasks`
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Invitation accepted successfully! You have been assigned as the appraiser for this donation.',
-      donationId: donationId
+      donationId: donationId,
+      participantId: isParticipantBased ? participantId : null,
+      redirectUrl: redirectUrl,
+      isParticipantBased: isParticipantBased,
+      roleUpdated: roleUpdated
     })
 
   } catch (error) {

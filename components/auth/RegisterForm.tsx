@@ -19,6 +19,21 @@ interface Organization {
   type: 'nonprofit' | 'appraiser' | 'donor'
 }
 
+interface AppraiserInvitation {
+  id: string
+  donationId: string
+  appraiserEmail: string
+  appraiserName: string | null
+  inviterName: string
+  inviterEmail: string
+  personalMessage: string
+  status: 'pending' | 'accepted' | 'declined' | 'expired'
+  userExists: boolean
+  existingUserId: string | null
+  invitedAt: Date
+  expiresAt: Date
+}
+
 interface RegisterFormProps {
   onSuccess?: () => void
   redirectTo?: string
@@ -27,6 +42,8 @@ interface RegisterFormProps {
   preselectedRole?: 'donor' | 'nonprofit_admin' | 'appraiser' | null
   teamInvitation?: Record<string, unknown>
   teamInviteToken?: string | null
+  appraiserInvitation?: AppraiserInvitation | null
+  emailParam?: string | null
 }
 
 const ROLES = [
@@ -54,7 +71,9 @@ export default function RegisterForm({
   onSuccessRedirect,
   preselectedRole,
   teamInvitation,
-  teamInviteToken
+  teamInviteToken,
+  appraiserInvitation,
+  emailParam
 }: RegisterFormProps) {
   const [step, setStep] = useState<'basic' | 'organization'>('basic')
   const [formData, setFormData] = useState({
@@ -95,8 +114,21 @@ export default function RegisterForm({
         organizationId: teamInvitation.organizationId as string,
         joinExistingOrg: true, // They're joining an existing org
       }))
+    } else if (appraiserInvitation) {
+      // Pre-fill for appraiser invitation
+      setFormData(prev => ({
+        ...prev,
+        email: appraiserInvitation.appraiserEmail,
+        role: 'appraiser' // Always appraiser for appraiser invites
+      }))
+    } else if (emailParam) {
+      // Pre-fill email from URL parameter
+      setFormData(prev => ({
+        ...prev,
+        email: emailParam
+      }))
     }
-  }, [invitation, teamInvitation])
+  }, [invitation, teamInvitation, appraiserInvitation, emailParam])
 
   const fetchOrganizations = async (type: 'nonprofit' | 'appraiser' | 'donor') => {
     setLoadingOrgs(true)
@@ -347,9 +379,15 @@ export default function RegisterForm({
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="Enter your email address"
-                  disabled={loading}
-                  className={`text-base h-12 ${error ? 'form-error' : ''}`}
+                  disabled={loading || !!appraiserInvitation || !!invitation || !!teamInvitation}
+                  className={`text-base h-12 ${error ? 'form-error' : ''} ${(appraiserInvitation || invitation || teamInvitation) ? 'bg-gray-50 text-gray-600' : ''}`}
                 />
+                {(appraiserInvitation || invitation || teamInvitation) && (
+                  <p className="text-sm text-gray-500 flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email address is set from your invitation and cannot be changed
+                  </p>
+                )}
               </div>
 
               {/* Role Selection */}

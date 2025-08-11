@@ -435,6 +435,35 @@ export function DonationTaskList({
     return false
   }
 
+  // Debug logging after canCompleteTask is defined
+  console.log('Debug - User ID:', user?.uid)
+  console.log('Debug - User Role:', customClaims?.role)
+  console.log('Debug - Show All Tasks:', showAllTasks)
+  console.log('Debug - Filtered Tasks Count:', filteredTasks.length)
+  
+  // Debug all task statuses to understand the workflow
+  console.log('Debug - All Task Statuses:')
+  tasks.forEach((task, index) => {
+    console.log(`Task ${task.order || index + 1}: ${task.title}`, {
+      status: task.status,
+      assignedRole: task.assignedRole,
+      assignedTo: task.assignedTo,
+      dependencies: task.dependencies,
+      canComplete: canCompleteTask(task)
+    })
+  })
+  
+  const appraiserTasks = tasks.filter(t => t.assignedRole === 'appraiser')
+  console.log('Debug - Appraiser Tasks:', appraiserTasks.map(t => ({
+    id: t.id,
+    title: t.title,
+    assignedTo: t.assignedTo,
+    assignedRole: t.assignedRole,
+    status: t.status,
+    dependencies: t.dependencies,
+    canComplete: canCompleteTask(t)
+  })))
+
   // Tasks should always exist since they're created automatically with donations
   if (filteredTasks.length === 0) {
     return (
@@ -598,15 +627,44 @@ export function DonationTaskList({
                           size="sm"
                           variant="outline"
                           onClick={async () => {
-                            if (confirm('Mark this DocuSign task as complete? (Development only)')) {
-                              await completeTask(task.id)
+                            if (confirm('Download and store signed document? This will mark the task as complete. (Development only)')) {
+                              setCompletingTasks(prev => new Set(prev).add(task.id))
+                              try {
+                                // Use the development-specific endpoint that downloads the document
+                                const response = await fetch(`/api/tasks/${task.id}/complete-docusign-dev`, {
+                                  method: 'POST',
+                                  headers: {
+                                    'Authorization': `Bearer ${await user?.getIdToken()}`,
+                                    'Content-Type': 'application/json'
+                                  }
+                                })
+
+                                if (!response.ok) {
+                                  const error = await response.json()
+                                  throw new Error(error.error || 'Failed to complete task')
+                                }
+
+                                const result = await response.json()
+                                console.log('DocuSign task completed:', result)
+                                
+                                // Tasks will refresh automatically via Firestore listener
+                              } catch (error) {
+                                console.error('Failed to complete DocuSign task:', error)
+                                alert('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'))
+                              } finally {
+                                setCompletingTasks(prev => {
+                                  const newSet = new Set(prev)
+                                  newSet.delete(task.id)
+                                  return newSet
+                                })
+                              }
                             }
                           }}
                           disabled={completingTasks.has(task.id)}
                           className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200"
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
-                          Mark Complete
+                          {completingTasks.has(task.id) ? 'Processing...' : 'Download & Complete'}
                         </Button>
                       )}
                     </div>

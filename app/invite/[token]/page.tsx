@@ -159,16 +159,25 @@ export default function InvitationPage() {
           setInvitation(prev => prev ? { ...prev, status: response } : null)
           setResponded(true)
           
+          // Log the response to debug
+          console.log('Acceptance result:', acceptanceResult)
+          
           // Redirect to participant-based task page if we have the participant data
           setTimeout(() => {
-            if (acceptanceResult.data?.participantId && acceptanceResult.data?.campaignId) {
+            // Check both data.participantId and data.donorId since API returns donorId
+            if (acceptanceResult.data?.campaignId && (acceptanceResult.data?.participantId || acceptanceResult.data?.donorId)) {
               const campaignId = acceptanceResult.data.campaignId
-              // Construct the donor ID from the participant ID (participantId format: campaignId_donorId)
-              const donorId = user?.uid
+              const donorId = acceptanceResult.data.donorId || user?.uid
               router.push(`/campaigns/${campaignId}/participants/${donorId}/tasks`)
             } else {
               // Fallback to my-campaign if participant data is not available
-              router.push('/my-campaign')
+              console.log('Missing data for direct redirect, falling back to my-campaign')
+              // Pass campaign ID as query param to help with immediate loading
+              if (acceptanceResult.data?.campaignId) {
+                router.push(`/my-campaign?campaignId=${acceptanceResult.data.campaignId}`)
+              } else {
+                router.push('/my-campaign')
+              }
             }
           }, 2000)
         } else {

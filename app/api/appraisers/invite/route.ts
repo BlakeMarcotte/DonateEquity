@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     } else {
       // New user - sign up and view donation
       emailSubject = `${userProfile?.displayName || 'A donor'} has invited you to join Donate Equity as an appraiser`
-      ctaUrl = `${baseUrl}/auth/register?role=appraiser&redirect=/appraiser/invitations/${invitationToken}`
+      ctaUrl = `${baseUrl}/appraiser/invitations/${invitationToken}`
       
       emailHtml = `
         <div style="font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
