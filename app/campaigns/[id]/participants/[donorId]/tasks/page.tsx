@@ -20,7 +20,16 @@ export default function ParticipantTasksPage() {
   const participantId = isParticipantId ? donorIdOrParticipantId : (campaignId && donorIdOrParticipantId ? `${campaignId}_${donorIdOrParticipantId}` : null)
   const actualDonorId = isParticipantId ? donorIdOrParticipantId.split('_')[1] : donorIdOrParticipantId
   const { tasks, loading: tasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
-  const [participantData, setParticipantData] = useState<any>(null)
+  const [participantData, setParticipantData] = useState<{
+    id: string
+    campaignId: string
+    userId: string
+    userEmail: string
+    role: string
+    status: string
+    appraiserId?: string
+    appraiserEmail?: string
+  } | null>(null)
   const [participantLoading, setParticipantLoading] = useState(true)
 
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
@@ -80,7 +89,7 @@ export default function ParticipantTasksPage() {
         return
       }
     }
-  }, [user, loading, customClaims, router, actualDonorId, participantLoading, participantData])
+  }, [user, loading, customClaims, router, actualDonorId, participantLoading, participantData, participantId])
 
   if (loading || tasksLoading || participantLoading) {
     return (

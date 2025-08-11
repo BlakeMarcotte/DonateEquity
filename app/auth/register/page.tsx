@@ -81,7 +81,7 @@ function RegisterPage() {
         }
       }
     }
-  }, [user, loading, router, campaignId, invitationToken, invitation, redirectParam])
+  }, [user, loading, router, campaignId, invitationToken, invitation, redirectParam, customClaims])
 
   const fetchInvitation = useCallback(async () => {
     if (!invitationToken) return

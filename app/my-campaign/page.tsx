@@ -12,11 +12,10 @@ import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { Heart, CheckSquare, FileText } from 'lucide-react'
 
 function MyCampaignPage() {
-  const { user, customClaims, loading, refreshUserData } = useAuth()
+  const { user, customClaims, loading } = useAuth()
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign()
   const searchParams = useSearchParams()
   const campaignIdFromUrl = searchParams.get('campaignId')
-  const [hasTriedRefresh, setHasTriedRefresh] = useState(false)
   
   // Create participant ID for task querying
   // For appraisers, we need to get the donor's participant ID since tasks are stored there
@@ -106,7 +105,7 @@ function MyCampaignPage() {
     if (!loading && user) {
       console.log('MyCampaign: User authenticated, showing page regardless of role')
     }
-  }, [user, loading, router])
+  }, [user, loading, router, customClaims?.role])
 
   if (loading || campaignLoading || tasksLoading) {
     return (

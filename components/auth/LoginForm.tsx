@@ -24,7 +24,7 @@ export default function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
   const [successMessage, setSuccessMessage] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { refreshUserData, customClaims } = useAuth()
+  const { refreshUserData } = useAuth()
 
   useEffect(() => {
     const message = searchParams.get('message')
