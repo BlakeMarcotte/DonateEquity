@@ -302,7 +302,7 @@ export default function RegisterForm({
                   router.push('/my-campaign')
                   break
                 case 'nonprofit_admin':
-                  router.push('/organization')
+                  router.push('/tasks')
                   break
                 default:
                   router.push('/dashboard')

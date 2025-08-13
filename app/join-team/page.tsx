@@ -108,9 +108,9 @@ function JoinTeamPage() {
 
       if (response.ok) {
         setSuccess(true)
-        // Redirect to organization page after 2 seconds
+        // Redirect to tasks page after 2 seconds
         setTimeout(() => {
-          router.push('/organization?tab=team')
+          router.push('/tasks')
         }, 2000)
       } else {
         const errorData = await response.json()

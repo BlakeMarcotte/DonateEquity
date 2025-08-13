@@ -63,7 +63,7 @@ export default function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
               router.push('/my-campaign')
               break
             case 'nonprofit_admin':
-              router.push('/organization')
+              router.push('/tasks')
               break
             default:
               router.push('/dashboard')

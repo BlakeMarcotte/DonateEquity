@@ -3,6 +3,7 @@
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { getOrCreateOrganization, type Organization, updateOrganization } from '@/lib/firebase/organizations'
 import InviteTeamMemberModal from '@/components/organization/InviteTeamMemberModal'
 import TeamMemberList from '@/components/organization/TeamMemberList'
@@ -51,17 +52,49 @@ interface PendingInvitation {
   status: 'pending' | 'accepted' | 'declined' | 'expired'
 }
 
+// Format phone number as user types
+const formatPhoneNumber = (value: string) => {
+  // Remove all non-digits
+  const phoneNumber = value.replace(/\D/g, '')
+  
+  // Format as (XXX) XXX-XXXX
+  if (phoneNumber.length <= 3) {
+    return phoneNumber
+  } else if (phoneNumber.length <= 6) {
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`
+  } else {
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`
+  }
+}
+
+// Format EIN as user types
+const formatEIN = (value: string) => {
+  // Remove all non-digits
+  const ein = value.replace(/\D/g, '')
+  
+  // Format as XX-XXXXXXX
+  if (ein.length <= 2) {
+    return ein
+  } else {
+    return `${ein.slice(0, 2)}-${ein.slice(2, 9)}`
+  }
+}
+
 export default function OrganizationPage() {
   const { user, userProfile, customClaims, loading: authLoading } = useAuth()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Organization>>({})
+  const [hasChanges, setHasChanges] = useState(false)
   
   // Team management state
-  const [activeTab, setActiveTab] = useState<'details' | 'team'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'team'>(
+    searchParams.get('tab') === 'team' ? 'team' : 'details'
+  )
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([])
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
@@ -99,6 +132,12 @@ export default function OrganizationPage() {
   }, [customClaims?.organizationId, customClaims?.role, userProfile])
 
   useEffect(() => {
+    // Redirect nonprofit admins to tasks page if they access /organization directly
+    if (!authLoading && customClaims?.role === 'nonprofit_admin' && !searchParams.get('from')) {
+      router.push('/tasks')
+      return
+    }
+
     // Wait for auth to fully load before attempting to fetch
     if (!authLoading && customClaims?.organizationId) {
       fetchOrganization()
@@ -107,28 +146,33 @@ export default function OrganizationPage() {
       setError('No organization ID found in user claims')
     }
 
-  }, [customClaims?.organizationId, authLoading, customClaims, fetchOrganization])
+  }, [customClaims?.organizationId, authLoading, customClaims, fetchOrganization, router, searchParams])
 
-  const handleEdit = () => {
-    setEditing(true)
-    setEditForm(organization || {})
-  }
-
-  const handleCancel = () => {
-    setEditing(false)
-    setEditForm(organization || {})
-  }
 
   const handleSave = async () => {
     if (!organization || !editForm) return
 
     setSaving(true)
     try {
-      const success = await updateOrganization(organization.id, editForm)
+      // Clean up the data to remove undefined values
+      const cleanedData: any = {}
+      Object.keys(editForm).forEach(key => {
+        const value = editForm[key as keyof Organization]
+        if (value !== undefined && value !== '') {
+          cleanedData[key] = value
+        }
+      })
+
+      const success = await updateOrganization(organization.id, cleanedData)
       
       if (success) {
-        setOrganization({ ...organization, ...editForm, updatedAt: new Date() })
-        setEditing(false)
+        setOrganization({ ...organization, ...cleanedData, updatedAt: new Date() })
+        setHasChanges(false)
+
+        // If coming from tasks page, redirect back
+        if (searchParams.get('from') === 'tasks') {
+          router.push('/tasks')
+        }
       } else {
         setError('Failed to save organization changes')
       }
@@ -141,6 +185,7 @@ export default function OrganizationPage() {
   }
 
   const handleInputChange = (field: string, value: unknown) => {
+    setHasChanges(true)
     if (field.includes('.')) {
       const [parent, child] = field.split('.')
       setEditForm(prev => ({
@@ -388,13 +433,14 @@ export default function OrganizationPage() {
                 </div>
                 
                 <div className="flex items-center space-x-3">
-                  {activeTab === 'details' && !editing && (
+                  {activeTab === 'details' && hasChanges && (
                     <button
-                      onClick={handleEdit}
-                      className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors duration-200"
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
                     >
-                      <Edit3 className="w-4 h-4" />
-                      <span>Edit Details</span>
+                      <Save className="w-4 h-4" />
+                      <span>{saving ? 'Saving...' : 'Save Changes'}</span>
                     </button>
                   )}
                   
@@ -406,26 +452,6 @@ export default function OrganizationPage() {
                       <UserPlus className="w-4 h-4" />
                       <span>Invite Member</span>
                     </button>
-                  )}
-                  
-                  {editing && (
-                    <>
-                      <button
-                        onClick={handleCancel}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors duration-200"
-                      >
-                        <X className="w-4 h-4" />
-                        <span>Cancel</span>
-                      </button>
-                      <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
-                      >
-                        <Save className="w-4 h-4" />
-                        <span>{saving ? 'Saving...' : 'Save'}</span>
-                      </button>
-                    </>
                   )}
                 </div>
               </div>
@@ -468,232 +494,107 @@ export default function OrganizationPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Main Info */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Basic Information */}
+                {/* Essential Information */}
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Basic Information</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Essential Information</h2>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Organization Name
+                        Organization Name *
                       </label>
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={editForm.name || ''}
-                          onChange={(e) => handleInputChange('name', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-lg text-gray-900">{organization.name}</p>
-                      )}
+                      <input
+                        type="text"
+                        value={editForm.name || ''}
+                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                        placeholder="Enter organization name"
+                        required
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Type
+                        EIN (Tax ID) *
                       </label>
-                      <p className="text-lg text-gray-900 capitalize">{organization.type}</p>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Description
-                      </label>
-                      {editing ? (
-                        <textarea
-                          rows={4}
-                          value={editForm.description || ''}
-                          onChange={(e) => handleInputChange('description', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{organization.description}</p>
-                      )}
+                      <input
+                        type="text"
+                        value={editForm.taxId || ''}
+                        onChange={(e) => {
+                          const formatted = formatEIN(e.target.value)
+                          handleInputChange('taxId', formatted)
+                        }}
+                        placeholder="XX-XXXXXXX"
+                        maxLength={10}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                        required
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Tax ID
+                        <Globe className="inline w-4 h-4 mr-1" />
+                        Website *
                       </label>
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={editForm.taxId || ''}
-                          onChange={(e) => handleInputChange('taxId', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{organization.taxId || 'Not provided'}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Established Year
-                      </label>
-                      {editing ? (
-                        <input
-                          type="number"
-                          value={editForm.establishedYear || ''}
-                          onChange={(e) => handleInputChange('establishedYear', parseInt(e.target.value))}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{organization.establishedYear || 'Not provided'}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contact Information */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Contact Information</h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Mail className="inline w-4 h-4 mr-1" />
-                        Email
-                      </label>
-                      {editing ? (
-                        <input
-                          type="email"
-                          value={editForm.email || ''}
-                          onChange={(e) => handleInputChange('email', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{organization.email}</p>
-                      )}
+                      <input
+                        type="url"
+                        value={editForm.website || ''}
+                        onChange={(e) => handleInputChange('website', e.target.value)}
+                        placeholder="https://www.example.org"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                        required
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <Phone className="inline w-4 h-4 mr-1" />
-                        Phone
+                        Phone Number *
                       </label>
-                      {editing ? (
-                        <input
-                          type="tel"
-                          value={editForm.phone || ''}
-                          onChange={(e) => handleInputChange('phone', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{organization.phone || 'Not provided'}</p>
-                      )}
+                      <input
+                        type="tel"
+                        value={editForm.phone || ''}
+                        onChange={(e) => {
+                          const formatted = formatPhoneNumber(e.target.value)
+                          handleInputChange('phone', formatted)
+                        }}
+                        placeholder="(555) 123-4567"
+                        maxLength={14}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                        required
+                      />
                     </div>
 
-                    <div className="md:col-span-2">
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Globe className="inline w-4 h-4 mr-1" />
-                        Website
+                        City *
                       </label>
-                      {editing ? (
-                        <input
-                          type="url"
-                          value={editForm.website || ''}
-                          onChange={(e) => handleInputChange('website', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        organization.website ? (
-                          <a
-                            href={organization.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            {organization.website}
-                          </a>
-                        ) : (
-                          <p className="text-gray-900">Not provided</p>
-                        )
-                      )}
+                      <input
+                        type="text"
+                        value={editForm.address?.city || ''}
+                        onChange={(e) => handleInputChange('address.city', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                        placeholder="Enter city"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        State *
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.address?.state || ''}
+                        onChange={(e) => handleInputChange('address.state', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                        placeholder="Enter state"
+                        required
+                      />
                     </div>
                   </div>
                 </div>
 
-                {/* Address */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                    <MapPin className="inline w-5 h-5 mr-2" />
-                    Address
-                  </h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Street</label>
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={editForm.address?.street || ''}
-                          onChange={(e) => handleInputChange('address.street', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{organization.address?.street || 'Not provided'}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={editForm.address?.city || ''}
-                          onChange={(e) => handleInputChange('address.city', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{organization.address?.city || 'Not provided'}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={editForm.address?.state || ''}
-                          onChange={(e) => handleInputChange('address.state', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{organization.address?.state || 'Not provided'}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">ZIP Code</label>
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={editForm.address?.zipCode || ''}
-                          onChange={(e) => handleInputChange('address.zipCode', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{organization.address?.zipCode || 'Not provided'}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={editForm.address?.country || ''}
-                          onChange={(e) => handleInputChange('address.country', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{organization.address?.country || 'Not provided'}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Sidebar */}

@@ -100,8 +100,17 @@ export async function updateOrganization(
   updates: Partial<Omit<Organization, 'id' | 'createdAt'>>
 ): Promise<boolean> {
   try {
+    // Filter out undefined values
+    const cleanedUpdates: any = {}
+    Object.keys(updates).forEach(key => {
+      const value = updates[key as keyof typeof updates]
+      if (value !== undefined) {
+        cleanedUpdates[key] = value
+      }
+    })
+    
     const updateData = {
-      ...updates,
+      ...cleanedUpdates,
       updatedAt: Timestamp.now(),
     }
     

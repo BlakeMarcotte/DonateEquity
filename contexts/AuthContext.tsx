@@ -37,14 +37,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return {
           uid: user.uid,
           email: user.email || '',
-          displayName: user.displayName || '',
+          displayName: data.displayName || user.displayName || '',
           role: data.role,
           subrole: data.subrole,
           organizationId: data.organizationId,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
-          phoneNumber: user.phoneNumber,
-          photoURL: user.photoURL,
+          phoneNumber: data.phoneNumber || user.phoneNumber || '',
+          photoURL: data.photoURL || user.photoURL,
           isEmailVerified: user.emailVerified,
           metadata: {
             lastLoginAt: data.metadata?.lastLoginAt?.toDate(),

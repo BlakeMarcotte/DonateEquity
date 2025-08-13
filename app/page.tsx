@@ -31,17 +31,17 @@ export default function HomePage() {
           router.push('/my-campaign')
           break
         case 'nonprofit_admin':
-          router.push('/organization')
+          router.push('/tasks')
           break
         case 'appraiser':
           router.push('/my-campaign')
           break
         case 'admin':
-          router.push('/organization') // Admin can use nonprofit admin dashboard
+          router.push('/tasks') // Admin can use nonprofit admin tasks
           break
         default:
           // Fallback for unknown roles
-          router.push('/organization')
+          router.push('/tasks')
           break
       }
     }

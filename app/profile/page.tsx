@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { updateProfile, updatePassword } from 'firebase/auth'
 import { doc, updateDoc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
@@ -45,13 +46,30 @@ interface UserProfileData {
   }
 }
 
+// Format phone number as user types
+const formatPhoneNumber = (value: string) => {
+  // Remove all non-digits
+  const phoneNumber = value.replace(/\D/g, '')
+  
+  // Format as (XXX) XXX-XXXX
+  if (phoneNumber.length <= 3) {
+    return phoneNumber
+  } else if (phoneNumber.length <= 6) {
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`
+  } else {
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`
+  }
+}
+
 export default function ProfilePage() {
   const { user, userProfile, customClaims, refreshUserData } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
-  const [isEditing, setIsEditing] = useState(false)
   const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [organization, setOrganization] = useState<Record<string, unknown> | null>(null)
@@ -132,6 +150,7 @@ export default function ProfilePage() {
   }, [userProfile, user, customClaims, fetchOrganization])
 
   const handleInputChange = (field: string, value: unknown) => {
+    setHasChanges(true)
     if (field.includes('.')) {
       const [parent, child] = field.split('.')
       setProfileData(prev => ({
@@ -167,7 +186,12 @@ export default function ProfilePage() {
       })
 
       await refreshUserData()
-      setIsEditing(false)
+      setHasChanges(false)
+
+      // If coming from tasks page, redirect back
+      if (searchParams.get('from') === 'tasks' && customClaims?.role === 'nonprofit_admin') {
+        router.push('/tasks')
+      }
     } catch (error) {
       console.error('Error updating profile:', error)
     } finally {
@@ -285,32 +309,15 @@ export default function ProfilePage() {
                 <div className="px-6 py-4 border-b border-gray-200">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-gray-900">Profile Information</h2>
-                    {!isEditing ? (
+                    {hasChanges && (
                       <button
-                        onClick={() => setIsEditing(true)}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                        onClick={handleSaveProfile}
+                        disabled={saving}
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors duration-200"
                       >
-                        <Edit3 className="w-4 h-4" />
-                        <span>Edit</span>
+                        <Save className="w-4 h-4" />
+                        <span>{saving ? 'Saving...' : 'Save Changes'}</span>
                       </button>
-                    ) : (
-                      <div className="flex items-center space-x-3">
-                        <button
-                          onClick={() => setIsEditing(false)}
-                          className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors duration-200"
-                        >
-                          <X className="w-4 h-4" />
-                          <span>Cancel</span>
-                        </button>
-                        <button
-                          onClick={handleSaveProfile}
-                          disabled={saving}
-                          className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors duration-200"
-                        >
-                          <Save className="w-4 h-4" />
-                          <span>{saving ? 'Saving...' : 'Save'}</span>
-                        </button>
-                      </div>
                     )}
                   </div>
                 </div>
@@ -321,16 +328,13 @@ export default function ProfilePage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Display Name
                       </label>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={profileData.displayName}
-                          onChange={(e) => handleInputChange('displayName', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-lg text-gray-900">{profileData.displayName}</p>
-                      )}
+                      <input
+                        type="text"
+                        value={profileData.displayName}
+                        onChange={(e) => handleInputChange('displayName', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                        placeholder="Enter your name"
+                      />
                     </div>
 
                     <div>
@@ -349,16 +353,17 @@ export default function ProfilePage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Phone Number
                       </label>
-                      {isEditing ? (
-                        <input
-                          type="tel"
-                          value={profileData.phoneNumber}
-                          onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-lg text-gray-900">{profileData.phoneNumber || 'Not provided'}</p>
-                      )}
+                      <input
+                        type="tel"
+                        value={profileData.phoneNumber}
+                        onChange={(e) => {
+                          const formatted = formatPhoneNumber(e.target.value)
+                          handleInputChange('phoneNumber', formatted)
+                        }}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                        placeholder="(555) 123-4567"
+                        maxLength={14}
+                      />
                     </div>
 
                     <div>

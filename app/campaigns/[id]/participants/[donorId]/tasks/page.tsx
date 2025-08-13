@@ -84,8 +84,8 @@ export default function ParticipantTasksPage() {
       })
       
       if (!isAuthorized) {
-        console.log('Authorization failed, redirecting to /organization')
-        router.push('/organization')
+        console.log('Authorization failed, redirecting to /tasks')
+        router.push('/tasks')
         return
       }
     }
