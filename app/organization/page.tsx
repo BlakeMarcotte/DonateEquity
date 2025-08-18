@@ -2,7 +2,7 @@
 
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { getOrCreateOrganization, type Organization, updateOrganization } from '@/lib/firebase/organizations'
 import InviteTeamMemberModal from '@/components/organization/InviteTeamMemberModal'
@@ -11,14 +11,10 @@ import PendingInvitations from '@/components/organization/PendingInvitations'
 import { NonprofitSubrole } from '@/types/auth'
 import {
   Building2,
-  MapPin,
   Globe,
   Phone,
-  Mail,
   Users,
-  Edit3,
   Save,
-  X,
   FileText,
   Calendar,
   DollarSign,
@@ -80,7 +76,7 @@ const formatEIN = (value: string) => {
   }
 }
 
-export default function OrganizationPage() {
+function OrganizationPageContent() {
   const { user, userProfile, customClaims, loading: authLoading } = useAuth()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -155,7 +151,7 @@ export default function OrganizationPage() {
     setSaving(true)
     try {
       // Clean up the data to remove undefined values
-      const cleanedData: any = {}
+      const cleanedData: Record<string, unknown> = {}
       Object.keys(editForm).forEach(key => {
         const value = editForm[key as keyof Organization]
         if (value !== undefined && value !== '') {
@@ -693,5 +689,20 @@ export default function OrganizationPage() {
         />
       </div>
     </NonprofitAdminRoute>
+  )
+}
+
+export default function OrganizationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading organization...</p>
+        </div>
+      </div>
+    }>
+      <OrganizationPageContent />
+    </Suspense>
   )
 }

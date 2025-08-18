@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
 import { verifyAuthToken } from '@/lib/auth/middleware'
+import { CustomClaims } from '@/types/auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,19 +12,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const userClaims = authResult.decodedToken
+    const customClaims = authResult.decodedToken.customClaims as CustomClaims
     
     // Check if user has nonprofit admin role
-    if (!userClaims.role || userClaims.role !== 'nonprofit_admin') {
+    if (!customClaims?.role || customClaims.role !== 'nonprofit_admin') {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    if (!userClaims.organizationId) {
+    if (!customClaims.organizationId) {
       return NextResponse.json({ error: 'No organization associated with user' }, { status: 400 })
     }
 
     // Get organization
-    const orgDoc = await adminDb.collection('organizations').doc(userClaims.organizationId).get()
+    const orgDoc = await adminDb.collection('organizations').doc(customClaims.organizationId).get()
     
     if (!orgDoc.exists) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })

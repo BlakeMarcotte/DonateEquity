@@ -101,7 +101,7 @@ export async function updateOrganization(
 ): Promise<boolean> {
   try {
     // Filter out undefined values
-    const cleanedUpdates: any = {}
+    const cleanedUpdates: Record<string, unknown> = {}
     Object.keys(updates).forEach(key => {
       const value = updates[key as keyof typeof updates]
       if (value !== undefined) {

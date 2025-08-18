@@ -1,18 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useRouter } from 'next/navigation'
 import {
   CheckCircle2,
-  Circle,
   User,
   Building2,
   Users,
   PlusCircle,
   ArrowRight,
-  Clock,
   FileText
 } from 'lucide-react'
 
@@ -32,7 +30,7 @@ export default function NonprofitDashboardPage() {
   const [loading, setLoading] = useState(true)
 
   // Check completion status for each task
-  const checkTaskCompletion = async () => {
+  const checkTaskCompletion = useCallback(async () => {
     if (!userProfile || !customClaims?.organizationId) return
 
     const taskCompletions = {
@@ -150,13 +148,13 @@ export default function NonprofitDashboardPage() {
 
     setTasks(newTasks)
     setLoading(false)
-  }
+  }, [user, userProfile, customClaims, router])
 
   useEffect(() => {
     if (user && userProfile && customClaims?.organizationId) {
       checkTaskCompletion()
     }
-  }, [user, userProfile, customClaims])
+  }, [user, userProfile, customClaims, checkTaskCompletion])
 
   const handleMarkComplete = async (taskId: string) => {
     // Update local state immediately for better UX
@@ -319,7 +317,7 @@ export default function NonprofitDashboardPage() {
             <div className="mt-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow p-6 text-white">
               <h3 className="text-xl font-semibold mb-2">🎉 Setup Complete!</h3>
               <p className="mb-4">
-                Congratulations! You've completed all the setup tasks. You're now ready to manage your campaigns and start fundraising.
+                Congratulations! You&apos;ve completed all the setup tasks. You&apos;re now ready to manage your campaigns and start fundraising.
               </p>
               <div className="flex space-x-4">
                 <button

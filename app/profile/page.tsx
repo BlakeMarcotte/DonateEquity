@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { updateProfile, updatePassword } from 'firebase/auth'
 import { doc, updateDoc, getDoc } from 'firebase/firestore'
@@ -10,9 +10,7 @@ import {
   User,
   Mail,
   Building2,
-  Edit3,
   Save,
-  X,
   Eye,
   EyeOff,
   Shield,
@@ -61,7 +59,7 @@ const formatPhoneNumber = (value: string) => {
   }
 }
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const { user, userProfile, customClaims, refreshUserData } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -576,5 +574,17 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <ProfilePageContent />
+    </Suspense>
   )
 }
