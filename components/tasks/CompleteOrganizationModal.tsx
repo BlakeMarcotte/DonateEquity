@@ -46,7 +46,7 @@ export default function CompleteOrganizationModal({
   onClose, 
   onComplete 
 }: CompleteOrganizationModalProps) {
-  const { user, userProfile, customClaims } = useAuth()
+  const { userProfile, customClaims } = useAuth()
   const [formData, setFormData] = useState({
     name: '',
     taxId: '',
@@ -60,7 +60,6 @@ export default function CompleteOrganizationModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [organization, setOrganization] = useState<Organization | null>(null)
 
   // Fetch organization data when modal opens
   useEffect(() => {
@@ -78,7 +77,6 @@ export default function CompleteOrganizationModal({
         )
         
         if (org) {
-          setOrganization(org)
           setFormData({
             name: org.name || '',
             taxId: formatEIN(org.taxId || ''),
@@ -130,9 +128,9 @@ export default function CompleteOrganizationModal({
         onClose()
       }, 1500)
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating organization:', error)
-      setError(error.message || 'Failed to update organization information')
+      setError(error instanceof Error ? error.message : 'Failed to update organization information')
     } finally {
       setSaving(false)
     }

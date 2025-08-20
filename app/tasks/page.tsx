@@ -163,7 +163,7 @@ export default function NonprofitDashboardPage() {
 
     setTasks(newTasks)
     setLoading(false)
-  }, [user, userProfile, customClaims, router])
+  }, [user, userProfile, customClaims])
 
   useEffect(() => {
     if (user && userProfile && customClaims?.organizationId) {

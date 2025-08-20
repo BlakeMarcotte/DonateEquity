@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { collection, addDoc, doc, getDoc, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import { Modal } from '@/components/ui/modal'
-import { X } from 'lucide-react'
+// Removed unused import X
 
 interface CreateCampaignModalProps {
   isOpen: boolean

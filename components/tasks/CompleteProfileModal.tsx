@@ -87,9 +87,9 @@ export default function CompleteProfileModal({
         onClose()
       }, 1500)
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating profile:', error)
-      setError(error.message || 'Failed to update profile')
+      setError(error instanceof Error ? error.message : 'Failed to update profile')
     } finally {
       setSaving(false)
     }

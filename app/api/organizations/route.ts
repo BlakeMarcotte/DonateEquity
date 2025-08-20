@@ -1,51 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
 import { verifyAuthToken } from '@/lib/auth/middleware'
+import { withSecurity } from '@/lib/security/api-middleware'
+import { organizationSchema, paginationSchema, idSchema } from '@/lib/validation/schemas'
+import { secureLogger } from '@/lib/logging/secure-logger'
+import { z } from 'zod'
 
-interface CreateOrganizationRequest {
-  name: string
-  type: 'nonprofit' | 'appraiser' | 'donor'
-  description?: string
-  website?: string
-  phone?: string
-  address?: {
-    street: string
-    city: string
-    state: string
-    zipCode: string
-    country: string
-  }
-}
+const createOrganizationSchema = organizationSchema.extend({
+  type: z.enum(['nonprofit', 'appraiser', 'donor'])
+})
 
-export async function POST(request: NextRequest) {
+const getOrganizationsSchema = z.object({
+  type: z.enum(['nonprofit', 'appraiser', 'donor']).optional(),
+  search: z.string().max(100, 'Search term too long').optional(),
+  limit: z.number().min(1).max(100).default(20)
+})
+
+const handleCreateOrganization = async (
+  request: NextRequest,
+  validatedData?: z.infer<typeof createOrganizationSchema>
+): Promise<NextResponse> => {
+  const startTime = Date.now()
+  let userId: string | undefined
+  
   try {
     // Verify authentication
     const authResult = await verifyAuthToken(request)
     if (!authResult.success || !authResult.decodedToken) {
+      secureLogger.security('Unauthorized organization creation attempt', {
+        ip: request.ip,
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        endpoint: '/api/organizations',
+        method: 'POST',
+        statusCode: 401
+      })
+      
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    const userId = authResult.decodedToken.uid
-    const body: CreateOrganizationRequest = await request.json()
-    
-    const { name, type, description, website, phone, address } = body
-
-    if (!name || !type) {
-      return NextResponse.json(
-        { error: 'Name and type are required' },
-        { status: 400 }
-      )
-    }
-
-    if (!['nonprofit', 'appraiser', 'donor'].includes(type)) {
-      return NextResponse.json(
-        { error: 'Invalid organization type' },
-        { status: 400 }
-      )
-    }
+    userId = authResult.decodedToken.uid
+    const { name, type, description, website, phone, address, taxId } = validatedData!
 
     // Check if organization with same name already exists
     const existingOrgs = await adminDb
@@ -56,6 +53,12 @@ export async function POST(request: NextRequest) {
       .get()
 
     if (!existingOrgs.empty) {
+      secureLogger.warn('Duplicate organization creation attempt', {
+        userId,
+        organizationName: name,
+        organizationType: type
+      })
+      
       return NextResponse.json(
         { error: 'Organization with this name already exists' },
         { status: 409 }
@@ -68,6 +71,7 @@ export async function POST(request: NextRequest) {
       id: orgRef.id,
       name,
       type,
+      taxId: taxId || '',
       description: description || '',
       website: website || '',
       phone: phone || '',
@@ -83,6 +87,29 @@ export async function POST(request: NextRequest) {
 
     await orgRef.set(organizationData)
 
+    // Log successful creation
+    secureLogger.audit('Organization created', {
+      userId,
+      action: 'create_organization',
+      resource: 'organization',
+      resourceId: orgRef.id,
+      ip: request.ip,
+      userAgent: request.headers.get('user-agent') || 'unknown'
+    }, {
+      organizationName: name,
+      organizationType: type
+    })
+
+    secureLogger.apiRequest({
+      method: 'POST',
+      endpoint: '/api/organizations',
+      statusCode: 201,
+      responseTime: Date.now() - startTime,
+      userId,
+      ip: request.ip,
+      userAgent: request.headers.get('user-agent') || 'unknown'
+    })
+
     return NextResponse.json(
       {
         success: true,
@@ -91,7 +118,13 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error: unknown) {
-    console.error('Organization creation error:', error)
+    secureLogger.error('Organization creation failed', error, {
+      userId,
+      endpoint: '/api/organizations',
+      method: 'POST',
+      requestData: validatedData
+    })
+    
     return NextResponse.json(
       { error: 'Failed to create organization' },
       { status: 500 }
@@ -99,12 +132,36 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export const POST = withSecurity(handleCreateOrganization, createOrganizationSchema)
+
+const handleGetOrganizations = async (request: NextRequest): Promise<NextResponse> => {
+  const startTime = Date.now()
+  
   try {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type')
     const search = searchParams.get('search')
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
+
+    // Validate query parameters
+    const queryValidation = getOrganizationsSchema.safeParse({
+      type: type || undefined,
+      search: search || undefined,
+      limit
+    })
+
+    if (!queryValidation.success) {
+      secureLogger.warn('Invalid query parameters for organizations list', {
+        endpoint: '/api/organizations',
+        method: 'GET',
+        errors: queryValidation.error.errors
+      })
+      
+      return NextResponse.json(
+        { error: 'Invalid query parameters' },
+        { status: 400 }
+      )
+    }
 
     let query = adminDb.collection('organizations').where('isActive', '==', true)
 
@@ -119,6 +176,10 @@ export async function GET(request: NextRequest) {
     let organizations = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
+      // Remove sensitive fields from public API
+      createdBy: undefined,
+      adminIds: undefined,
+      memberIds: undefined
     })) as Array<Record<string, unknown>>
 
     // Client-side search filtering
@@ -132,15 +193,30 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    secureLogger.apiRequest({
+      method: 'GET',
+      endpoint: '/api/organizations',
+      statusCode: 200,
+      responseTime: Date.now() - startTime,
+      ip: request.ip,
+      userAgent: request.headers.get('user-agent') || 'unknown'
+    })
+
     return NextResponse.json({
       success: true,
       organizations,
     })
   } catch (error: unknown) {
-    console.error('Organizations fetch error:', error)
+    secureLogger.error('Organizations fetch failed', error, {
+      endpoint: '/api/organizations',
+      method: 'GET'
+    })
+    
     return NextResponse.json(
       { error: 'Failed to fetch organizations' },
       { status: 500 }
     )
   }
 }
+
+export const GET = withSecurity(handleGetOrganizations)
