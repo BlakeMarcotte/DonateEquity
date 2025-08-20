@@ -37,7 +37,7 @@ export interface Notification {
     campaignId?: string
     invitationId?: string
     donationId?: string
-    [key: string]: any
+    [key: string]: unknown
   }
   read: boolean
   createdAt: Date

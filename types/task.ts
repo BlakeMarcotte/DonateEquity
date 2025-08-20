@@ -81,3 +81,32 @@ export interface TaskTemplate {
   requiredDocuments: string[]
   instructions: string
 }
+
+// Task completion data types
+export interface CommitmentData {
+  type: 'dollar' | 'percentage'
+  amount: number
+  message?: string
+  createdAt: string
+}
+
+export interface DocumentUploadData {
+  uploadedFiles?: string[]
+  folderPath?: string
+  notes?: string
+}
+
+export interface AppraisalData {
+  valuationAmount?: number
+  appraisalMethod?: string
+  supportingDocuments?: string[]
+  notes?: string
+}
+
+// Union type for all possible completion data
+export type TaskCompletionData = 
+  | CommitmentData 
+  | DocumentUploadData 
+  | AppraisalData 
+  | Record<string, unknown>
+  | undefined

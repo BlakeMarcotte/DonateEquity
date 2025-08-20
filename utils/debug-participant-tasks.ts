@@ -1,4 +1,6 @@
-export function debugParticipantTasks(tasks: any[]) {
+import { Task } from '@/types/task'
+
+export function debugParticipantTasks(tasks: Task[]) {
   console.log('=== PARTICIPANT TASKS DEBUG ===')
   console.log('Total tasks:', tasks.length)
   

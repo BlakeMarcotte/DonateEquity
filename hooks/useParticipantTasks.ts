@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore'
 import { db, auth } from '@/lib/firebase/config'
-import { Task } from '@/types/task'
+import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
 import { debugTaskDependencies } from '@/utils/debug-tasks'
 
 export function useParticipantTasks(participantId: string | null) {
@@ -63,7 +63,7 @@ export function useParticipantTasks(participantId: string | null) {
     return () => unsubscribe()
   }, [participantId])
 
-  const completeTask = async (taskId: string, completionData?: any) => {
+  const completeTask = async (taskId: string, completionData?: TaskCompletionData) => {
     try {
       // Use API route for task completion to handle permissions and dependencies server-side
       const response = await fetch(`/api/tasks/${taskId}/complete`, {
@@ -87,7 +87,7 @@ export function useParticipantTasks(participantId: string | null) {
     }
   }
 
-  const handleCommitmentDecision = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: any) => {
+  const handleCommitmentDecision = async (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: CommitmentData) => {
     try {
       const response = await fetch(`/api/tasks/${taskId}/commitment-decision`, {
         method: 'POST',

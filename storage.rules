@@ -107,18 +107,11 @@ service firebase.storage {
       );
     }
     
-    // Donation-specific documents - Debug mode - very permissive (OLD STRUCTURE - for backward compatibility)
+    // Donation-specific documents - OLD STRUCTURE (for backward compatibility)
     match /donations/{donationId}/{folder}/{fileName} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated(); // Temporary: allow any authenticated user
-      allow delete: if isAuthenticated();
-    }
-    
-    // Participant-based documents - NEW STRUCTURE (Temporarily permissive for debugging)
-    match /donations/participants/{participantId}/{folder}/{fileName} {
-      allow read: if isAuthenticated();
+      allow read: if isDonationParticipant(donationId);
       allow write: if (
-        isAuthenticated() &&
+        isDonationParticipant(donationId) &&
         isValidFileSize(25 * 1024 * 1024) && // 25MB limit
         isValidFileType([
           'application/pdf',
@@ -132,7 +125,28 @@ service firebase.storage {
           'text/csv'
         ])
       );
-      allow delete: if isAuthenticated();
+      allow delete: if isDonationParticipant(donationId);
+    }
+    
+    // Participant-based documents - NEW STRUCTURE
+    match /donations/participants/{participantId}/{folder}/{fileName} {
+      allow read: if isParticipantAuthorized(participantId);
+      allow write: if (
+        isParticipantAuthorized(participantId) &&
+        isValidFileSize(25 * 1024 * 1024) && // 25MB limit
+        isValidFileType([
+          'application/pdf',
+          'image/jpeg', 
+          'image/png',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+          'text/plain',
+          'text/csv'
+        ])
+      );
+      allow delete: if isParticipantAuthorized(participantId);
     }
     
     // Campaign shared materials

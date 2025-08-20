@@ -128,12 +128,6 @@ function OrganizationPageContent() {
   }, [customClaims?.organizationId, customClaims?.role, userProfile])
 
   useEffect(() => {
-    // Redirect nonprofit admins to tasks page if they access /organization directly
-    if (!authLoading && customClaims?.role === 'nonprofit_admin' && !searchParams.get('from')) {
-      router.push('/tasks')
-      return
-    }
-
     // Wait for auth to fully load before attempting to fetch
     if (!authLoading && customClaims?.organizationId) {
       fetchOrganization()
@@ -142,7 +136,7 @@ function OrganizationPageContent() {
       setError('No organization ID found in user claims')
     }
 
-  }, [customClaims?.organizationId, authLoading, customClaims, fetchOrganization, router, searchParams])
+  }, [customClaims?.organizationId, authLoading, customClaims, fetchOrganization])
 
 
   const handleSave = async () => {
@@ -164,11 +158,8 @@ function OrganizationPageContent() {
       if (success) {
         setOrganization({ ...organization, ...cleanedData, updatedAt: new Date() })
         setHasChanges(false)
-
-        // If coming from tasks page, redirect back
-        if (searchParams.get('from') === 'tasks') {
-          router.push('/tasks')
-        }
+        // Redirect back to tasks page after successful save
+        router.push('/tasks')
       } else {
         setError('Failed to save organization changes')
       }

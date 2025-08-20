@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { CommitmentDecisionTask } from './CommitmentDecisionTask'
 import { useAuth } from '@/contexts/AuthContext'
-import { Task } from '@/types/task'
+import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload, RefreshCw } from 'lucide-react'
 import { AppraiserInvitationForm } from './AppraiserInvitationForm'
@@ -13,12 +13,6 @@ import { useDonationFiles } from '@/hooks/useDonationFiles'
 import { Modal } from '@/components/ui/modal'
 import { EquityCommitmentModal } from './EquityCommitmentModal'
 
-interface CommitmentData {
-  type: 'dollar' | 'percentage'
-  amount: number
-  message?: string
-  createdAt: string
-}
 
 interface DonationTaskListProps {
   participantId?: string
@@ -27,8 +21,8 @@ interface DonationTaskListProps {
   // Allow passing tasks and handlers from parent
   tasks?: Task[]
   loading?: boolean
-  completeTask?: (taskId: string, completionData?: Record<string, unknown>) => Promise<void>
-  handleCommitmentDecision?: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: Record<string, unknown>) => Promise<void>
+  completeTask?: (taskId: string, completionData?: TaskCompletionData) => Promise<void>
+  handleCommitmentDecision?: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: CommitmentData) => Promise<void>
   campaignTitle?: string
   donorName?: string
   organizationName?: string
@@ -80,7 +74,7 @@ export function DonationTaskList({
 
     // Process the decision with the original handler
     if (handleCommitmentDecision) {
-      await handleCommitmentDecision(taskId, decision, commitmentData as unknown as Record<string, unknown>)
+      await handleCommitmentDecision(taskId, decision, commitmentData)
     }
   }
 

@@ -1,5 +1,7 @@
+import { Task } from '@/types/task'
+
 // Debug utility for task dependency issues
-export function debugTaskDependencies(tasks: any[]) {
+export function debugTaskDependencies(tasks: Task[]) {
   console.log('=== TASK DEPENDENCY DEBUG ===');
   console.log('Total tasks:', tasks.length);
   
