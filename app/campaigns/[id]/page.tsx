@@ -22,10 +22,7 @@ import CampaignAssignments from '@/components/campaigns/CampaignAssignments'
 import {
   Heart,
   ArrowLeft,
-  DollarSign,
-  Target,
   Users,
-  TrendingUp,
   Share2,
   Mail,
   Facebook,
@@ -562,51 +559,6 @@ export default function CampaignDetailPage() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Campaign Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <Target className="h-8 w-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Goal</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(campaign.goal)}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <DollarSign className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Raised</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(campaign.raised)}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-purple-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Participants</p>
-                  <p className="text-2xl font-bold text-gray-900">{participants.length}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <TrendingUp className="h-8 w-8 text-orange-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Progress</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {Math.round(getProgressPercentage(campaign.raised, campaign.goal))}%
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Progress Bar */}
           <div className="bg-white rounded-lg shadow p-6 mb-8">
             <div className="flex justify-between text-sm text-gray-600 mb-2">
