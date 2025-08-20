@@ -4,6 +4,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useRouter } from 'next/navigation'
+import { updateProfile } from 'firebase/auth'
+import { doc, updateDoc } from 'firebase/firestore'
+import { db } from '@/lib/firebase/config'
+import CompleteProfileModal from '@/components/tasks/CompleteProfileModal'
+import CompleteOrganizationModal from '@/components/tasks/CompleteOrganizationModal'
+import InviteTeamMemberModal from '@/components/organization/InviteTeamMemberModal'
+import CreateCampaignModal from '@/components/tasks/CreateCampaignModal'
+import { NonprofitSubrole } from '@/types/auth'
 import {
   CheckCircle2,
   User,
@@ -11,7 +19,8 @@ import {
   Users,
   PlusCircle,
   ArrowRight,
-  FileText
+  FileText,
+  RotateCcw
 } from 'lucide-react'
 
 interface NonprofitTask {
@@ -24,10 +33,16 @@ interface NonprofitTask {
 }
 
 export default function NonprofitDashboardPage() {
-  const { user, userProfile, customClaims } = useAuth()
+  const { user, userProfile, customClaims, refreshUserData } = useAuth()
   const router = useRouter()
   const [tasks, setTasks] = useState<NonprofitTask[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Modal states
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const [organizationModalOpen, setOrganizationModalOpen] = useState(false)
+  const [inviteTeamModalOpen, setInviteTeamModalOpen] = useState(false)
+  const [createCampaignModalOpen, setCreateCampaignModalOpen] = useState(false)
 
   // Check completion status for each task
   const checkTaskCompletion = useCallback(async () => {
@@ -117,7 +132,7 @@ export default function NonprofitDashboardPage() {
         title: 'Complete User Profile',
         description: 'Fill out your personal information including name and phone number',
         isComplete: taskCompletions.profile || manualCompletions.profile || false,
-        action: () => router.push('/profile?from=tasks'),
+        action: () => setProfileModalOpen(true),
         icon: User
       },
       {
@@ -125,7 +140,7 @@ export default function NonprofitDashboardPage() {
         title: 'Complete Organization Information',
         description: 'Add organization name, EIN, website, city, state, and phone number',
         isComplete: taskCompletions.organization || manualCompletions.organization || false,
-        action: () => router.push('/organization?from=tasks'),
+        action: () => setOrganizationModalOpen(true),
         icon: Building2
       },
       {
@@ -133,7 +148,7 @@ export default function NonprofitDashboardPage() {
         title: 'Invite Internal Team Members',
         description: 'Invite team members to collaborate on your campaigns',
         isComplete: taskCompletions.team || manualCompletions.team || false,
-        action: () => router.push('/organization?tab=team&from=tasks'),
+        action: () => setInviteTeamModalOpen(true),
         icon: Users
       },
       {
@@ -141,7 +156,7 @@ export default function NonprofitDashboardPage() {
         title: 'Create a Campaign',
         description: 'Set up your first fundraising campaign',
         isComplete: taskCompletions.campaign || manualCompletions.campaign || false,
-        action: () => router.push('/campaigns'),
+        action: () => setCreateCampaignModalOpen(true),
         icon: PlusCircle
       }
     ]
@@ -169,6 +184,74 @@ export default function NonprofitDashboardPage() {
     localStorage.setItem(storageKey, JSON.stringify(completions))
   }
 
+  // Handle team member invitation
+  const handleInviteTeamMember = async (email: string, subrole: NonprofitSubrole, personalMessage?: string) => {
+    if (!user || !customClaims?.organizationId) return
+
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/organizations/invite', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          subrole,
+          personalMessage
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to send invitation')
+      }
+
+      // Mark team task as complete and refresh task completion status
+      handleMarkComplete('team')
+      checkTaskCompletion()
+    } catch (error) {
+      throw error // Re-throw to let the modal handle it
+    }
+  }
+
+  const handleModalComplete = (taskId: string) => {
+    handleMarkComplete(taskId)
+    checkTaskCompletion()
+  }
+
+  const handleResetTasks = async () => {
+    if (!userProfile || !user) return
+    
+    // Clear localStorage completions for this user
+    const storageKey = `nonprofit-task-completions-${userProfile.uid}`
+    localStorage.removeItem(storageKey)
+    
+    // For testing purposes, also clear actual profile data
+    try {
+      // Clear profile displayName and phoneNumber in Firebase
+      const userDocRef = doc(db, 'users', userProfile.uid)
+      await updateDoc(userDocRef, {
+        displayName: '',
+        phoneNumber: '',
+        updatedAt: new Date()
+      })
+      
+      // Update Firebase Auth profile
+      await updateProfile(user, {
+        displayName: ''
+      })
+      
+      // Refresh user data and task completion status
+      await refreshUserData()
+      checkTaskCompletion()
+    } catch (error) {
+      console.error('Error resetting profile data:', error)
+      // Still refresh task completion even if profile reset failed
+      checkTaskCompletion()
+    }
+  }
 
   const completedTasks = tasks.filter(task => task.isComplete).length
   const totalTasks = tasks.length
@@ -210,9 +293,19 @@ export default function NonprofitDashboardPage() {
           <div className="bg-white rounded-lg shadow p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Setup Progress</h2>
-              <span className="text-2xl font-bold text-blue-600">
-                {completedTasks}/{totalTasks}
-              </span>
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleResetTasks}
+                  className="inline-flex items-center space-x-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors duration-200"
+                  title="Reset all tasks to test the process"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Reset Tasks</span>
+                </button>
+                <span className="text-2xl font-bold text-blue-600">
+                  {completedTasks}/{totalTasks}
+                </span>
+              </div>
             </div>
             
             <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
@@ -338,6 +431,36 @@ export default function NonprofitDashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Modals */}
+        <CompleteProfileModal
+          isOpen={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          onComplete={() => handleModalComplete('profile')}
+        />
+        
+        <CompleteOrganizationModal
+          isOpen={organizationModalOpen}
+          onClose={() => setOrganizationModalOpen(false)}
+          onComplete={() => handleModalComplete('organization')}
+        />
+        
+        <InviteTeamMemberModal
+          isOpen={inviteTeamModalOpen}
+          onClose={() => setInviteTeamModalOpen(false)}
+          onInvite={handleInviteTeamMember}
+        />
+        
+        <CreateCampaignModal
+          isOpen={createCampaignModalOpen}
+          onClose={() => setCreateCampaignModalOpen(false)}
+          onSuccess={() => {
+            handleModalComplete('campaign')
+            setCreateCampaignModalOpen(false)
+          }}
+          organizationId={customClaims?.organizationId || ''}
+          userId={userProfile?.uid || ''}
+        />
       </div>
     </NonprofitAdminRoute>
   )

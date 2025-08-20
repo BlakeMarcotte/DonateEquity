@@ -172,24 +172,6 @@ export default function CampaignCard({ campaign, className = '' }: CampaignCardP
             </div>
           </div>
 
-          {/* Tags */}
-          {campaign.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-4">
-              {campaign.tags.slice(0, 3).map((tag, index) => (
-                <span 
-                  key={index}
-                  className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-600"
-                >
-                  {tag}
-                </span>
-              ))}
-              {campaign.tags.length > 3 && (
-                <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
-                  +{campaign.tags.length - 3} more
-                </span>
-              )}
-            </div>
-          )}
 
           {/* CTA Button */}
           <Button 

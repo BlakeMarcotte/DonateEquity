@@ -68,12 +68,7 @@ export default function DonateCampaignPage() {
         return
       }
 
-      // Check if campaign is public and active
-      if (campaignData.visibility !== 'public') {
-        setError('This campaign is not publicly available')
-        return
-      }
-
+      // Check if campaign is active
       if (campaignData.status !== 'active') {
         setError('This campaign is not currently accepting donations')
         return
@@ -350,19 +345,6 @@ export default function DonateCampaignPage() {
                   </p>
                 </div>
 
-                {/* Tags */}
-                {campaign.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-8">
-                    {campaign.tags.map((tag, index) => (
-                      <span 
-                        key={index}
-                        className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
 
                 {/* Progress Section */}
                 <div className="space-y-4">

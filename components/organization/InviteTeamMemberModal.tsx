@@ -50,7 +50,10 @@ export default function InviteTeamMemberModal({
     e.preventDefault()
     setError(null)
 
-    if (!email || !subrole) {
+    console.log('Form submission - email:', email, 'subrole:', subrole)
+
+    if (!email.trim() || !subrole) {
+      console.log('Validation failed - email:', email.trim(), 'subrole:', subrole)
       setError('Email and role are required')
       return
     }
@@ -70,6 +73,7 @@ export default function InviteTeamMemberModal({
       setPersonalMessage('')
       onClose()
     } catch (error: unknown) {
+      console.error('Invitation error:', error)
       setError(error instanceof Error ? error.message : 'Failed to send invitation')
     }
   }

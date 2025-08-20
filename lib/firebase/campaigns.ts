@@ -63,11 +63,10 @@ export async function getPublicCampaigns(options: CampaignQueryOptions = {}) {
     // Apply client-side filters - production ready
     let filteredCampaigns = campaigns
 
-    // Filter by visibility and status
+    // Filter by status
     filteredCampaigns = filteredCampaigns.filter(c => {
-      const hasVisibility = c.visibility === 'public'
       const hasStatus = c.status === 'active'
-      return hasVisibility && hasStatus
+      return hasStatus
     })
 
     // Apply other filters
@@ -93,8 +92,7 @@ export async function getPublicCampaigns(options: CampaignQueryOptions = {}) {
       filteredCampaigns = filteredCampaigns.filter(campaign => 
         campaign.title.toLowerCase().includes(searchLower) ||
         campaign.description.toLowerCase().includes(searchLower) ||
-        campaign.organizationName.toLowerCase().includes(searchLower) ||
-        campaign.tags.some(tag => tag.toLowerCase().includes(searchLower))
+        campaign.organizationName.toLowerCase().includes(searchLower)
       )
     }
 
@@ -175,7 +173,6 @@ export async function getCampaignCategories(): Promise<string[]> {
   try {
     const q = query(
       collection(db, 'campaigns'),
-      where('visibility', '==', 'public'),
       where('status', '==', 'active')
     )
 
@@ -203,7 +200,6 @@ export async function getFeaturedCampaigns(count: number = 6): Promise<Campaign[
   try {
     const q = query(
       collection(db, 'campaigns'),
-      where('visibility', '==', 'public'),
       where('status', '==', 'active'),
       orderBy('currentAmount', 'desc'),
       limit(count)

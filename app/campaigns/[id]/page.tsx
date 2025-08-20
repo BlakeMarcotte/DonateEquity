@@ -56,7 +56,6 @@ interface Campaign {
   createdAt: Date
   updatedAt: Date
   endDate?: Date
-  tags: string[]
 }
 
 interface Donation {
@@ -131,7 +130,6 @@ export default function CampaignDetailPage() {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           endDate: data.endDate?.toDate(),
-          tags: data.tags || [],
         })
       }
     } catch (error) {

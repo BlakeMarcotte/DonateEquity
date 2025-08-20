@@ -38,7 +38,6 @@ interface Campaign {
   currentAmount: number
   donorCount: number
   status: 'draft' | 'active' | 'paused' | 'completed'
-  visibility?: string
   category?: string
   organizationId: string
   organizationName?: string
@@ -391,9 +390,7 @@ function CreateCampaignModal({
     description: '',
     goal: '',
     endDate: '',
-    tags: '',
     category: '',
-    visibility: 'public' as 'public' | 'private' | 'unlisted',
     status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   })
   const [saving, setSaving] = useState(false)
@@ -422,7 +419,6 @@ function CreateCampaignModal({
         currentAmount: 0,
         donorCount: 0,
         status: formData.status,
-        visibility: formData.visibility,
         category: formData.category,
         organizationId,
         organizationName,
@@ -431,7 +427,7 @@ function CreateCampaignModal({
         updatedAt: Timestamp.now(),
         startDate: Timestamp.now(),
         endDate: formData.endDate ? Timestamp.fromDate(new Date(formData.endDate)) : null,
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        tags: [],
         images: {
           hero: '',
           gallery: []
@@ -482,7 +478,7 @@ function CreateCampaignModal({
               Description
             </label>
             <textarea
-              rows={4}
+              rows={2}
               required
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
@@ -545,20 +541,6 @@ function CreateCampaignModal({
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Visibility
-              </label>
-              <select
-                value={formData.visibility}
-                onChange={(e) => setFormData(prev => ({ ...prev, visibility: e.target.value as 'public' | 'private' | 'unlisted' }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="public">Public - Visible to all donors</option>
-                <option value="private">Private - Only visible to invited donors</option>
-                <option value="unlisted">Unlisted - Accessible via direct link only</option>
-              </select>
-            </div>
           </div>
 
           <div>
@@ -580,18 +562,6 @@ function CreateCampaignModal({
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tags (comma separated)
-            </label>
-            <input
-              type="text"
-              value={formData.tags}
-              onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="education, health, environment"
-            />
-          </div>
 
           <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
             <button
@@ -629,7 +599,6 @@ function EditCampaignModal({
     description: campaign.description,
     goal: campaign.goal.toString(),
     status: campaign.status,
-    visibility: campaign.visibility || 'public',
     category: campaign.category || '',
   })
   const [saving, setSaving] = useState(false)
@@ -644,7 +613,6 @@ function EditCampaignModal({
         description: formData.description,
         goal: parseInt(formData.goal),
         status: formData.status,
-        visibility: formData.visibility,
         category: formData.category,
         updatedAt: Timestamp.now(),
       })
@@ -752,20 +720,6 @@ function EditCampaignModal({
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Visibility
-              </label>
-              <select
-                value={formData.visibility}
-                onChange={(e) => setFormData(prev => ({ ...prev, visibility: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="public">Public - Visible to all donors</option>
-                <option value="private">Private - Only visible to invited donors</option>
-                <option value="unlisted">Unlisted - Accessible via direct link only</option>
-              </select>
-            </div>
           </div>
 
           <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">

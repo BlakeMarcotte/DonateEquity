@@ -9,7 +9,6 @@ export interface Campaign {
   donorCount: number
   status: 'draft' | 'active' | 'paused' | 'completed' | 'archived'
   category: string
-  tags: string[]
   images: {
     hero: string
     gallery: string[]
@@ -19,7 +18,6 @@ export interface Campaign {
   updatedAt: Date
   startDate: Date
   endDate?: Date
-  visibility: 'public' | 'private' | 'unlisted'
   settings: {
     minimumDonation?: number
     maximumDonation?: number
