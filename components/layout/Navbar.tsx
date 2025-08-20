@@ -133,9 +133,9 @@ export default function Navbar() {
         {(userRole === 'donor' || userRole === 'appraiser') && campaign && (
           <div className="px-4 py-4 border-b border-gray-200">
             <Link
-              href={userRole === 'donor' ? '/my-campaign' : '/appraiser/campaign'}
+              href="/my-campaign"
               className={`flex flex-col space-y-1 px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                pathname === '/my-campaign' || pathname === '/appraiser/campaign'
+                pathname === '/my-campaign'
                   ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
@@ -144,13 +144,13 @@ export default function Navbar() {
                 Your Campaign
               </div>
               <div className={`font-semibold truncate ${
-                pathname === '/my-campaign' || pathname === '/appraiser/campaign' ? 'text-blue-600' : 'text-gray-900'
+                pathname === '/my-campaign' ? 'text-blue-600' : 'text-gray-900'
               }`}>
                 {campaign.title}
               </div>
               {campaign.organizationName && (
                 <div className={`text-xs truncate ${
-                  pathname === '/my-campaign' || pathname === '/appraiser/campaign' ? 'text-blue-500' : 'text-gray-500'
+                  pathname === '/my-campaign' ? 'text-blue-500' : 'text-gray-500'
                 }`}>
                   {campaign.organizationName}
                 </div>
@@ -267,10 +267,10 @@ export default function Navbar() {
               {(userRole === 'donor' || userRole === 'appraiser') && campaign && (
                 <div className="px-4 py-4 border-b border-gray-200">
                   <Link
-                    href={userRole === 'donor' ? '/my-campaign' : '/appraiser/campaign'}
+                    href="/my-campaign"
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`flex flex-col space-y-1 px-4 py-3 rounded-lg text-base font-medium transition-colors duration-200 ${
-                      pathname === '/my-campaign' || pathname === '/appraiser/campaign'
+                      pathname === '/my-campaign'
                         ? 'bg-blue-50 text-blue-600'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
@@ -279,13 +279,13 @@ export default function Navbar() {
                       Your Campaign
                     </div>
                     <div className={`font-semibold truncate ${
-                      pathname === '/my-campaign' || pathname === '/appraiser/campaign' ? 'text-blue-600' : 'text-gray-900'
+                      pathname === '/my-campaign' ? 'text-blue-600' : 'text-gray-900'
                     }`}>
                       {campaign.title}
                     </div>
                     {campaign.organizationName && (
                       <div className={`text-xs truncate ${
-                        pathname === '/my-campaign' || pathname === '/appraiser/campaign' ? 'text-blue-500' : 'text-gray-500'
+                        pathname === '/my-campaign' ? 'text-blue-500' : 'text-gray-500'
                       }`}>
                         {campaign.organizationName}
                       </div>
