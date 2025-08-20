@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { collection, addDoc, doc, getDoc, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
-import { Modal } from '@/components/ui/modal'
-// Removed unused import X
+import { FormModal } from '@/components/shared/FormModal'
+import { useFormSubmission } from '@/hooks/useAsyncOperation'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 interface CreateCampaignModalProps {
   isOpen: boolean
@@ -29,14 +30,28 @@ export default function CreateCampaignModal({
     category: '',
     status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   })
-  const [saving, setSaving] = useState(false)
+  
+  const { 
+    loading: saving, 
+    error, 
+    success, 
+    execute, 
+    reset 
+  } = useFormSubmission('Campaign Creation')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!organizationId || !userId) return
+    if (!organizationId || !userId) {
+      throw new Error('Missing organization or user ID')
+    }
 
-    setSaving(true)
-    try {
+    secureLogger.info('Campaign creation form submission', { 
+      title: formData.title, 
+      goal: formData.goal, 
+      organizationId 
+    })
+
+    await execute(async () => {
       // Fetch organization name
       let organizationName = 'Unknown Organization'
       try {
@@ -45,7 +60,7 @@ export default function CreateCampaignModal({
           organizationName = orgDoc.data().name || 'Unknown Organization'
         }
       } catch (orgError) {
-        console.error('Error fetching organization:', orgError)
+        secureLogger.error('Error fetching organization for campaign', orgError, { organizationId })
       }
 
       const campaignData = {
@@ -74,23 +89,8 @@ export default function CreateCampaignModal({
       }
 
       await addDoc(collection(db, 'campaigns'), campaignData)
-      
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        goal: '',
-        endDate: '',
-        category: '',
-        status: 'draft',
-      })
-      
-      onSuccess()
-    } catch (error) {
-      console.error('Error creating campaign:', error)
-    } finally {
-      setSaving(false)
-    }
+      return { campaignTitle: formData.title, goal: formData.goal }
+    })
   }
 
   const handleClose = () => {
@@ -103,17 +103,49 @@ export default function CreateCampaignModal({
       category: '',
       status: 'draft',
     })
+    reset()
+    onClose()
+  }
+  
+  const handleSuccessClose = () => {
+    setFormData({
+      title: '',
+      description: '',
+      goal: '',
+      endDate: '',
+      category: '',
+      status: 'draft',
+    })
+    reset()
+    onSuccess()
     onClose()
   }
 
+  const isFormValid = 
+    formData.title.trim().length > 0 &&
+    formData.description.trim().length > 0 &&
+    formData.goal.trim().length > 0 &&
+    formData.category.trim().length > 0
+
   return (
-    <Modal 
+    <FormModal
       isOpen={isOpen}
       onClose={handleClose}
       title="Create New Campaign"
-      size="md"
+      description="Set up your fundraising campaign with basic information."
+      onSubmit={handleSubmit}
+      loading={saving}
+      loadingText="Creating Campaign..."
+      success={success}
+      successTitle="Campaign Created!"
+      successMessage={`Your campaign "${formData.title}" has been created successfully.`}
+      onSuccessClose={handleSuccessClose}
+      error={error}
+      submitDisabled={!isFormValid}
+      submitText="Create Campaign"
+      maxWidth="lg"
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Campaign Title
@@ -221,31 +253,7 @@ export default function CreateCampaignModal({
         </div>
 
 
-        <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={saving}
-            className="px-4 py-2 text-gray-700 hover:text-gray-900 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving || !formData.title || !formData.description || !formData.goal || !formData.category}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2"
-          >
-            {saving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Creating...</span>
-              </>
-            ) : (
-              <span>Create Campaign</span>
-            )}
-          </button>
-        </div>
-      </form>
-    </Modal>
+      </div>
+    </FormModal>
   )
 }

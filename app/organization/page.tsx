@@ -4,6 +4,9 @@ import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { PageLoading, ErrorState } from '@/components/shared/LoadingStates'
+import { formatPhoneNumber, formatEIN } from '@/lib/utils/formatters'
+import { secureLogger } from '@/lib/logging/secure-logger'
 import { getOrCreateOrganization, type Organization, updateOrganization } from '@/lib/firebase/organizations'
 import InviteTeamMemberModal from '@/components/organization/InviteTeamMemberModal'
 import TeamMemberList from '@/components/organization/TeamMemberList'
@@ -48,33 +51,6 @@ interface PendingInvitation {
   status: 'pending' | 'accepted' | 'declined' | 'expired'
 }
 
-// Format phone number as user types
-const formatPhoneNumber = (value: string) => {
-  // Remove all non-digits
-  const phoneNumber = value.replace(/\D/g, '')
-  
-  // Format as (XXX) XXX-XXXX
-  if (phoneNumber.length <= 3) {
-    return phoneNumber
-  } else if (phoneNumber.length <= 6) {
-    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`
-  } else {
-    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`
-  }
-}
-
-// Format EIN as user types
-const formatEIN = (value: string) => {
-  // Remove all non-digits
-  const ein = value.replace(/\D/g, '')
-  
-  // Format as XX-XXXXXXX
-  if (ein.length <= 2) {
-    return ein
-  } else {
-    return `${ein.slice(0, 2)}-${ein.slice(2, 9)}`
-  }
-}
 
 function OrganizationPageContent() {
   const { user, userProfile, customClaims, loading: authLoading } = useAuth()
@@ -101,8 +77,10 @@ function OrganizationPageContent() {
 
     setError(null)
     try {
-      console.log('Fetching organization:', customClaims.organizationId)
-      console.log('User role:', customClaims.role)
+      secureLogger.info('Fetching organization data', { 
+        organizationId: customClaims.organizationId, 
+        userRole: customClaims.role 
+      })
       
       const org = await getOrCreateOrganization(
         customClaims.organizationId,
@@ -112,15 +90,15 @@ function OrganizationPageContent() {
       )
       
       if (org) {
-        console.log('Organization loaded:', org)
+        secureLogger.info('Organization loaded successfully')
         setOrganization(org)
         setEditForm(org)
       } else {
-        console.log('Failed to get or create organization')
+        secureLogger.error('Failed to get or create organization')
         setError('Failed to load organization')
       }
     } catch (error: unknown) {
-      console.error('Error fetching organization:', error)
+      secureLogger.error('Error fetching organization', error, { userId: userProfile?.uid })
       setError(`Failed to fetch organization: ${(error as Error).message}`)
     } finally {
       setLoading(false)
@@ -164,7 +142,7 @@ function OrganizationPageContent() {
         setError('Failed to save organization changes')
       }
     } catch (error) {
-      console.error('Error updating organization:', error)
+      secureLogger.error('Error updating organization', error, { organizationId: organization.id })
       setError('Failed to save organization changes')
     } finally {
       setSaving(false)
@@ -211,10 +189,10 @@ function OrganizationPageContent() {
         setTeamMembers(data.members || [])
       } else {
         const errorData = await response.json()
-        console.error('Failed to fetch team members:', errorData.error)
+        secureLogger.error('Failed to fetch team members', new Error(errorData.error), { organizationId: customClaims?.organizationId })
       }
     } catch (error) {
-      console.error('Error fetching team members:', error)
+      secureLogger.error('Error fetching team members', error, { organizationId: customClaims?.organizationId })
     } finally {
       setTeamLoading(false)
     }
@@ -239,10 +217,10 @@ function OrganizationPageContent() {
         setPendingInvitations(data.invitations || [])
       } else {
         const errorData = await response.json()
-        console.error('Failed to fetch invitations:', errorData.error)
+        secureLogger.error('Failed to fetch invitations', new Error(errorData.error), { organizationId: customClaims?.organizationId })
       }
     } catch (error) {
-      console.error('Error fetching invitations:', error)
+      secureLogger.error('Error fetching invitations', error, { organizationId: customClaims?.organizationId })
     }
   }, [customClaims?.organizationId, user])
 
@@ -270,7 +248,7 @@ function OrganizationPageContent() {
         throw new Error(errorData.error || 'Failed to send invitation')
       }
     } catch (error) {
-      console.error('Error inviting team member:', error)
+      secureLogger.error('Error inviting team member', error, { organizationId: customClaims?.organizationId })
       throw error
     }
   }
@@ -298,7 +276,7 @@ function OrganizationPageContent() {
         throw new Error(errorData.error || 'Failed to update member role')
       }
     } catch (error) {
-      console.error('Error updating member role:', error)
+      secureLogger.error('Error updating member role', error, { userId, organizationId: customClaims?.organizationId })
       throw error
     }
   }
@@ -326,7 +304,7 @@ function OrganizationPageContent() {
         throw new Error(errorData.error || 'Failed to remove member')
       }
     } catch (error) {
-      console.error('Error removing member:', error)
+      secureLogger.error('Error removing member', error, { userId, organizationId: customClaims?.organizationId })
       throw error
     }
   }
@@ -345,12 +323,10 @@ function OrganizationPageContent() {
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-sm text-gray-600">Loading organization...</p>
-        </div>
-      </div>
+      <PageLoading 
+        title="Loading Organization" 
+        description="Retrieving your organization details..." 
+      />
     )
   }
 
@@ -358,26 +334,21 @@ function OrganizationPageContent() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
-          <Building2 className="mx-auto h-12 w-12 text-red-400" />
-          <h3 className="mt-2 text-lg font-medium text-gray-900">Organization Access Error</h3>
-          <p className="mt-2 text-sm text-red-600">{error}</p>
-          <div className="mt-6 space-y-3">
-            <button
-              onClick={() => {
-                setError(null)
-                setLoading(true)
-                fetchOrganization()
-              }}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
-            >
-              Try Again
-            </button>
-            <div className="text-xs text-gray-500 space-y-1">
-              <p>Debug info:</p>
-              <p>Role: {customClaims?.role || 'None'}</p>
-              <p>Org ID: {customClaims?.organizationId || 'None'}</p>
-              <p>User ID: {userProfile?.uid || 'None'}</p>
-            </div>
+          <ErrorState
+            title="Organization Access Error"
+            message={error}
+            onRetry={() => {
+              setError(null)
+              setLoading(true)
+              fetchOrganization()
+            }}
+            retryText="Try Again"
+          />
+          <div className="mt-4 text-xs text-gray-500 space-y-1">
+            <p>Debug info:</p>
+            <p>Role: {customClaims?.role || 'None'}</p>
+            <p>Org ID: {customClaims?.organizationId || 'None'}</p>
+            <p>User ID: {userProfile?.uid || 'None'}</p>
           </div>
         </div>
       </div>
@@ -686,12 +657,10 @@ function OrganizationPageContent() {
 export default function OrganizationPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-sm text-gray-600">Loading organization...</p>
-        </div>
-      </div>
+      <PageLoading 
+        title="Loading Organization" 
+        description="Setting up your organization page..." 
+      />
     }>
       <OrganizationPageContent />
     </Suspense>

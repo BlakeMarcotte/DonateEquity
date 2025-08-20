@@ -1,15 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail, AlertCircle } from 'lucide-react'
-import { Modal } from '@/components/ui/modal'
+import { Mail } from 'lucide-react'
+import { FormModal } from '@/components/shared/FormModal'
+import { useFormSubmission } from '@/hooks/useAsyncOperation'
 import { NonprofitSubrole } from '@/types/auth'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 interface InviteTeamMemberModalProps {
   isOpen: boolean
   onClose: () => void
   onInvite: (email: string, subrole: NonprofitSubrole, personalMessage?: string) => Promise<void>
-  loading?: boolean
 }
 
 const SUBROLE_OPTIONS = [
@@ -38,44 +39,38 @@ const SUBROLE_OPTIONS = [
 export default function InviteTeamMemberModal({ 
   isOpen, 
   onClose, 
-  onInvite, 
-  loading = false 
+  onInvite
 }: InviteTeamMemberModalProps) {
   const [email, setEmail] = useState('')
   const [subrole, setSubrole] = useState<NonprofitSubrole>('member')
   const [personalMessage, setPersonalMessage] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  
+  const { 
+    loading, 
+    error, 
+    success, 
+    execute, 
+    reset 
+  } = useFormSubmission('Team Invitation')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
-
-    console.log('Form submission - email:', email, 'subrole:', subrole)
-
-    if (!email.trim() || !subrole) {
-      console.log('Validation failed - email:', email.trim(), 'subrole:', subrole)
-      setError('Email and role are required')
-      return
-    }
+    
+    secureLogger.info('Team invitation form submission', { email, subrole })
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!email.trim() || !subrole) {
+      throw new Error('Email and role are required')
+    }
     if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address')
-      return
+      throw new Error('Please enter a valid email address')
     }
 
-    try {
+    await execute(async () => {
       await onInvite(email, subrole, personalMessage)
-      // Reset form
-      setEmail('')
-      setSubrole('member')
-      setPersonalMessage('')
-      onClose()
-    } catch (error: unknown) {
-      console.error('Invitation error:', error)
-      setError(error instanceof Error ? error.message : 'Failed to send invitation')
-    }
+      return { success: true }
+    })
   }
 
   const handleClose = () => {
@@ -83,24 +78,39 @@ export default function InviteTeamMemberModal({
     setEmail('')
     setSubrole('member')
     setPersonalMessage('')
-    setError(null)
+    reset()
+    onClose()
+  }
+  
+  const handleSuccessClose = () => {
+    setEmail('')
+    setSubrole('member')
+    setPersonalMessage('')
+    reset()
     onClose()
   }
 
+  const isFormValid = email.trim().length > 0 && subrole
+
   return (
-    <Modal
+    <FormModal
       isOpen={isOpen}
       onClose={handleClose}
       title="Invite Team Member"
-      size="sm"
+      description="Send an invitation to join your organization team."
+      onSubmit={handleSubmit}
+      loading={loading}
+      loadingText="Sending Invitation..."
+      success={success}
+      successTitle="Invitation Sent!"
+      successMessage={`Invitation has been sent to ${email}.`}
+      onSuccessClose={handleSuccessClose}
+      error={error}
+      submitDisabled={!isFormValid}
+      submitText="Send Invitation"
+      maxWidth="sm"
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          )}
+      <div className="space-y-6">
 
           {/* Email */}
           <div>
@@ -162,35 +172,7 @@ export default function InviteTeamMemberModal({
             />
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={loading}
-              className="px-4 py-2 text-gray-700 hover:text-gray-900 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !email || !subrole}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Sending...</span>
-                </>
-              ) : (
-                <>
-                  <Mail className="w-4 h-4" />
-                  <span>Send Invitation</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-    </Modal>
+      </div>
+    </FormModal>
   )
 }

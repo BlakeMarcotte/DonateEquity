@@ -14,6 +14,7 @@ import CreateCampaignModal from '@/components/tasks/CreateCampaignModal'
 import { NonprofitSubrole } from '@/types/auth'
 import { secureLogger } from '@/lib/logging/secure-logger'
 import PageErrorBoundary from '@/components/error/PageErrorBoundary'
+import { PageLoading } from '@/components/shared/LoadingStates'
 import {
   CheckCircle2,
   User,
@@ -269,12 +270,10 @@ export default function NonprofitDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-sm text-gray-600">Loading your dashboard...</p>
-        </div>
-      </div>
+      <PageLoading 
+        title="Loading Dashboard" 
+        description="Setting up your nonprofit dashboard..." 
+      />
     )
   }
 
