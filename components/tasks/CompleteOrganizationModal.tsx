@@ -114,7 +114,13 @@ export default function CompleteOrganizationModal({
         taxId: formData.taxId,
         website: formData.website,
         phone: formData.phone,
-        address: formData.address,
+        address: {
+          street: '',
+          city: formData.address.city,
+          state: formData.address.state,
+          zipCode: '',
+          country: 'US'
+        },
         updatedAt: new Date()
       }
 

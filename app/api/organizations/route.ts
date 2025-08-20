@@ -28,7 +28,7 @@ const handleCreateOrganization = async (
     const authResult = await verifyAuthToken(request)
     if (!authResult.success || !authResult.decodedToken) {
       secureLogger.security('Unauthorized organization creation attempt', {
-        ip: request.ip,
+        ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
         userAgent: request.headers.get('user-agent') || 'unknown',
         endpoint: '/api/organizations',
         method: 'POST',
@@ -41,7 +41,7 @@ const handleCreateOrganization = async (
       )
     }
 
-    userId = authResult.decodedToken.uid
+    userId = authResult.decodedToken.uid as string
     const { name, type, description, website, phone, address, taxId } = validatedData!
 
     // Check if organization with same name already exists
@@ -93,7 +93,7 @@ const handleCreateOrganization = async (
       action: 'create_organization',
       resource: 'organization',
       resourceId: orgRef.id,
-      ip: request.ip,
+      ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
       userAgent: request.headers.get('user-agent') || 'unknown'
     }, {
       organizationName: name,
@@ -106,7 +106,7 @@ const handleCreateOrganization = async (
       statusCode: 201,
       responseTime: Date.now() - startTime,
       userId,
-      ip: request.ip,
+      ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
       userAgent: request.headers.get('user-agent') || 'unknown'
     })
 
@@ -154,7 +154,7 @@ const handleGetOrganizations = async (request: NextRequest): Promise<NextRespons
       secureLogger.warn('Invalid query parameters for organizations list', {
         endpoint: '/api/organizations',
         method: 'GET',
-        errors: queryValidation.error.errors
+        errors: queryValidation.error.issues
       })
       
       return NextResponse.json(
@@ -198,7 +198,7 @@ const handleGetOrganizations = async (request: NextRequest): Promise<NextRespons
       endpoint: '/api/organizations',
       statusCode: 200,
       responseTime: Date.now() - startTime,
-      ip: request.ip,
+      ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
       userAgent: request.headers.get('user-agent') || 'unknown'
     })
 

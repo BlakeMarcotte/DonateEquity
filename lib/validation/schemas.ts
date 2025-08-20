@@ -67,7 +67,7 @@ export const donationSchema = z.object({
 
 // Task validation schemas
 export const taskCompletionSchema = z.object({
-  completionData: z.record(z.unknown()).optional()
+  completionData: z.record(z.string(), z.unknown()).optional()
 })
 
 export const commitmentDecisionSchema = z.object({
@@ -109,7 +109,7 @@ export const paginationSchema = z.object({
 })
 
 // Rate limiting schemas
-export const ipAddressSchema = z.string().ip('Invalid IP address')
+export const ipAddressSchema = z.string().regex(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, 'Invalid IP address')
 export const userAgentSchema = z.string().max(1000, 'User agent too long')
 
 // Sanitization utilities
@@ -139,7 +139,7 @@ export const validateRequest = <T>(schema: z.ZodSchema<T>, data: unknown): { suc
     return { success: true, data: result }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+      const message = error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
       return { success: false, error: message }
     }
     return { success: false, error: 'Validation failed' }

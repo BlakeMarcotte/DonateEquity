@@ -15,7 +15,7 @@ const LOG_LEVELS: LogLevel = {
 }
 
 interface LogEntry {
-  level: keyof LogLevel
+  level: LogLevel[keyof LogLevel]
   message: string
   timestamp: Date
   userId?: string
@@ -238,6 +238,7 @@ export function createRequestLogger() {
     ip?: string
   }, res: {
     statusCode: number
+    end?: (...args: unknown[]) => void
   }, next?: () => void) => {
     const startTime = Date.now()
     
@@ -256,7 +257,7 @@ export function createRequestLogger() {
           : req.headers['user-agent'] || 'unknown'
       })
       
-      return originalEnd.apply(this, args)
+      return originalEnd?.apply(this, args)
     }
     
     if (next) next()
