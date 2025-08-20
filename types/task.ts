@@ -82,6 +82,12 @@ export interface TaskTemplate {
   instructions: string
 }
 
+export interface TaskOption {
+  id: string
+  label: string
+  description: string
+}
+
 // Task completion data types
 export interface CommitmentData {
   type: 'dollar' | 'percentage'

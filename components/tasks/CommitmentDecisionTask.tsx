@@ -1,25 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Task } from '@/types/task'
+import { Task, CommitmentData, TaskOption } from '@/types/task'
 import { Heart, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { EquityCommitmentModal } from './EquityCommitmentModal'
 
-interface CommitmentData {
-  type: 'dollar' | 'percentage'
-  amount: number
-  message?: string
-  createdAt: string
-}
 
 type CommitmentDecision = 'commit_now' | 'commit_after_appraisal'
 
-interface TaskOption {
-  id: string
-  label: string
-  description: string
-}
 
 interface CommitmentDecisionTaskProps {
   task: Task

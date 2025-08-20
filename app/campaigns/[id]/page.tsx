@@ -19,6 +19,7 @@ import { db } from '@/lib/firebase/config'
 import { createCampaignInvitation, getCampaignInvitations } from '@/lib/firebase/invitations'
 import { CampaignInvitation } from '@/types/invitations'
 import { Campaign } from '@/types/campaign'
+import { Donation } from '@/types/donation'
 import { secureLogger } from '@/lib/logging/secure-logger'
 import CampaignAssignments from '@/components/campaigns/CampaignAssignments'
 import {
@@ -41,21 +42,6 @@ import {
 } from 'lucide-react'
 
 
-interface Donation {
-  id: string
-  campaignId: string
-  donorId: string
-  donorName: string
-  donorEmail: string
-  amount: number
-  status: 'pending' | 'committed' | 'completed' | 'cancelled'
-  createdAt: Date
-  equityDetails?: {
-    companyName: string
-    equityPercentage: number
-    estimatedValue: number
-  }
-}
 
 interface CampaignParticipant {
   userId: string // Maps to userId in the database
@@ -718,21 +704,17 @@ export default function CampaignDetailPage() {
                             </div>
                           </div>
 
-                          {participant.donation?.equityDetails && (
+                          {participant.donation?.commitmentDetails && (
                             <div className="mt-3 pt-3 border-t border-gray-200">
-                              <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
-                                  <p className="text-gray-600">Company</p>
-                                  <p className="font-medium">{participant.donation.equityDetails.companyName}</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-600">Equity %</p>
-                                  <p className="font-medium">{participant.donation.equityDetails.equityPercentage}%</p>
+                                  <p className="text-gray-600">Organization</p>
+                                  <p className="font-medium">{participant.donation.commitmentDetails.donorOrganizationName || 'N/A'}</p>
                                 </div>
                                 <div>
                                   <p className="text-gray-600">Est. Value</p>
                                   <p className="font-medium">
-                                    {formatCurrency(participant.donation.equityDetails.estimatedValue)}
+                                    {formatCurrency(participant.donation.commitmentDetails.estimatedValue || 0)}
                                   </p>
                                 </div>
                               </div>
