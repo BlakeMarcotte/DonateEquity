@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate status
-    const validStatuses = ['interested', 'in_process', 'donation_complete']
+    const validStatuses = ['active', 'completed']
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ 
         error: 'Invalid status. Must be one of: ' + validStatuses.join(', ') 

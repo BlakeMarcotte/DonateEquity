@@ -59,7 +59,7 @@ export async function acceptInvitationAndCreateParticipant(
  */
 export async function updateParticipantStatus(
   participantId: string,
-  status: 'interested' | 'in_process' | 'donation_complete'
+  status: 'active' | 'completed'
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const user = auth.currentUser

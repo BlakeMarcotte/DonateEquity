@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         campaignId: invitationData.campaignId,
         userId: decodedToken.uid,
         userRole: 'donor',
-        status: 'interested', // interested -> committed -> donated
+        status: 'active', // active -> completed
         joinedAt: new Date(),
         joinedVia: 'invitation',
         invitationId: invitationDoc.id,

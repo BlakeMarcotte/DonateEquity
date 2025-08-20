@@ -38,7 +38,6 @@ import {
   Eye,
   CheckCircle,
   Clock,
-  AlertCircle,
   UserPlus,
   X,
   Send
@@ -80,7 +79,7 @@ interface CampaignParticipant {
   donorEmail: string
   participantId: string
   joinedAt: Date
-  status: 'interested' | 'in_process' | 'donation_complete'
+  status: 'active' | 'completed'
   hasDonation: boolean
   donation?: Donation
   taskProgress?: {
@@ -342,10 +341,7 @@ export default function CampaignDetailPage() {
           console.log('fetchParticipants: Creating participant for userId:', userId, 'userData:', userData)
           
           // Determine status based on participant record and donation existence
-          let participantStatus = participant.status || 'interested'
-          if (donation && participantStatus !== 'donation_complete') {
-            participantStatus = 'donation_complete'
-          }
+          const participantStatus = donation ? 'completed' : 'active'
           
           return {
             userId: userId,
@@ -353,7 +349,7 @@ export default function CampaignDetailPage() {
             donorEmail: userData?.email || participant.invitedEmail || 'Unknown Email',
             participantId: participant.id, // Use document ID as participantId
             joinedAt: participant.joinedAt,
-            status: participantStatus as "interested" | "in_process" | "donation_complete",
+            status: participantStatus as "active" | "completed",
             hasDonation: !!donation,
             donation: donation,
             taskProgress: {
@@ -476,20 +472,6 @@ export default function CampaignDetailPage() {
     }
   }
 
-  const getDonationStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-600" />
-      case 'committed':
-        return <Clock className="w-4 h-4 text-blue-600" />
-      case 'pending':
-        return <AlertCircle className="w-4 h-4 text-yellow-600" />
-      case 'cancelled':
-        return <AlertCircle className="w-4 h-4 text-red-600" />
-      default:
-        return <Clock className="w-4 h-4 text-gray-600" />
-    }
-  }
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -794,9 +776,9 @@ export default function CampaignDetailPage() {
                               </div>
                             </div>
 
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center justify-between">
                               <div className="text-right">
-                                {participant.status === 'donation_complete' && participant.donation ? (
+                                {participant.status === 'completed' && participant.donation ? (
                                   <>
                                     <p className="font-semibold text-gray-900">
                                       {formatCurrency(participant.donation.amount)}
@@ -805,20 +787,8 @@ export default function CampaignDetailPage() {
                                       Donated {participant.donation.createdAt.toLocaleDateString()}
                                     </p>
                                   </>
-                                ) : participant.status === 'in_process' ? (
-                                  <>
-                                    <p className="font-medium text-blue-600">
-                                      In Process
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                      Joined {participant.joinedAt.toLocaleDateString()}
-                                    </p>
-                                  </>
                                 ) : (
                                   <>
-                                    <p className="font-medium text-yellow-600">
-                                      Interested
-                                    </p>
                                     <p className="text-sm text-gray-600">
                                       Joined {participant.joinedAt.toLocaleDateString()}
                                     </p>
@@ -827,32 +797,24 @@ export default function CampaignDetailPage() {
                               </div>
 
                               <div className="flex items-center space-x-2">
-                                {participant.status === 'donation_complete' && participant.donation ? (
+                                {participant.status === 'completed' ? (
                                   <>
-                                    {getDonationStatusIcon(participant.donation.status)}
-                                    <span className="text-sm text-gray-600 capitalize">
-                                      {participant.donation.status}
-                                    </span>
-                                  </>
-                                ) : participant.status === 'in_process' ? (
-                                  <>
-                                    <Clock className="w-4 h-4 text-blue-600" />
-                                    <span className="text-sm text-blue-600">
-                                      In Process
+                                    <CheckCircle className="w-4 h-4 text-green-600" />
+                                    <span className="text-sm text-green-600">
+                                      Completed
                                     </span>
                                   </>
                                 ) : (
                                   <>
-                                    <Clock className="w-4 h-4 text-yellow-600" />
-                                    <span className="text-sm text-yellow-600">
-                                      Interested
+                                    <Clock className="w-4 h-4 text-blue-600" />
+                                    <span className="text-sm text-blue-600">
+                                      Active
                                     </span>
                                   </>
                                 )}
-                              </div>
-
-                              <div className="text-sm text-gray-500">
-                                View tasks →
+                                <span className="text-sm text-gray-500 ml-4">
+                                  View tasks →
+                                </span>
                               </div>
                             </div>
                           </div>

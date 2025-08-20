@@ -203,7 +203,7 @@ function MyCampaignPage() {
                 <Heart className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-blue-900">{`You're interested in this campaign!`}</h3>
+                <h3 className="text-lg font-semibold text-blue-900">Ready to participate in this campaign!</h3>
                 <p className="text-blue-700 mt-1">
                   {`Ready to make your equity donation? Start by creating your donation commitment.`}
                 </p>

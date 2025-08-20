@@ -3,7 +3,7 @@ export interface CampaignParticipant {
   campaignId: string
   userId: string
   userRole: 'donor' | 'nonprofit_admin' | 'appraiser'
-  status: 'interested' | 'committed' | 'donated' | 'withdrawn'
+  status: 'active' | 'completed'
   joinedAt: Date
   joinedVia: 'invitation' | 'browse' | 'direct' | 'referral'
   invitationId?: string

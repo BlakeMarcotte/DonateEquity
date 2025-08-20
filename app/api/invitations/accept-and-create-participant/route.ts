@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       userRole: 'donor', // Adding userRole field seen in your data
       joinedAt: serverTimestamp(),
       joinedVia: 'invitation', // Adding joinedVia field seen in your data
-      status: 'interested', // Initial status
+      status: 'active', // Initial status
       invitationId: invitationId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
