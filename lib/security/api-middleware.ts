@@ -161,7 +161,7 @@ export async function validateApiRequest<T>(
     }
     
     return { success: true, data: validation.data }
-  } catch (error) {
+  } catch {
     return {
       success: false,
       response: NextResponse.json(

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
 import { verifyAuthToken } from '@/lib/auth/middleware'
 import { withSecurity } from '@/lib/security/api-middleware'
-import { organizationSchema, paginationSchema, idSchema } from '@/lib/validation/schemas'
+import { organizationSchema } from '@/lib/validation/schemas'
 import { secureLogger } from '@/lib/logging/secure-logger'
 import { z } from 'zod'
 
