@@ -18,6 +18,8 @@ import {
 import { db } from '@/lib/firebase/config'
 import { createCampaignInvitation, getCampaignInvitations } from '@/lib/firebase/invitations'
 import { CampaignInvitation } from '@/types/invitations'
+import { Campaign } from '@/types/campaign'
+import { secureLogger } from '@/lib/logging/secure-logger'
 import CampaignAssignments from '@/components/campaigns/CampaignAssignments'
 import {
   Heart,
@@ -38,19 +40,6 @@ import {
   Send
 } from 'lucide-react'
 
-interface Campaign {
-  id: string
-  title: string
-  description: string
-  goal: number
-  raised: number
-  status: 'draft' | 'active' | 'paused' | 'completed'
-  organizationId: string
-  createdBy: string
-  createdAt: Date
-  updatedAt: Date
-  endDate?: Date
-}
 
 interface Donation {
   id: string
@@ -107,7 +96,11 @@ export default function CampaignDetailPage() {
 
         // Check if the campaign belongs to the user's organization
         if (customClaims?.organizationId && data.organizationId !== customClaims.organizationId) {
-          console.error('Access denied: Campaign does not belong to your organization')
+          secureLogger.error('Access denied: Campaign does not belong to organization', new Error('Access denied'), {
+          campaignId: params.id,
+          userOrganizationId: customClaims?.organizationId,
+          campaignOrganizationId: data.organizationId
+        })
           return
         }
 
@@ -116,13 +109,26 @@ export default function CampaignDetailPage() {
           title: data.title,
           description: data.description,
           goal: data.goal,
-          raised: data.raised || 0,
+          currentAmount: data.raised || data.currentAmount || 0,
+          donorCount: data.donorCount || 0,
           status: data.status,
+          category: data.category || 'General',
           organizationId: data.organizationId,
+          organizationName: data.organizationName || '',
           createdBy: data.createdBy,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
+          startDate: data.startDate?.toDate() || new Date(),
           endDate: data.endDate?.toDate(),
+          images: {
+            hero: data.images?.hero || '',
+            gallery: data.images?.gallery || []
+          },
+          settings: {
+            minimumDonation: data.settings?.minimumDonation,
+            maximumDonation: data.settings?.maximumDonation,
+            allowRecurring: data.settings?.allowRecurring || false
+          }
         })
       }
     } catch (error) {
@@ -563,17 +569,17 @@ export default function CampaignDetailPage() {
           <div className="bg-white rounded-lg shadow p-6 mb-8">
             <div className="flex justify-between text-sm text-gray-600 mb-2">
               <span>Campaign Progress</span>
-              <span>{Math.round(getProgressPercentage(campaign.raised, campaign.goal))}% Complete</span>
+              <span>{Math.round(getProgressPercentage(campaign.currentAmount, campaign.goal))}% Complete</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div
                 className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${getProgressPercentage(campaign.raised, campaign.goal)}%` }}
+                style={{ width: `${getProgressPercentage(campaign.currentAmount, campaign.goal)}%` }}
               />
             </div>
             <div className="flex justify-between text-sm text-gray-500 mt-2">
-              <span>{formatCurrency(campaign.raised)} raised</span>
-              <span>{formatCurrency(campaign.goal - campaign.raised)} remaining</span>
+              <span>{formatCurrency(campaign.currentAmount)} raised</span>
+              <span>{formatCurrency(campaign.goal - campaign.currentAmount)} remaining</span>
             </div>
           </div>
 
@@ -1033,7 +1039,7 @@ function InviteModal({
           title: campaign.title,
           description: campaign.description,
           goal: campaign.goal,
-          raised: campaign.raised,
+          raised: campaign.currentAmount,
         }
       )
 
@@ -1052,7 +1058,7 @@ function InviteModal({
               campaignTitle: campaign.title,
               campaignDescription: campaign.description,
               campaignGoal: campaign.goal,
-              campaignRaised: campaign.raised,
+              campaignRaised: campaign.currentAmount,
               message: formData.message,
               invitationToken: invitation.invitationToken,
               isExistingUser: invitation.userExists,

@@ -12,6 +12,8 @@ import CompleteOrganizationModal from '@/components/tasks/CompleteOrganizationMo
 import InviteTeamMemberModal from '@/components/organization/InviteTeamMemberModal'
 import CreateCampaignModal from '@/components/tasks/CreateCampaignModal'
 import { NonprofitSubrole } from '@/types/auth'
+import { secureLogger } from '@/lib/logging/secure-logger'
+import PageErrorBoundary from '@/components/error/PageErrorBoundary'
 import {
   CheckCircle2,
   User,
@@ -78,7 +80,9 @@ export default function NonprofitDashboardPage() {
         }
       }
     } catch (error) {
-      console.error('Error checking organization status:', error)
+      secureLogger.error('Error checking organization status', error, {
+        userId: userProfile.uid
+      })
     }
 
     // Check team completion - for now, we'll mark as complete if there's at least one member
@@ -98,7 +102,9 @@ export default function NonprofitDashboardPage() {
         }
       }
     } catch (error) {
-      console.error('Error checking team status:', error)
+      secureLogger.error('Error checking team status', error, {
+        userId: userProfile.uid
+      })
     }
 
     // Check campaign completion
@@ -118,7 +124,9 @@ export default function NonprofitDashboardPage() {
         }
       }
     } catch (error) {
-      console.error('Error checking campaign status:', error)
+      secureLogger.error('Error checking campaign status', error, {
+        userId: userProfile.uid
+      })
     }
 
     // Get manual completions from localStorage - user specific
@@ -247,7 +255,9 @@ export default function NonprofitDashboardPage() {
       await refreshUserData()
       checkTaskCompletion()
     } catch (error) {
-      console.error('Error resetting profile data:', error)
+      secureLogger.error('Error resetting profile data', error, {
+        userId: userProfile.uid
+      })
       // Still refresh task completion even if profile reset failed
       checkTaskCompletion()
     }
@@ -269,8 +279,9 @@ export default function NonprofitDashboardPage() {
   }
 
   return (
-    <NonprofitAdminRoute>
-      <div className="min-h-screen bg-gray-50">
+    <PageErrorBoundary pageName="Tasks Dashboard">
+      <NonprofitAdminRoute>
+        <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-white shadow">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -430,9 +441,9 @@ export default function NonprofitDashboardPage() {
               </div>
             </div>
           )}
-        </div>
+          </div>
 
-        {/* Modals */}
+          {/* Modals */}
         <CompleteProfileModal
           isOpen={profileModalOpen}
           onClose={() => setProfileModalOpen(false)}
@@ -460,8 +471,9 @@ export default function NonprofitDashboardPage() {
           }}
           organizationId={customClaims?.organizationId || ''}
           userId={userProfile?.uid || ''}
-        />
-      </div>
-    </NonprofitAdminRoute>
+          />
+        </div>
+      </NonprofitAdminRoute>
+    </PageErrorBoundary>
   )
 }

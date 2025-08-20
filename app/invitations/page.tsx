@@ -7,18 +7,10 @@ import { getUserInvitations, respondToInvitation } from '@/lib/firebase/invitati
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import { CampaignInvitation } from '@/types/invitations'
+import { Campaign } from '@/types/campaign'
+import { secureLogger } from '@/lib/logging/secure-logger'
 import { Mail, Heart, CheckCircle, XCircle, Clock, Calendar, Target, DollarSign } from 'lucide-react'
 
-interface Campaign {
-  id: string
-  title: string
-  description: string
-  goal: number
-  raised: number
-  status: string
-  organizationId: string
-  createdAt: Date
-}
 
 interface InvitationWithCampaign extends CampaignInvitation {
   campaign?: Campaign
@@ -49,12 +41,17 @@ export default function InvitationsPage() {
                   id: campaignDoc.id,
                   ...campaignData,
                   createdAt: campaignData.createdAt?.toDate() || new Date(),
+                  // Map legacy properties to centralized Campaign interface
+                  currentAmount: campaignData.raised || campaignData.currentAmount || 0
                 } as Campaign
               }
             }
             return invitation
           } catch (error) {
-            console.error('Error fetching campaign:', error)
+            secureLogger.error('Error fetching campaign for invitation', error, {
+              campaignId: invitation.campaignId,
+              invitationId: invitation.id
+            })
             return invitation
           }
         })
@@ -62,7 +59,9 @@ export default function InvitationsPage() {
 
       setInvitations(invitationsWithCampaigns)
     } catch (error) {
-      console.error('Error fetching invitations:', error)
+      secureLogger.error('Error fetching user invitations', error, {
+        userId: user.uid
+      })
     } finally {
       setLoading(false)
     }
@@ -101,9 +100,11 @@ export default function InvitationsPage() {
           )
         } else {
           const error = await apiResponse.json()
-          console.error('Error accepting invitation:', error)
-          console.error('Response status:', apiResponse.status)
-          console.error('Response statusText:', apiResponse.statusText)
+          secureLogger.error('Error accepting invitation via API', new Error(error.error || 'Unknown error'), {
+            invitationId,
+            status: apiResponse.status,
+            statusText: apiResponse.statusText
+          })
         }
       } else {
         // For decline, use the original function
@@ -120,7 +121,10 @@ export default function InvitationsPage() {
         }
       }
     } catch (error) {
-      console.error('Error responding to invitation:', error)
+      secureLogger.error('Error responding to invitation', error, {
+        invitationId,
+        response
+      })
     } finally {
       setResponding(null)
     }
@@ -236,13 +240,13 @@ export default function InvitationsPage() {
                             <div className="text-center">
                               <DollarSign className="w-6 h-6 text-green-600 mx-auto mb-2" />
                               <p className="text-sm text-gray-500">Raised</p>
-                              <p className="text-lg font-bold text-gray-900">{formatCurrency(invitation.campaign.raised)}</p>
+                              <p className="text-lg font-bold text-gray-900">{formatCurrency(invitation.campaign.currentAmount)}</p>
                             </div>
                             <div className="text-center">
                               <Calendar className="w-6 h-6 text-purple-600 mx-auto mb-2" />
                               <p className="text-sm text-gray-500">Progress</p>
                               <p className="text-lg font-bold text-gray-900">
-                                {Math.round(getProgressPercentage(invitation.campaign.raised, invitation.campaign.goal))}%
+                                {Math.round(getProgressPercentage(invitation.campaign.currentAmount, invitation.campaign.goal))}%
                               </p>
                             </div>
                           </div>
@@ -251,12 +255,12 @@ export default function InvitationsPage() {
                           <div className="mb-4">
                             <div className="flex justify-between text-sm text-gray-600 mb-2">
                               <span>Campaign Progress</span>
-                              <span>{Math.round(getProgressPercentage(invitation.campaign.raised, invitation.campaign.goal))}% Complete</span>
+                              <span>{Math.round(getProgressPercentage(invitation.campaign.currentAmount, invitation.campaign.goal))}% Complete</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-3">
                               <div
                                 className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                                style={{ width: `${getProgressPercentage(invitation.campaign.raised, invitation.campaign.goal)}%` }}
+                                style={{ width: `${getProgressPercentage(invitation.campaign.currentAmount, invitation.campaign.goal)}%` }}
                               />
                             </div>
                           </div>

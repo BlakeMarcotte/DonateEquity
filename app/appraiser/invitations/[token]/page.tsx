@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { secureLogger } from '@/lib/logging/secure-logger'
 import { CheckCircle, AlertCircle, Mail, User, Clock, ArrowRight } from 'lucide-react'
 
 interface InvitationData {
@@ -93,15 +94,20 @@ export default function AppraiserInvitationPage() {
             const token = await user.getIdToken(true)
             const payload = JSON.parse(atob(token.split('.')[1]))
             if (payload.role === 'appraiser') {
-              console.log('Auth context updated with appraiser role')
+              secureLogger.info('Auth context updated with appraiser role')
               break
             }
             attempts++
-            console.log(`Waiting for auth context to update... attempt ${attempts}`)
+            secureLogger.info('Waiting for auth context to update', {
+              attempt: attempts,
+              maxAttempts
+            })
           }
         }
         // Redirect directly to the campaign task list
-        console.log('Appraiser invitation: Redirecting to', result.redirectUrl)
+        secureLogger.info('Appraiser invitation accepted, redirecting', {
+          redirectUrl: result.redirectUrl
+        })
         router.push(result.redirectUrl)
       } else {
         // Fallback: if no specific redirect URL, go to general dashboard
@@ -116,7 +122,9 @@ export default function AppraiserInvitationPage() {
       }
 
     } catch (err) {
-      console.error('Error accepting invitation:', err)
+      secureLogger.error('Error accepting appraiser invitation', err instanceof Error ? err : new Error(String(err)), {
+        token
+      })
       setError(err instanceof Error ? err.message : 'Failed to accept invitation')
     } finally {
       setAccepting(false)
@@ -141,7 +149,9 @@ export default function AppraiserInvitationPage() {
         router.push('/my-campaign')
       }
     } catch (err) {
-      console.error('Error declining invitation:', err)
+      secureLogger.error('Error declining appraiser invitation', err instanceof Error ? err : new Error(String(err)), {
+        token
+      })
     }
   }
 

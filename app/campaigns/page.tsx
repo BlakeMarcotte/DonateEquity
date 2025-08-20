@@ -17,6 +17,7 @@ import {
   Timestamp 
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
+import { Campaign } from '@/types/campaign'
 import {
   Heart,
   Plus,
@@ -30,23 +31,6 @@ import {
   DollarSign
 } from 'lucide-react'
 
-interface Campaign {
-  id: string
-  title: string
-  description: string
-  goal: number
-  currentAmount: number
-  donorCount: number
-  status: 'draft' | 'active' | 'paused' | 'completed'
-  category?: string
-  organizationId: string
-  organizationName?: string
-  createdBy: string
-  createdAt: Date
-  updatedAt: Date
-  endDate?: Date
-  tags: string[]
-}
 
 export default function CampaignsPage() {
   const router = useRouter()

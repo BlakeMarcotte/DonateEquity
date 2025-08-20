@@ -1,5 +1,6 @@
 import { getStorage } from 'firebase-admin/storage'
 import adminApp from './admin'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 export interface ServerFileUploadResult {
   url: string
@@ -27,8 +28,12 @@ export async function uploadDonationBufferAdmin(
   const filePath = `donations/${donationId}/${folder}/${fullFileName}`
   
   try {
-    console.log('Uploading buffer to admin storage path:', filePath)
-    console.log('Buffer size:', buffer.length, 'bytes')
+    secureLogger.info('Uploading buffer to admin storage', {
+      filePath,
+      bufferSize: buffer.length,
+      contentType,
+      fileName
+    })
     
     // Create a file reference
     const file = bucket.file(filePath)
@@ -45,15 +50,16 @@ export async function uploadDonationBufferAdmin(
       }
     })
     
-    console.log('Admin storage upload completed, making file public...')
-    
     // Make the file publicly accessible
     await file.makePublic()
     
     // Get the public URL
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`
     
-    console.log('Public URL generated:', publicUrl)
+    secureLogger.info('Admin storage upload completed successfully', {
+      filePath,
+      fileName
+    })
     
     return {
       url: publicUrl,
@@ -64,7 +70,11 @@ export async function uploadDonationBufferAdmin(
       uploadedAt: new Date()
     }
   } catch (error) {
-    console.error('Admin storage upload failed:', error)
+    secureLogger.error('Admin storage upload failed', error, {
+      filePath,
+      fileName,
+      contentType
+    })
     throw error
   }
 }

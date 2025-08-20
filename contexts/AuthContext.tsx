@@ -6,6 +6,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { onAuthChange, getCurrentUser } from '@/lib/firebase/auth'
 import { db } from '@/lib/firebase/config'
 import { UserProfile, UserRole, CustomClaims, NonprofitSubrole } from '@/types/auth'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 interface AuthContextType {
   user: User | null
@@ -54,7 +55,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       return null
     } catch (error) {
-      console.error('Error fetching user profile:', error)
+      secureLogger.error('Error fetching user profile', error, {
+        userId: user.uid
+      })
       setError('Failed to fetch user profile')
       return null
     }
@@ -75,7 +78,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       return null
     } catch (error) {
-      console.error('Error fetching custom claims:', error)
+      secureLogger.error('Error fetching custom claims', error, {
+        userId: user.uid
+      })
       setError('Failed to fetch user permissions')
       return null
     }
@@ -94,7 +99,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setCustomClaims(claims)
         setError(null)
       } catch (error) {
-        console.error('Error refreshing user data:', error)
+        secureLogger.error('Error refreshing user data', error, {
+          userId: user?.uid
+        })
         setError('Failed to refresh user data')
       } finally {
         setLoading(false)
@@ -117,7 +124,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUserProfile(profile)
           setCustomClaims(claims)
         } catch (error) {
-          console.error('Error loading user data:', error)
+          secureLogger.error('Error loading user data', error, {
+            userId: user.uid
+          })
           setError('Failed to load user data')
         }
       } else {

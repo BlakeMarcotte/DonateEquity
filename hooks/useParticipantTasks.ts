@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore'
 import { db, auth } from '@/lib/firebase/config'
 import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
-import { debugTaskDependencies } from '@/utils/debug-tasks'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 export function useParticipantTasks(participantId: string | null) {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -11,13 +11,15 @@ export function useParticipantTasks(participantId: string | null) {
 
   useEffect(() => {
     if (!participantId) {
-      console.log('No participantId provided to useParticipantTasks')
+      secureLogger.info('No participantId provided to useParticipantTasks')
       setTasks([])
       setLoading(false)
       return
     }
 
-    console.log('useParticipantTasks: Querying tasks for participant:', participantId)
+    secureLogger.info('Querying tasks for participant', {
+      participantId
+    })
     const tasksRef = collection(db, 'tasks')
     
     // Query only participant-based tasks, ordered by order field
@@ -30,7 +32,9 @@ export function useParticipantTasks(participantId: string | null) {
     const unsubscribe = onSnapshot(
       participantQuery,
       (snapshot) => {
-        console.log('Participant tasks snapshot received:', snapshot.docs.length, 'tasks')
+        secureLogger.info('Participant tasks snapshot received', {
+          taskCount: snapshot.docs.length
+        })
         const tasksData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
@@ -40,21 +44,32 @@ export function useParticipantTasks(participantId: string | null) {
           completedAt: doc.data().completedAt?.toDate?.() || null,
         })) as Task[]
 
-        console.log('Participant tasks data:', tasksData.map(t => ({ id: t.id, title: t.title, type: t.type, order: t.order })))
+        secureLogger.info('Participant tasks data loaded', {
+          tasks: tasksData.map(t => ({ id: t.id, title: t.title, type: t.type, order: t.order }))
+        })
 
         // Use debug utility for detailed analysis
-        debugTaskDependencies(tasksData)
+        secureLogger.info('Tasks loaded for participant', {
+          participantId,
+          taskCount: tasksData.length
+        })
 
         // Calculate blocking status based on dependencies
-        console.log('About to calculate blocking status for tasks:', tasksData.length)
+        secureLogger.info('Calculating blocking status for tasks', {
+          taskCount: tasksData.length
+        })
         const updatedTasks = calculateBlockingStatus(tasksData)
-        console.log('Blocking status calculated, updated tasks:', updatedTasks.map(t => ({ id: t.id, title: t.title, status: t.status })))
+        secureLogger.info('Blocking status calculated', {
+          updatedTasks: updatedTasks.map(t => ({ id: t.id, title: t.title, status: t.status }))
+        })
         setTasks(updatedTasks)
         setLoading(false)
         setError(null)
       },
       (err) => {
-        console.error('Error fetching participant tasks:', err)
+        secureLogger.error('Error fetching participant tasks', err instanceof Error ? err : new Error(String(err)), {
+          participantId
+        })
         setError('Failed to fetch tasks')
         setLoading(false)
       }
@@ -82,7 +97,10 @@ export function useParticipantTasks(participantId: string | null) {
 
       // The real-time listener will automatically update the UI
     } catch (error) {
-      console.error('Error completing task:', error)
+      secureLogger.error('Error completing task', error instanceof Error ? error : new Error(String(error)), {
+        taskId,
+        participantId
+      })
       throw error
     }
   }
@@ -105,7 +123,10 @@ export function useParticipantTasks(participantId: string | null) {
 
       // The real-time listener will automatically update the UI
     } catch (error) {
-      console.error('Error processing commitment decision:', error)
+      secureLogger.error('Error processing commitment decision', error instanceof Error ? error : new Error(String(error)), {
+        taskId,
+        participantId
+      })
       throw error
     }
   }
@@ -132,8 +153,10 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
     }
   })
 
-  console.log('calculateBlockingStatus - Task status map:', Array.from(taskStatusMap.entries()))
-  console.log('calculateBlockingStatus - Task type map:', Array.from(taskTypeMap.entries()))
+  secureLogger.info('Calculating blocking status', {
+    taskStatusMap: Array.from(taskStatusMap.entries()),
+    taskTypeMap: Array.from(taskTypeMap.entries())
+  })
 
   return tasks.map(task => {
     // If task has dependencies, check if they're all completed
@@ -143,11 +166,11 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
         
         // Debug specific task
         if (task.title?.includes('Appraiser: Sign NDA')) {
-          console.log(`Checking dependency ${depId}:`, {
+          secureLogger.info('Checking task dependency', {
+            dependencyId: depId,
             directStatus: status,
             inMap: taskStatusMap.has(depId),
-            mapSize: taskStatusMap.size,
-            allTaskIds: Array.from(taskStatusMap.keys())
+            mapSize: taskStatusMap.size
           })
         }
         
@@ -160,7 +183,11 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
             if (foundTaskId) {
               status = taskStatusMap.get(foundTaskId)
               if (task.title?.includes('Appraiser: Sign NDA')) {
-                console.log(`Found by type mapping: ${taskType} -> ${foundTaskId}, status: ${status}`)
+                secureLogger.info('Found task by type mapping', {
+                  taskType,
+                  foundTaskId,
+                  status
+                })
               }
             }
           }
@@ -170,7 +197,11 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
         const isCompleted = (status as string) === 'completed' || (status as string) === 'complete'
         
         if (task.title?.includes('Appraiser: Sign NDA')) {
-          console.log(`Dependency ${depId} final check: status=${status}, isCompleted=${isCompleted}`)
+          secureLogger.info('Dependency final check', {
+            dependencyId: depId,
+            status,
+            isCompleted
+          })
         }
         
         return isCompleted
@@ -189,12 +220,14 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
       
       // Only log for debugging specific issues
       // if (task.title?.includes('Appraiser: Sign NDA')) {
-      //   console.log(`calculateBlockingStatus - Task ${task.title}:`, {
-      //     dependencies: task.dependencies,
-      //     depStatuses,
-      //     allDependenciesCompleted,
-      //     currentStatus: task.status,
-      //     newStatus
+      // Debug logging for task status calculation
+      // secureLogger.info('Task status calculation', {
+      //   taskTitle: task.title,
+      //   dependencies: task.dependencies,
+      //   depStatuses,
+      //   allDependenciesCompleted,
+      //   currentStatus: task.status,
+      //   newStatus
       //   })
       // }
       

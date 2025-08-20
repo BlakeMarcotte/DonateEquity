@@ -8,6 +8,7 @@ import {
   updateMetadata
 } from 'firebase/storage'
 import { storage } from './config'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 export interface UploadProgress {
   bytesTransferred: number
@@ -40,8 +41,11 @@ export async function uploadDonationBuffer(
   const storageRef = ref(storage, filePath)
 
   try {
-    console.log('Uploading buffer to path:', filePath)
-    console.log('Buffer size:', buffer.length, 'bytes')
+    secureLogger.info('Uploading buffer to Firebase Storage', {
+      filePath,
+      bufferSize: buffer.length,
+      contentType
+    })
     
     // Upload the buffer directly
     const snapshot = await uploadBytesResumable(storageRef, buffer, {
@@ -52,9 +56,11 @@ export async function uploadDonationBuffer(
       }
     })
     
-    console.log('Buffer upload completed, getting download URL...')
     const downloadURL = await getDownloadURL(snapshot.ref)
-    console.log('Download URL obtained:', downloadURL)
+    secureLogger.info('Buffer upload completed successfully', {
+      filePath,
+      fileName
+    })
     
     return {
       url: downloadURL,
@@ -65,7 +71,11 @@ export async function uploadDonationBuffer(
       uploadedAt: new Date()
     }
   } catch (error) {
-    console.error('Buffer upload failed:', error)
+    secureLogger.error('Buffer upload failed', error, {
+      filePath,
+      fileName,
+      contentType
+    })
     throw error
   }
 }
@@ -84,8 +94,12 @@ export async function uploadDonationFile(
   const storageRef = ref(storage, filePath)
 
   return new Promise((resolve, reject) => {
-    console.log('Starting upload to path:', filePath)
-    console.log('File details:', { name: file.name, size: file.size, type: file.type })
+    secureLogger.info('Starting file upload', {
+      filePath,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    })
     
     const uploadTask = uploadBytesResumable(storageRef, file)
 
@@ -93,7 +107,6 @@ export async function uploadDonationFile(
       'state_changed',
       (snapshot) => {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-        console.log('Upload progress:', progress + '%')
         onProgress?.({
           bytesTransferred: snapshot.bytesTransferred,
           totalBytes: snapshot.totalBytes,
@@ -102,16 +115,20 @@ export async function uploadDonationFile(
         })
       },
       (error) => {
-        console.error('Upload failed:', error)
-        console.error('Error code:', error.code)
-        console.error('Error message:', error.message)
+        secureLogger.error('File upload failed', error, {
+          filePath,
+          fileName: file.name,
+          errorCode: error.code
+        })
         reject(error)
       },
       async () => {
         try {
-          console.log('Upload completed, getting download URL...')
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
-          console.log('Download URL obtained:', downloadURL)
+          secureLogger.info('File upload completed successfully', {
+            filePath,
+            fileName: file.name
+          })
           resolve({
             url: downloadURL,
             path: filePath,
@@ -121,7 +138,10 @@ export async function uploadDonationFile(
             uploadedAt: new Date()
           })
         } catch (error) {
-          console.error('Error getting download URL:', error)
+          secureLogger.error('Error getting download URL after upload', error, {
+            filePath,
+            fileName: file.name
+          })
           reject(error)
         }
       }
@@ -165,7 +185,11 @@ export async function listDonationFiles(
 
     return files
   } catch (error) {
-    console.error('Error listing files:', error)
+    secureLogger.error('Error listing donation files', error, {
+      donationId,
+      folder,
+      folderPath
+    })
     throw error
   }
 }
@@ -179,7 +203,9 @@ export async function deleteDonationFile(filePath: string): Promise<void> {
   try {
     await deleteObject(storageRef)
   } catch (error) {
-    console.error('Error deleting file:', error)
+    secureLogger.error('Error deleting file', error, {
+      filePath
+    })
     throw error
   }
 }
@@ -193,7 +219,9 @@ export async function getFileMetadata(filePath: string) {
   try {
     return await getMetadata(storageRef)
   } catch (error) {
-    console.error('Error getting file metadata:', error)
+    secureLogger.error('Error getting file metadata', error, {
+      filePath
+    })
     throw error
   }
 }
@@ -210,7 +238,10 @@ export async function updateFileMetadata(
   try {
     return await updateMetadata(storageRef, { customMetadata: metadata })
   } catch (error) {
-    console.error('Error updating file metadata:', error)
+    secureLogger.error('Error updating file metadata', error, {
+      filePath,
+      metadata
+    })
     throw error
   }
 }

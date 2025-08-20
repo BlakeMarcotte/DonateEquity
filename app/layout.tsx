@@ -5,6 +5,7 @@ import { APP_NAME, APP_DESCRIPTION } from '@/lib/constants'
 import { AuthProvider } from '@/contexts/AuthContext'
 import Navbar from '@/components/layout/Navbar'
 import LayoutWrapper from '@/components/layout/LayoutWrapper'
+import ErrorBoundary from '@/components/error/ErrorBoundary'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -34,12 +35,14 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body className={`${inter.className} antialiased`}>
-        <AuthProvider>
-          <Navbar />
-          <LayoutWrapper>
-            {children}
-          </LayoutWrapper>
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            <Navbar />
+            <LayoutWrapper>
+              {children}
+            </LayoutWrapper>
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

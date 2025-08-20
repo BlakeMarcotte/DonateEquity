@@ -5,20 +5,10 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { respondToInvitation } from '@/lib/firebase/invitations'
 import { CampaignInvitation } from '@/types/invitations'
+import { Campaign } from '@/types/campaign'
+import { secureLogger } from '@/lib/logging/secure-logger'
 import { Heart, Mail, Calendar, Target, DollarSign, CheckCircle, XCircle, Clock } from 'lucide-react'
 
-interface Campaign {
-  id: string
-  title: string
-  description: string
-  goal: number
-  raised: number
-  status: string
-  organizationId: string
-  createdBy: string
-  createdAt: Date
-  updatedAt: Date
-}
 
 export default function InvitationPage() {
   const params = useParams()
@@ -86,6 +76,8 @@ export default function InvitationPage() {
           ...campaignData,
           createdAt: new Date(campaignData.createdAt),
           updatedAt: new Date(campaignData.updatedAt),
+          // Map legacy properties to centralized Campaign interface
+          currentAmount: campaignData.raised || campaignData.currentAmount || 0
         } as Campaign)
       }
     } catch (error: unknown) {
@@ -159,8 +151,12 @@ export default function InvitationPage() {
           setInvitation(prev => prev ? { ...prev, status: response } : null)
           setResponded(true)
           
-          // Log the response to debug
-          console.log('Acceptance result:', acceptanceResult)
+          // Log the response for debugging
+          secureLogger.info('Campaign invitation accepted', {
+            campaignId: acceptanceResult.data?.campaignId,
+            hasParticipantId: !!acceptanceResult.data?.participantId,
+            hasDonorId: !!acceptanceResult.data?.donorId
+          })
           
           // Redirect to participant-based task page if we have the participant data
           setTimeout(() => {
@@ -171,7 +167,11 @@ export default function InvitationPage() {
               router.push(`/campaigns/${campaignId}/participants/${donorId}/tasks`)
             } else {
               // Fallback to my-campaign if participant data is not available
-              console.log('Missing data for direct redirect, falling back to my-campaign')
+              secureLogger.warn('Missing participant data for direct redirect, using fallback', {
+                hasParticipantId: !!acceptanceResult.data?.participantId,
+                hasDonorId: !!acceptanceResult.data?.donorId,
+                hasCampaignId: !!acceptanceResult.data?.campaignId
+              })
               // Pass campaign ID as query param to help with immediate loading
               if (acceptanceResult.data?.campaignId) {
                 router.push(`/my-campaign?campaignId=${acceptanceResult.data.campaignId}`)
@@ -182,9 +182,11 @@ export default function InvitationPage() {
           }, 2000)
         } else {
           const error = await apiResponse.json()
-          console.error('API Error:', error)
-          console.error('Response status:', apiResponse.status)
-          console.error('Response statusText:', apiResponse.statusText)
+          secureLogger.error('Campaign invitation acceptance failed', new Error(error.error || 'Unknown error'), {
+            token: params.token,
+            status: apiResponse.status,
+            statusText: apiResponse.statusText
+          })
           setError(error.error || 'Failed to accept invitation. Please try again.')
         }
       } else {
@@ -333,13 +335,13 @@ export default function InvitationPage() {
                 <div className="text-center">
                   <DollarSign className="w-8 h-8 text-green-600 mx-auto mb-2" />
                   <p className="text-sm text-gray-500">Raised</p>
-                  <p className="text-xl font-bold text-gray-900">{formatCurrency(campaign.raised)}</p>
+                  <p className="text-xl font-bold text-gray-900">{formatCurrency(campaign.currentAmount)}</p>
                 </div>
                 <div className="text-center">
                   <Calendar className="w-8 h-8 text-purple-600 mx-auto mb-2" />
                   <p className="text-sm text-gray-500">Progress</p>
                   <p className="text-xl font-bold text-gray-900">
-                    {Math.round(getProgressPercentage(campaign.raised, campaign.goal))}%
+                    {Math.round(getProgressPercentage(campaign.currentAmount, campaign.goal))}%
                   </p>
                 </div>
               </div>
@@ -348,12 +350,12 @@ export default function InvitationPage() {
               <div className="mb-6">
                 <div className="flex justify-between text-sm text-gray-600 mb-2">
                   <span>Campaign Progress</span>
-                  <span>{Math.round(getProgressPercentage(campaign.raised, campaign.goal))}% Complete</span>
+                  <span>{Math.round(getProgressPercentage(campaign.currentAmount, campaign.goal))}% Complete</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
                     className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                    style={{ width: `${getProgressPercentage(campaign.raised, campaign.goal)}%` }}
+                    style={{ width: `${getProgressPercentage(campaign.currentAmount, campaign.goal)}%` }}
                   />
                 </div>
               </div>
