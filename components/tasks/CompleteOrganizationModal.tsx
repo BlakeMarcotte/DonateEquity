@@ -75,7 +75,7 @@ export default function CompleteOrganizationModal({
     if (!customClaims?.organizationId) return
 
     const organizationId = customClaims.organizationId
-    await execute(async () => {
+    const result = await execute(async () => {
       const cleanedData: Partial<Organization> = {
         name: formData.name.trim(),
         taxId: cleanEIN(formData.taxId),
@@ -94,6 +94,14 @@ export default function CompleteOrganizationModal({
       await updateOrganization(organizationId, cleanedData)
       return { success: true }
     })
+
+    // If successful, close the modal after a brief delay
+    if (result) {
+      setTimeout(() => {
+        onComplete?.()
+        handleClose()
+      }, 1000)
+    }
   }
 
   const handleClose = () => {
@@ -108,11 +116,6 @@ export default function CompleteOrganizationModal({
     })
     reset()
     onClose()
-  }
-  
-  const handleSuccessClose = () => {
-    onComplete?.()
-    handleClose()
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,17 +145,13 @@ export default function CompleteOrganizationModal({
       onSubmit={handleSubmit}
       loading={loading}
       loadingText="Updating Organization..."
-      success={success}
-      successTitle="Organization Updated!"
-      successMessage="Your organization information has been successfully updated."
-      onSuccessClose={handleSuccessClose}
       error={error}
       submitDisabled={!isFormValid}
       submitText="Update Organization"
       maxWidth="lg"
     >
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <div className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
             <Building2 className="inline w-4 h-4 mr-1" />
             Organization Name
@@ -188,23 +187,6 @@ export default function CompleteOrganizationModal({
         </div>
 
         <div>
-          <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">
-            <Globe className="inline w-4 h-4 mr-1" />
-            Website
-          </label>
-          <input
-            type="url"
-            id="website"
-            value={formData.website}
-            onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-            placeholder="https://www.example.org"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            disabled={loading}
-            required
-          />
-        </div>
-
-        <div>
           <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
             <Phone className="inline w-4 h-4 mr-1" />
             Phone Number
@@ -218,6 +200,23 @@ export default function CompleteOrganizationModal({
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
             maxLength={14}
+            required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">
+            <Globe className="inline w-4 h-4 mr-1" />
+            Website
+          </label>
+          <input
+            type="text"
+            id="website"
+            value={formData.website}
+            onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
+            placeholder="www.example.org"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            disabled={loading}
             required
           />
         </div>

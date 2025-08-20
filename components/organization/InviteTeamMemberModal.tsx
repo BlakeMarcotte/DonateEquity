@@ -67,22 +67,21 @@ export default function InviteTeamMemberModal({
       throw new Error('Please enter a valid email address')
     }
 
-    await execute(async () => {
+    const result = await execute(async () => {
       await onInvite(email, subrole, personalMessage)
       return { success: true }
     })
+
+    // If successful, close the modal after a brief delay
+    if (result) {
+      setTimeout(() => {
+        handleClose()
+      }, 1000)
+    }
   }
 
   const handleClose = () => {
     if (loading) return
-    setEmail('')
-    setSubrole('member')
-    setPersonalMessage('')
-    reset()
-    onClose()
-  }
-  
-  const handleSuccessClose = () => {
     setEmail('')
     setSubrole('member')
     setPersonalMessage('')
@@ -101,10 +100,6 @@ export default function InviteTeamMemberModal({
       onSubmit={handleSubmit}
       loading={loading}
       loadingText="Sending Invitation..."
-      success={success}
-      successTitle="Invitation Sent!"
-      successMessage={`Invitation has been sent to ${email}.`}
-      onSuccessClose={handleSuccessClose}
       error={error}
       submitDisabled={!isFormValid}
       submitText="Send Invitation"

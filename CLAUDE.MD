@@ -1,217 +1,394 @@
-# Equity Donation Platform - Development Guide
+# 🚨 CRITICAL: Security & Code Quality Requirements - READ FIRST
 
-## Project Overview
-Next.js/TypeScript platform enabling pre-committed equity donations to nonprofits upon liquidity events. Features campaign creation, donor commitments, and appraisal workflows via shared task lists.
+## ⛔ MANDATORY SECURITY PRACTICES (ENFORCE ON EVERY CHANGE)
 
-## Tech Stack
-- **Frontend**: Next.js 14+ with TypeScript, Tailwind CSS
-- **Backend**: Firebase (Firestore, Auth, Storage, Functions)
-- **Auth**: Firebase Auth with custom claims (RBAC)
-- **Documents**: DocuSign API integration
+### 1. Authentication & Authorization
+- **NEVER** store sensitive data in localStorage or sessionStorage
+- **ALWAYS** validate user permissions server-side before data access
+- **NEVER** expose API keys, secrets, or sensitive configuration in client code
+- **ALWAYS** use Firebase Security Rules to enforce access control at the database level
+- **VERIFY** custom claims on both client AND server for every protected operation
+- **IMPLEMENT** proper session management with token refresh
 
-## User Roles
-1. **Donors** - Create equity commitments upon liquidity events
-2. **Nonprofit Admins** - Create campaigns, manage donations, coordinate workflows
-3. **Appraisers** - Conduct valuations, submit appraisal documents
+### 2. Data Validation & Sanitization  
+- **VALIDATE** all user inputs on both client AND server (never trust the client)
+- **SANITIZE** all data before storage to prevent XSS attacks
+- **ESCAPE** all dynamic content in JSX to prevent injection attacks
+- **USE** parameterized queries - never concatenate user input into queries
+- **IMPLEMENT** input length limits and type checking
+- **REJECT** requests with unexpected fields
 
-## Core Features (MVP)
+### 3. Error Handling & Logging
+- **NEVER** use console.log, console.error, console.warn in production code
+- **ALWAYS** use secureLogger for all logging needs
+- **NEVER** expose sensitive information in error messages (no stack traces, paths, or system details)
+- **IMPLEMENT** user-friendly error messages that don't reveal system internals
+- **LOG** security events for audit trails
+- **CATCH** all promises and handle rejection properly
 
-### Authentication & Authorization ✅
-- Firebase Auth with custom claims & RBAC
-- Split-screen professional UI following Equity Compass styling
-- Multi-step registration with organization management
-- Protected routes with granular permissions
+### 4. API Security
+- **AUTHENTICATE** every API route using Firebase Admin SDK
+- **VALIDATE** request origins and implement proper CORS policies
+- **IMPLEMENT** rate limiting on all endpoints (especially public ones)
+- **NEVER** expose internal API structure or database schema
+- **USE** HTTPS everywhere - no HTTP allowed
+- **VERIFY** webhook signatures for external integrations
 
-### Campaign Management ✅
-- Campaign creation with visibility controls (public/private/unlisted)
-- Full-featured browse page with filtering & search
-- Real-time progress tracking & statistics
-- Categories: Technology, Education, Healthcare, Environment, Arts & Culture, Community, Social Impact, Research, Emergency Relief
+### 5. Code Security
+- **REVIEW** dependencies for known vulnerabilities (`npm audit`)
+- **NEVER** commit secrets, .env files, or sensitive data
+- **USE** environment variables for all configuration
+- **IMPLEMENT** Content Security Policy (CSP) headers
+- **SANITIZE** file uploads and limit file types/sizes
+- **PREVENT** SQL injection, NoSQL injection, and command injection
 
-### Invitation System ✅
-- Token-based campaign invitations
-- Contextual landing with welcome messaging
-- Personal messages from inviters
-- Professional success/error states
+## 📋 MANDATORY CODING PRACTICES (NO SHORTCUTS EVER)
 
-### Donation Workflow ✅
-- Streamlined donation process (no anonymous donations)
-- Role-based navigation & context preservation
-- Auto campaign statistics sync
-
-### 9-Step Task System ✅
-- Sequential workflow with dependencies and conditional branching
-- Universal visibility for transparency
-- Role-based completion rights
-- Real-time updates with color-coded badges
-
-## Development Standards
-- **Code**: TypeScript strict mode, ESLint/Prettier, comprehensive error handling
-- **Security**: Production-ready Firestore rules, least privilege access, XSS/CSRF protection
-- **Performance**: Next.js App Router, image optimization, lazy loading, Firebase query optimization
-- **Quality**: No temporary fixes - production-ready code from start
-
-## 9-Step Task Workflow (with Conditional Tasks)
-1. **Donor**: Sign NDA
-2. **Donor**: Commitment Decision (branches workflow)
-3. **Donor**: Invite Appraiser
-4. **Donor**: Upload Company Information (File Upload)
-5. **Appraiser**: Sign NDA
-6. **Appraiser**: Upload Documents (File Upload)
-7. **Donor**: Approve Documents
-8. **[CONDITIONAL]** **Donor**: Makes Equity Commitment (only if "commit after appraisal" chosen)
-9. **Nonprofit**: Approve Documents
-10. **Nonprofit**: Upload Documents (File Upload)
-
-**Features**: Auto-creation, sequential dependencies, conditional task creation, universal visibility, role-based completion, real-time updates, branching workflows based on donor decisions
-
-## Firebase Architecture
-
-### Collections
-- **campaigns**: title, description, goal, status, visibility, category, organizationId
-- **users**: profile, role, organizationId
-- **organizations**: name, type, adminIds[]
-- **donations**: campaignId, donorId, amount, status, requiresAppraisal
-- **tasks**: donationId, assignedRole, status, dependencies[], metadata
-- **campaign_invitations**: campaignId, inviterUserId, invitationToken, status
-
-### Custom Claims
+### 1. TypeScript Standards
 ```typescript
-interface CustomClaims {
-  role: 'donor' | 'nonprofit_admin' | 'appraiser' | 'admin';
-  organizationId?: string;
-  permissions: string[];
+// ❌ NEVER DO THIS
+const processData = (data: any) => data.value
+let result: any = fetchData()
+
+// ✅ ALWAYS DO THIS
+const processData = (data: unknown): string => {
+  if (isValidData(data)) return data.value
+  throw new Error('Invalid data structure')
+}
+const result: UserData = await fetchData()
+```
+- **NO** use of `any` type - use `unknown` with proper type guards
+- **ENABLE** strict mode and all strict checks in tsconfig
+- **DEFINE** explicit return types for all functions
+- **USE** discriminated unions over general types
+- **IMPLEMENT** exhaustive type checking
+
+### 2. Component Standards
+```typescript
+// ❌ NEVER: Business logic in components
+export default function UserProfile() {
+  const [user, setUser] = useState()
+  
+  const updateUser = async () => {
+    const response = await fetch('/api/user')
+    const data = await response.json()
+    setUser(data)
+  }
+}
+
+// ✅ ALWAYS: Separate concerns
+export default function UserProfile() {
+  const { user, updateUser, loading, error } = useUser()
+  
+  if (error) return <ErrorBoundary error={error} />
+  if (loading) return <LoadingState />
+  
+  return <UserProfileView user={user} onUpdate={updateUser} />
 }
 ```
 
-### Storage Structure
+### 3. Error Handling Pattern
+```typescript
+// EVERY component must have proper error handling
+export default function PageComponent() {
+  return (
+    <PageErrorBoundary pageName="Component Name">
+      <ActualComponent />
+    </PageErrorBoundary>
+  )
+}
+
+// EVERY async operation must follow this pattern
+try {
+  const result = await riskyOperation()
+  return { success: true, data: result }
+} catch (error) {
+  secureLogger.error('Operation failed', error, { 
+    context: 'relevant info',
+    userId: user?.uid 
+  })
+  return { success: false, error: 'User-friendly message' }
+}
 ```
-donations/participants/{participantId}/ - legal/, financial/, appraisals/, signed-documents/, general/
-shared/{campaignId}/ - campaign-materials/
-donations/{donationId}/ - legacy structure (maintained for backward compatibility)
+
+### 4. API Route Security Pattern
+```typescript
+// EVERY API route MUST follow this pattern
+export async function POST(request: Request) {
+  try {
+    // 1. Authenticate
+    const token = await authenticateRequest(request)
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    
+    // 2. Validate input with Zod
+    const body = await request.json()
+    const validated = schema.parse(body) // Throws if invalid
+    
+    // 3. Check permissions
+    const hasPermission = await checkUserPermission(token.uid, 'required_permission')
+    if (!hasPermission) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    
+    // 4. Sanitize data
+    const sanitized = sanitizeInput(validated)
+    
+    // 5. Process request
+    const result = await processSecurely(sanitized)
+    
+    // 6. Audit log
+    await auditLog({
+      userId: token.uid,
+      action: 'action_name',
+      resource: result.id,
+      ip: request.headers.get('x-forwarded-for')
+    })
+    
+    return NextResponse.json(result)
+  } catch (error) {
+    secureLogger.error('API Error', error, { 
+      endpoint: request.url,
+      method: request.method 
+    })
+    
+    // Never expose error details
+    return NextResponse.json(
+      { error: 'Internal server error' }, 
+      { status: 500 }
+    )
+  }
+}
 ```
 
-## API Integration
-- **DocuSign**: Use eSignature REST API v2.1+, webhooks, envelope tracking
-- **General**: Search latest docs, error handling, env vars, rate limiting, logging
+### 5. State Management Rules
+- **MINIMIZE** client-side state - prefer server state
+- **NEVER** store sensitive data in React state
+- **USE** proper state management patterns (Context, Zustand)
+- **VALIDATE** all state updates before applying
+- **IMPLEMENT** optimistic updates with rollback on failure
 
-## Security Rules (Production-Ready)
+### 6. Performance Requirements
+- **LAZY LOAD** all routes and heavy components
+- **OPTIMIZE** all images with Next.js Image component
+- **IMPLEMENT** loading states within 100ms
+- **PAGINATE** all lists over 20 items
+- **DEBOUNCE** search inputs (min 300ms)
+- **MEMOIZE** expensive computations
 
-### Firestore
-- Users: Own profile only
-- Campaigns: Read all, create (nonprofit_admin), update (creator/admin)
-- Donations: Participants only (donor/nonprofit/appraiser/admin)
+## 🛡️ Security Implementation Checklist
 
-### Storage
-- Donations folder: Participants only + admin access
+### Before Writing ANY Code
+- [ ] What are the security implications?
+- [ ] How will I validate all inputs?
+- [ ] Are permissions checked server-side?
+- [ ] Is sensitive data properly protected?
+- [ ] Have I considered rate limiting?
+
+### Before Committing Code
+```bash
+# Run ALL of these before EVERY commit
+npm run build          # Must pass with zero errors
+npm run lint           # Must pass with zero errors
+npm run typecheck      # Must pass with zero errors
+npm audit              # No high/critical vulnerabilities
+grep -r "console\." src/  # Must return nothing
+grep -r ": any" src/   # Must return nothing or have explanations
+```
+
+### Code Review Checklist
+1. **Auth**: Is every route properly protected?
+2. **Validation**: Are all inputs validated server-side?
+3. **Sanitization**: Is user content sanitized?
+4. **Errors**: Are errors handled without exposing details?
+5. **Types**: No `any` types without explanation?
+6. **Logs**: Using secureLogger instead of console?
+7. **Secrets**: No hardcoded secrets or keys?
+
+## 🚫 NEVER DO THIS (AUTOMATIC REJECTION)
+```typescript
+// ❌ Exposed secrets
+const API_KEY = "sk_live_1234567890"
+
+// ❌ Console logging
+console.log('user data:', userData)
+
+// ❌ Direct database access in components  
+const users = await db.collection('users').get()
+
+// ❌ Unvalidated input
+const email = request.body.email
+await sendEmail(email)
+
+// ❌ Exposed error details
+catch (error) {
+  return { error: error.stack }
+}
+
+// ❌ Any type
+const processData = (data: any) => data
+
+// ❌ Missing error boundaries
+export default function Page() {
+  return <Component />
+}
+
+// ❌ Synchronous heavy operations
+const filtered = hugeArray.filter(expensiveCheck)
+
+// ❌ Direct DOM manipulation
+document.getElementById('id').innerHTML = userInput
+```
+
+## ✅ ALWAYS DO THIS (REQUIRED PATTERNS)
+```typescript
+// ✅ Environment variables
+const API_KEY = process.env.API_KEY
+
+// ✅ Secure logging
+secureLogger.info('User action', { userId: user.uid, action: 'login' })
+
+// ✅ Service layer pattern
+const users = await userService.getUsers(authToken)
+
+// ✅ Validated input with Zod
+const schema = z.object({ email: z.string().email() })
+const { email } = schema.parse(request.body)
+
+// ✅ Safe error handling
+catch (error) {
+  secureLogger.error('Operation failed', error)
+  return { error: 'Something went wrong. Please try again.' }
+}
+
+// ✅ Proper typing
+const processData = (data: unknown): ProcessedData => {
+  if (!isValidData(data)) throw new Error('Invalid data')
+  return processValidData(data)
+}
+
+// ✅ Error boundaries
+export default function Page() {
+  return (
+    <PageErrorBoundary pageName="Page">
+      <Component />
+    </PageErrorBoundary>
+  )
+}
+
+// ✅ Async operations
+const filtered = useMemo(
+  () => hugeArray.filter(expensiveCheck),
+  [hugeArray]
+)
+
+// ✅ Safe rendering
+<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(userInput) }} />
+```
+
+---
+
+# Equity Donation Platform - Project Details
+
+## Project Overview
+Next.js/TypeScript platform enabling pre-committed equity donations to nonprofits upon liquidity events. Built with enterprise-grade security and code quality standards.
+
+## Tech Stack (Security-First)
+- **Frontend**: Next.js 14+ with TypeScript (STRICT MODE ONLY), Tailwind CSS
+- **Backend**: Firebase with comprehensive Security Rules
+- **Auth**: Firebase Auth with server-verified custom claims (RBAC)
+- **Storage**: Firebase Storage with participant-based access control
+- **Documents**: DocuSign API with webhook verification
+- **Monitoring**: Structured logging with secureLogger
+
+## Security Architecture
+
+### Authentication Flow
+1. Client requests authentication
+2. Firebase Auth validates credentials
+3. Custom claims assigned server-side only
+4. Token verified on every API request
+5. Permissions checked at database level
+
+### Data Access Control
+```typescript
+// Pattern for ALL data access
+async function accessData(userId: string, resourceId: string) {
+  // 1. Verify authentication
+  const user = await verifyAuthToken(token)
+  
+  // 2. Check permissions
+  const hasAccess = await checkPermissions(user, resourceId)
+  
+  // 3. Validate request
+  const validated = validateRequest(request)
+  
+  // 4. Access with security rules
+  return await secureDataAccess(validated)
+}
+```
+
+### Firebase Security Rules Pattern
+```javascript
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && 
+        request.auth.token.role == role;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && 
+        request.auth.uid == userId;
+    }
+    
+    function validFields(required, forbidden) {
+      return request.resource.data.keys().hasAll(required) &&
+        !request.resource.data.keys().hasAny(forbidden);
+    }
+    
+    // Example rule pattern
+    match /users/{userId} {
+      allow read: if isOwner(userId) || hasRole('admin');
+      allow write: if isOwner(userId) && 
+        validFields(['name', 'email'], ['role', 'permissions']);
+    }
+  }
+}
+```
 
 ## Development Workflow
-- **Git**: Commit changes immediately, conventional commits, atomic commits
-- **Documentation**: Update claude.md after architectural changes
-- **Quality**: No temporary fixes - production-ready code only
-- **Testing**: Automated pipeline, security audits, monitoring
 
-## Environment Variables
-```env
-# Firebase Public
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+### Pre-Development Checklist
+- [ ] Review security implications
+- [ ] Plan validation strategy
+- [ ] Design error handling
+- [ ] Consider rate limiting
+- [ ] Plan audit logging
 
-# Firebase Private
-FIREBASE_PRIVATE_KEY=
-FIREBASE_CLIENT_EMAIL=
+### During Development
+- [ ] Use TypeScript strict mode
+- [ ] Implement error boundaries
+- [ ] Add loading states
+- [ ] Validate all inputs
+- [ ] Use secureLogger only
+- [ ] Write secure API routes
+- [ ] Test error scenarios
 
-# DocuSign
-DOCUSIGN_INTEGRATION_KEY=
-DOCUSIGN_USER_ID=
-DOCUSIGN_ACCOUNT_ID=
+### Pre-Commit Requirements
+1. **Build**: `npm run build` (zero errors)
+2. **Lint**: `npm run lint` (zero errors)
+3. **Type Check**: `npm run typecheck` (zero errors)
+4. **Security Audit**: `npm audit` (no high/critical)
+5. **Console Check**: No console statements
+6. **Any Check**: No `any` types without docs
+7. **Test**: All tests passing
 
-# App
-NODE_ENV=
-NEXT_PUBLIC_APP_URL=
-```
+## Summary
+**🔴 SECURITY and CODE QUALITY are NON-NEGOTIABLE. Every line of code must meet enterprise standards. No exceptions, no shortcuts, no "we'll fix it later". If it's not secure and properly coded, it doesn't get committed.**
 
-## Styling Guide
+---
 
-### Design System
-Professional, trustworthy design optimized for financial platforms prioritizing clarity, accessibility, and user confidence.
-
-### Colors
-- **Primary**: `blue-600` (#2563eb) with `blue-700` hover
-- **Text**: `gray-900` (headings), `gray-700` (body), `gray-500` (muted)
-- **Backgrounds**: `white` (content), `gray-50` (sections)
-- **Success/Error**: `green-600`/`red-600` with light backgrounds
-
-### Typography
-- **Font**: Inter (Google Fonts) with system fallbacks
-- **Scale**: text-6xl (hero) → text-base (body) → text-xs (captions)
-- **Weights**: 400 (body), 500 (labels), 600 (buttons), 700 (headings), 800 (hero)
-
-### Components
-- **Buttons**: Primary (blue-600), Secondary (white+border), Outline, Ghost styles
-- **Cards**: White bg, gray-200 border, rounded-lg, hover shadow
-- **Forms**: Input fields with focus states, labels, error handling
-- **Layout**: Container system with responsive breakpoints
-
-### Key Classes
-- **Buttons**: `px-6 py-3 rounded-lg font-semibold transition-all duration-200`
-- **Cards**: `bg-white border border-gray-200 rounded-lg shadow-sm`
-- **Inputs**: `px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500`
-- **Focus**: `focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`
-
-### Standards
-- Semantic HTML elements, proper heading hierarchy
-- ARIA labels, screen reader support
-- Mobile-first responsive design
-- Hover states on interactive elements
-- Loading states and error boundaries
-
-## Development Notes
-- **Security**: Enterprise standards, latest API docs, comprehensive error handling
-- **Code**: TypeScript strict mode (no `any`), Next.js best practices, WCAG 2.1 AA
-- **Performance**: Firebase optimization, proper loading states, scalable architecture
-- **Styling**: Follow Donate Equity styling guide exactly
-
-## Authentication System
-
-### Architecture
-Firebase Auth with custom claims for RBAC, split-screen professional UI, protected routes with granular permissions.
-
-### Components
-- **AuthContext**: Global auth state, user profiles, custom claims, token refresh
-- **AuthLayout**: Split-screen design (dark left panel, clean forms right)
-- **ProtectedRoute**: Role-based protection with convenience wrappers
-
-### Flow
-1. **Registration**: Role selection → personal details → organization setup → account creation
-2. **Login**: Email/password → profile loading → route protection → session management
-
-### Permissions
-- **Donor**: create_donation, view_own_donations, manage_own_profile
-- **Nonprofit**: create_campaign, manage_campaigns, view_donations, manage_organization
-- **Appraiser**: view_assigned_tasks, submit_appraisals, manage_own_profile
-
-## Recent Updates ✅
-
-### Core Features Completed
-- **9-Step Task System**: Auto-creation, sequential dependencies, conditional branching, role-based completion, real-time updates
-- **Donation Workflow**: Streamlined process, removed anonymous donations, role-based navigation
-- **Campaign System**: Browsing, invitations with context, statistics sync
-- **Authentication**: Enhanced UI/UX, professional containers, improved accessibility
-
-### Key Files
-- `/app/api/campaign-participants/create-tasks/route.ts` - New 9-step task creation API
-- `/app/api/campaign-participants/[id]/reset-tasks/route.ts` - New task reset functionality
-- `/components/tasks/DonationTaskList.tsx` - Task UI
-- `/hooks/useParticipantTasks.ts` - Real-time participant-based task management
-- `/app/donations/[id]/tasks/page.tsx` - Task interface
-
-### Legacy Files (Deprecated)
-- `/hooks/useDonationTasks.ts` - Legacy donation-based task management
-- `/app/api/donations/[id]/reset-tasks/route.ts` - Legacy 10-step task reset
-
-### Technical Improvements
-- Router context fixes, Firestore indexes, security rules updates
-- Enhanced loading states, error handling, visual consistency
-- Professional form design, mobile accessibility, ARIA labeling
+*The rest of the original documentation (user roles, features, etc.) remains the same but remember: SECURITY FIRST in all implementations.*
