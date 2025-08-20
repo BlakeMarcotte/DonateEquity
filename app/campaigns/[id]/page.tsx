@@ -31,9 +31,7 @@ import {
   Facebook,
   Twitter,
   Copy,
-  ExternalLink,
   Edit3,
-  BarChart3,
   MessageSquare,
   Eye,
   CheckCircle,
@@ -101,7 +99,6 @@ export default function CampaignDetailPage() {
   const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'team' | 'pending'>('donations')
   const [shareUrl, setShareUrl] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
-  const [syncingStats, setSyncingStats] = useState(false)
 
   const fetchCampaignDetails = useCallback(async () => {
     if (!params.id) return
@@ -500,37 +497,6 @@ export default function CampaignDetailPage() {
     }
   }
 
-  const syncCampaignStats = async () => {
-    if (!user || !params.id) return
-
-    setSyncingStats(true)
-    try {
-      const token = await user.getIdToken()
-      const response = await fetch('/api/admin/sync-campaign-stats', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ campaignId: params.id })
-      })
-
-      const result = await response.json()
-      
-      if (result.success) {
-        // Refresh campaign data to show updated stats
-        await fetchCampaignDetails()
-        await fetchDonations()
-        console.log('Campaign stats synced:', result.stats)
-      } else {
-        console.error('Failed to sync campaign stats:', result.error)
-      }
-    } catch (error) {
-      console.error('Error syncing campaign stats:', error)
-    } finally {
-      setSyncingStats(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -588,10 +554,6 @@ export default function CampaignDetailPage() {
                   <button className="inline-flex items-center space-x-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium border border-gray-300 rounded-lg transition-colors duration-200">
                     <Edit3 className="w-4 h-4" />
                     <span>Edit Campaign</span>
-                  </button>
-                  <button className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200">
-                    <ExternalLink className="w-4 h-4" />
-                    <span>View Public Page</span>
                   </button>
                 </div>
               </div>
@@ -715,27 +677,6 @@ export default function CampaignDetailPage() {
                       >
                         <UserPlus className="w-4 h-4" />
                         <span>Invite Donors</span>
-                      </button>
-                      <button
-                        onClick={syncCampaignStats}
-                        disabled={syncingStats}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors duration-200"
-                      >
-                        {syncingStats ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            <span>Syncing...</span>
-                          </>
-                        ) : (
-                          <>
-                            <BarChart3 className="w-4 h-4" />
-                            <span>Sync Stats</span>
-                          </>
-                        )}
-                      </button>
-                      <button className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200">
-                        <BarChart3 className="w-4 h-4" />
-                        <span>Export Data</span>
                       </button>
                     </div>
                   </div>
