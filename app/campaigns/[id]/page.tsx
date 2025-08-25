@@ -184,7 +184,7 @@ export default function CampaignDetailPage() {
         return []
       }
     }
-  }, [params.id, customClaims?.organizationId, customClaims?.role])
+  }, [params.id])
 
   const fetchParticipants = useCallback(async (donationData: Donation[] = donations) => {
     if (!params.id) return
@@ -199,7 +199,7 @@ export default function CampaignDetailPage() {
           collection(db, 'campaign_participants'),
           limit(1)
         )
-        const testSnapshot = await getDocs(testQuery)
+        await getDocs(testQuery)
         // Basic access test successful
       } catch (basicError) {
         console.error('fetchParticipants: Basic access test failed:', basicError)
@@ -342,7 +342,7 @@ export default function CampaignDetailPage() {
       })
       setParticipants([])
     }
-  }, [params.id, user?.uid, user?.email, customClaims?.role, customClaims?.organizationId, donations])
+  }, [params.id, donations])
 
   const fetchInvitations = useCallback(async () => {
     if (!params.id) return
@@ -375,7 +375,7 @@ export default function CampaignDetailPage() {
       
       try {
         snapshot = await getDocs(pendingQuery)
-      } catch (indexError) {
+      } catch {
         // OrderBy failed, trying without
         // Fallback without orderBy
         pendingQuery = query(
