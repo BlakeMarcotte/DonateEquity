@@ -127,9 +127,7 @@ export default function CampaignDetailPage() {
   const fetchDonations = useCallback(async () => {
     if (!params.id) return []
 
-    console.log('fetchDonations: Starting for campaign:', params.id)
-    console.log('fetchDonations: User role:', customClaims?.role)
-    console.log('fetchDonations: Organization ID:', customClaims?.organizationId)
+    // Removed console logs to prevent spam
 
     try {
       // First try with orderBy, if that fails due to index issues, try without
@@ -139,9 +137,9 @@ export default function CampaignDetailPage() {
         orderBy('createdAt', 'desc')
       )
 
-      console.log('fetchDonations: Executing query with orderBy...')
+      // Executing query with orderBy
       const snapshot = await getDocs(donationsQuery)
-      console.log('fetchDonations: Found donations:', snapshot.docs.length)
+      // Found donations
       
       const donationData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -149,7 +147,7 @@ export default function CampaignDetailPage() {
         createdAt: doc.data().createdAt?.toDate() || new Date(),
       })) as Donation[]
 
-      console.log('fetchDonations: Processed donation data:', donationData)
+      // Processed donation data
       setDonations(donationData)
       return donationData
     } catch (error) {
@@ -162,9 +160,9 @@ export default function CampaignDetailPage() {
           where('campaignId', '==', params.id)
         )
 
-        console.log('fetchDonations: Executing simple query...')
+        // Executing simple query
         const snapshot = await getDocs(simpleQuery)
-        console.log('fetchDonations: Found donations (simple):', snapshot.docs.length)
+        // Found donations (simple)
         
         const donationData = snapshot.docs.map(doc => ({
           id: doc.id,
@@ -175,7 +173,7 @@ export default function CampaignDetailPage() {
         // Sort manually since we couldn't orderBy in the query
         donationData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 
-        console.log('fetchDonations: Processed donation data (simple):', donationData)
+        // Processed donation data (simple)
         setDonations(donationData)
         return donationData
       } catch (secondError) {
@@ -191,24 +189,18 @@ export default function CampaignDetailPage() {
   const fetchParticipants = useCallback(async (donationData: Donation[] = donations) => {
     if (!params.id) return
 
-    console.log('fetchParticipants: Looking for campaign participants for campaign:', params.id)
-    console.log('fetchParticipants: User details:', {
-      uid: user?.uid,
-      email: user?.email,
-      role: customClaims?.role,
-      organizationId: customClaims?.organizationId
-    })
+    // Looking for campaign participants
 
     try {
       // First test basic access
-      console.log('fetchParticipants: Testing basic collection access...')
+      // Testing basic collection access
       try {
         const testQuery = query(
           collection(db, 'campaign_participants'),
           limit(1)
         )
         const testSnapshot = await getDocs(testQuery)
-        console.log('fetchParticipants: Basic access test successful, found docs:', testSnapshot.docs.length)
+        // Basic access test successful
       } catch (basicError) {
         console.error('fetchParticipants: Basic access test failed:', basicError)
         const basicErr = basicError as { code?: string; message?: string }
@@ -224,7 +216,7 @@ export default function CampaignDetailPage() {
         orderBy('joinedAt', 'desc')
       )
 
-      console.log('fetchParticipants: Executing query with where + orderBy...')
+      // Executing query with where + orderBy
       let snapshot
       
       try {
@@ -244,11 +236,11 @@ export default function CampaignDetailPage() {
           where('userRole', '==', 'donor')
         )
         
-        console.log('fetchParticipants: Trying simple where query...')
+        // Trying simple where query
         snapshot = await getDocs(participantsQuery)
       }
       
-      console.log('fetchParticipants: Found campaign_participants:', snapshot.docs.length)
+      // Found campaign_participants
       
       const participantData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -268,33 +260,27 @@ export default function CampaignDetailPage() {
       const userIds = participantData.map(p => p.userId).filter(Boolean)
       const userDataMap = new Map()
       
-      console.log('fetchParticipants: Participant user IDs:', userIds)
-      console.log('fetchParticipants: Participant data:', participantData.map(p => ({
-        id: p.id,
-        userId: p.userId,
-        invitedEmail: p.invitedEmail,
-        inviterName: p.inviterName
-      })))
+      // Processing participant data
       
       if (userIds.length > 0) {
         try {
-          console.log('fetchParticipants: Fetching user data for', userIds.length, 'users')
+          // Fetching user data
           const usersQuery = query(
             collection(db, 'users'),
             where('__name__', 'in', userIds)
           )
           const usersSnapshot = await getDocs(usersQuery)
-          console.log('fetchParticipants: Found user documents:', usersSnapshot.docs.length)
+          // Found user documents
           
           usersSnapshot.docs.forEach(doc => {
             const userData = doc.data()
-            console.log('fetchParticipants: Processing user:', doc.id, userData)
+            // Processing user
             userDataMap.set(doc.id, {
               name: userData.displayName || userData.firstName + ' ' + userData.lastName || userData.email?.split('@')[0] || 'User',
               email: userData.email
             })
           })
-          console.log('fetchParticipants: User data map:', Object.fromEntries(userDataMap))
+          // User data map processed
         } catch (userError) {
           console.error('fetchParticipants: Error fetching user data:', userError)
         }
@@ -345,7 +331,7 @@ export default function CampaignDetailPage() {
           }
         })
 
-      console.log('fetchParticipants: Created participants:', fullParticipants.length)
+      // Created participants
       setParticipants(fullParticipants)
     } catch (error) {
       console.error('fetchParticipants: Error fetching participants:', error)
@@ -373,7 +359,7 @@ export default function CampaignDetailPage() {
   const fetchPendingInvitations = useCallback(async () => {
     if (!params.id) return
 
-    console.log('fetchPendingInvitations: Looking for pending invitations for campaign:', params.id)
+    // Looking for pending invitations
 
     try {
       // Fetch pending campaign invitations for this campaign
@@ -384,13 +370,13 @@ export default function CampaignDetailPage() {
         orderBy('invitedAt', 'desc')
       )
 
-      console.log('fetchPendingInvitations: Executing query...')
+      // Executing query
       let snapshot
       
       try {
         snapshot = await getDocs(pendingQuery)
       } catch (indexError) {
-        console.log('fetchPendingInvitations: OrderBy failed, trying without...', indexError)
+        // OrderBy failed, trying without
         // Fallback without orderBy
         pendingQuery = query(
           collection(db, 'campaign_invitations'),
@@ -400,7 +386,7 @@ export default function CampaignDetailPage() {
         snapshot = await getDocs(pendingQuery)
       }
       
-      console.log('fetchPendingInvitations: Found pending invitations:', snapshot.docs.length)
+      // Found pending invitations
       
       const pendingData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -409,7 +395,7 @@ export default function CampaignDetailPage() {
         expiresAt: doc.data().expiresAt?.toDate() || null,
       })) as CampaignInvitation[]
 
-      console.log('fetchPendingInvitations: Processed pending invitations:', pendingData.length)
+      // Processed pending invitations
       setPendingInvitations(pendingData)
     } catch (error) {
       console.error('fetchPendingInvitations: Error fetching pending invitations:', error)
@@ -428,7 +414,9 @@ export default function CampaignDetailPage() {
       fetchPendingInvitations()
       setShareUrl(`${window.location.origin}/campaigns/${params.id}/donate`)
     }
-  }, [params.id, customClaims?.organizationId, fetchCampaignDetails, fetchDonations, fetchParticipants, fetchInvitations, fetchPendingInvitations])
+    // Only include actual data dependencies, not the functions themselves
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id, customClaims?.organizationId])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
