@@ -128,7 +128,28 @@ service firebase.storage {
       allow delete: if isDonationParticipant(donationId);
     }
     
-    // Participant-based documents - NEW STRUCTURE
+    // Participant-based documents - NEW STRUCTURE (corrected path)
+    match /participants/{participantId}/{folder}/{fileName} {
+      allow read: if isParticipantAuthorized(participantId);
+      allow write: if (
+        isParticipantAuthorized(participantId) &&
+        isValidFileSize(50 * 1024 * 1024) && // 50MB limit for system uploads like signed docs
+        isValidFileType([
+          'application/pdf',
+          'image/jpeg', 
+          'image/png',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+          'text/plain',
+          'text/csv'
+        ])
+      );
+      allow delete: if isParticipantAuthorized(participantId);
+    }
+    
+    // Legacy participant path structure (backward compatibility)
     match /donations/participants/{participantId}/{folder}/{fileName} {
       allow read: if isParticipantAuthorized(participantId);
       allow write: if (

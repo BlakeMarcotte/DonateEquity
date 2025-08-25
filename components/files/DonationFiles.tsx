@@ -12,7 +12,8 @@ import {
   Upload, 
   Plus, 
   Eye,
-  Filter
+  Filter,
+  RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -59,6 +60,7 @@ export function DonationFiles({
     uploads,
     uploadFile, 
     deleteFile, 
+    loadFiles,
     getFilesByFolder,
     getAllFolders,
     getTotalSize,
@@ -69,6 +71,7 @@ export function DonationFiles({
   const [selectedFolder, setSelectedFolder] = useState<string>('all')
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['general']))
   const [deletingFile, setDeletingFile] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   const handleUpload = async (file: File, folder: string) => {
     try {
@@ -92,6 +95,19 @@ export function DonationFiles({
       alert('Failed to delete file')
     } finally {
       setDeletingFile(null)
+    }
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      if (loadFiles) {
+        await loadFiles()
+      }
+    } catch {
+      // Refresh failed
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -155,15 +171,26 @@ export function DonationFiles({
               {getFileCount()} files • {formatFileSize(getTotalSize())}
             </p>
           </div>
-          {showUpload && (
+          <div className="flex items-center space-x-2">
             <Button
-              onClick={() => setShowUploadModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              variant="outline"
+              size="sm"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Upload Files
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
-          )}
+            {showUpload && (
+              <Button
+                onClick={() => setShowUploadModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Upload Files
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Upload Progress */}
@@ -197,6 +224,25 @@ export function DonationFiles({
         {error && (
           <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-md">
             <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        {/* Debug info in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-xs">
+            <details>
+              <summary className="cursor-pointer font-medium text-blue-900 mb-2">
+                Debug Info (Dev Only)
+              </summary>
+              <div className="space-y-1 text-blue-800">
+                <div><strong>Donation ID:</strong> {actualDonationId || 'None'}</div>
+                <div><strong>Participant ID:</strong> {participantId || 'None'}</div>
+                <div><strong>Path Type:</strong> {isParticipantPath ? 'participant' : 'donation'}</div>
+                <div><strong>Storage Path:</strong> {isParticipantPath ? `participants/${participantId}` : `donations/${actualDonationId}`}</div>
+                <div><strong>Files Loaded:</strong> {files.length}</div>
+                <div><strong>Folders:</strong> {getAllFolders().join(', ') || 'None'}</div>
+              </div>
+            </details>
           </div>
         )}
 

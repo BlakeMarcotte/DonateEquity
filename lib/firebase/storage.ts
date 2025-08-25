@@ -210,41 +210,72 @@ export async function listParticipantFiles(
       ? `participants/${participantId}/${folder}`
       : `participants/${participantId}`
     
+    secureLogger.info('Attempting to list participant files', {
+      participantId,
+      folder,
+      participantFolderPath,
+      searchType: folder ? 'specific-folder' : 'all-folders'
+    })
+    
     const participantStorageRef = ref(storage, participantFolderPath)
     
     try {
       const participantResult = await listAll(participantStorageRef)
       
+      secureLogger.info('Storage listing result', {
+        participantId,
+        folder,
+        path: participantFolderPath,
+        items: participantResult.items.length,
+        prefixes: participantResult.prefixes.length,
+        itemNames: participantResult.items.map(item => item.name)
+      })
+      
       const participantFiles = await Promise.all(
         participantResult.items.map(async (itemRef) => {
-          const metadata = await getMetadata(itemRef)
-          const url = await getDownloadURL(itemRef)
-          
-          return {
-            name: itemRef.name,
-            fullPath: itemRef.fullPath,
-            url,
-            size: metadata.size,
-            contentType: metadata.contentType,
-            timeCreated: metadata.timeCreated,
-            updated: metadata.updated,
-            customMetadata: metadata.customMetadata,
-            source: 'participant' as const
+          try {
+            const metadata = await getMetadata(itemRef)
+            const url = await getDownloadURL(itemRef)
+            
+            return {
+              name: itemRef.name,
+              fullPath: itemRef.fullPath,
+              url,
+              size: metadata.size,
+              contentType: metadata.contentType,
+              timeCreated: metadata.timeCreated,
+              updated: metadata.updated,
+              customMetadata: metadata.customMetadata,
+              source: 'participant' as const
+            }
+          } catch (fileError) {
+            secureLogger.error('Error processing individual file', fileError, {
+              fileName: itemRef.name,
+              filePath: itemRef.fullPath
+            })
+            return null
           }
         })
       )
       
-      allFiles.push(...participantFiles)
-      secureLogger.info('Found participant-based files', { 
+      // Filter out failed files
+      const validFiles = participantFiles.filter(file => file !== null)
+      allFiles.push(...validFiles)
+      
+      secureLogger.info('Successfully processed participant files', { 
         participantId, 
         folder, 
-        count: participantFiles.length 
+        totalFound: participantResult.items.length,
+        successfullyProcessed: validFiles.length,
+        fileNames: validFiles.map(f => f.name)
       })
     } catch (error) {
-      secureLogger.info('No participant-based files found', { 
+      secureLogger.warn('Error listing participant files', { 
         participantId, 
-        folder, 
-        error: (error as Error).message 
+        folder,
+        participantFolderPath,
+        error: (error as Error).message,
+        errorCode: (error as { code?: string }).code || 'unknown'
       })
     }
   }
