@@ -143,23 +143,6 @@ export function DonationTaskList({
         return task.assignedTo === user?.uid || task.assignedRole === customClaims?.role
       })
 
-  // Debug participant tasks (only run once on initial load to avoid spam)
-  // if (tasks.length > 0 && participantId) {
-  //   debugParticipantTasks(tasks)
-  // }
-  
-  // console.log('Debug - Total tasks:', tasks.length)
-  // console.log('Debug - User role:', customClaims?.role)
-  // console.log('Debug - User ID:', user?.uid)
-  // console.log('Debug - showAllTasks:', showAllTasks)
-  // console.log('Debug - Filtered tasks:', filteredTasks.length)
-  console.log('Debug - Tasks:', tasks.map(t => ({ 
-    id: t.id, 
-    title: t.title, 
-    type: t.type,
-    assignedTo: t.assignedTo, 
-    assignedRole: t.assignedRole 
-  })))
 
   // Sort tasks by order field to maintain consistent workflow sequence
   const sortedTasks = [...filteredTasks].sort((a, b) => {
@@ -178,17 +161,13 @@ export function DonationTaskList({
 
     // Check if this is an invitation task
     const task = tasks.find(t => t.id === taskId)
-    console.log('🔥 handleCompleteTask called for task:', { id: taskId, title: task?.title, type: task?.type })
-    
     if (task?.type === 'invitation') {
-      console.log('🔥 Showing invitation modal')
       setShowInvitationModal(true)
       return
     }
     
     // Check if this is a document upload task
     if (task?.type === 'document_upload') {
-      console.log('🔥 Showing upload modal')
       setCurrentUploadTask(task)
       setShowUploadModal(true)
       return
@@ -196,7 +175,6 @@ export function DonationTaskList({
     
     // Check if this is a DocuSign signature task
     if (task?.type === 'docusign_signature') {
-      console.log('🔥 Calling DocuSign handler')
       handleDocuSignTask(taskId)
       return
     }
@@ -204,7 +182,6 @@ export function DonationTaskList({
     // Check if this is the conditional equity commitment task (step 8)
     // This is different from step 2 commitment decision - it's for making the actual commitment
     if (task?.type === 'commitment_decision' && task?.title === 'Donor: Makes Equity Commitment') {
-      console.log('🔥 Showing equity commitment modal for conditional task')
       setCurrentCommitmentTask(task)
       setShowCommitmentModal(true)
       return
@@ -215,8 +192,7 @@ export function DonationTaskList({
     
     try {
       await completeTask(taskId)
-    } catch (error) {
-      console.error('Failed to complete task:', error)
+    } catch {
       // Handle error - could show toast notification
     } finally {
       setCompletingTasks(prev => {
@@ -250,9 +226,6 @@ export function DonationTaskList({
   }
   
   const handleDocuSignTask = async (taskId: string) => {
-    console.log('🔥 DocuSign task handler called for task:', taskId)
-    console.log('🔥 User:', user?.email, user?.displayName)
-    console.log('🔥 ParticipantId:', participantId)
     if (docuSignLoading) return
     
     setDocuSignLoading(true)
@@ -328,8 +301,8 @@ export function DonationTaskList({
               // Mark task as completed
               await completeTask(taskId)
             }
-          } catch (error) {
-            console.error('Error checking envelope status:', error)
+          } catch {
+            // Error checking envelope status
           }
         }
       }, 2000)
@@ -338,7 +311,6 @@ export function DonationTaskList({
       setTimeout(() => clearInterval(checkSigning), 300000)
       
     } catch (error) {
-      console.error('DocuSign error:', error)
       alert(error instanceof Error ? error.message : 'Failed to initiate document signing')
     } finally {
       setDocuSignLoading(false)
@@ -367,14 +339,12 @@ export function DonationTaskList({
         throw new Error('Failed to refresh tasks')
       }
 
-      const result = await response.json()
-      console.log('Tasks refreshed:', result.message)
+      await response.json()
       
       // The real-time listener should pick up any changes automatically
       // This is just to force a server-side check
       
-    } catch (err) {
-      console.error('Error refreshing tasks:', err)
+    } catch {
       alert('Failed to refresh tasks')
     } finally {
       setRefreshing(false)
@@ -428,12 +398,9 @@ export function DonationTaskList({
         throw new Error(errorMessage)
       }
 
-      const result = await response.json()
-
-      console.log('Tasks reset successfully:', result.message)
+      await response.json()
       
     } catch (err) {
-      console.error('Error resetting tasks:', err)
       alert(err instanceof Error ? err.message : 'Failed to reset tasks')
     } finally {
       setResettingTasks(false)
@@ -506,34 +473,6 @@ export function DonationTaskList({
     return false
   }
 
-  // Debug logging after canCompleteTask is defined
-  console.log('Debug - User ID:', user?.uid)
-  console.log('Debug - User Role:', customClaims?.role)
-  console.log('Debug - Show All Tasks:', showAllTasks)
-  console.log('Debug - Filtered Tasks Count:', filteredTasks.length)
-  
-  // Debug all task statuses to understand the workflow
-  console.log('Debug - All Task Statuses:')
-  tasks.forEach((task, index) => {
-    console.log(`Task ${task.order || index + 1}: ${task.title}`, {
-      status: task.status,
-      assignedRole: task.assignedRole,
-      assignedTo: task.assignedTo,
-      dependencies: task.dependencies,
-      canComplete: canCompleteTask(task)
-    })
-  })
-  
-  const appraiserTasks = tasks.filter(t => t.assignedRole === 'appraiser')
-  console.log('Debug - Appraiser Tasks:', appraiserTasks.map(t => ({
-    id: t.id,
-    title: t.title,
-    assignedTo: t.assignedTo,
-    assignedRole: t.assignedRole,
-    status: t.status,
-    dependencies: t.dependencies,
-    canComplete: canCompleteTask(t)
-  })))
 
   // Tasks should always exist since they're created automatically with donations
   if (filteredTasks.length === 0) {
@@ -737,12 +676,10 @@ export function DonationTaskList({
                                   throw new Error(error.error || 'Failed to complete task')
                                 }
 
-                                const result = await response.json()
-                                console.log('DocuSign task completed:', result)
+                                await response.json()
                                 
                                 // Tasks will refresh automatically via Firestore listener
                               } catch (error) {
-                                console.error('Failed to complete DocuSign task:', error)
                                 alert('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'))
                               } finally {
                                 setCompletingTasks(prev => {

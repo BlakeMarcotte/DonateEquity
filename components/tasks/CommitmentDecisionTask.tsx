@@ -37,8 +37,8 @@ export function CommitmentDecisionTask({
     setLoading(true)
     try {
       await onDecision(task.id, decision)
-    } catch (error) {
-      console.error('Error making commitment decision:', error)
+    } catch {
+      // Error making commitment decision
     } finally {
       setLoading(false)
     }
@@ -57,7 +57,7 @@ export function CommitmentDecisionTask({
       await onDecision(task.id, 'commit_now', commitmentData)
       setShowCommitmentModal(false)
     } catch (error) {
-      console.error('Error creating commitment:', error)
+      // Error creating commitment
       throw error
     }
   }
