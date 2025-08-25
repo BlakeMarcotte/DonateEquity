@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import { docuSignClient } from '@/lib/docusign/simple-client'
 import { uploadDonationBufferAdmin } from '@/lib/firebase/storage-admin'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,52 +11,93 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     
     // Log the webhook event for debugging
-    console.log('DocuSign webhook received:', JSON.stringify(body, null, 2))
+    secureLogger.info('DocuSign webhook received', { 
+      envelopeId: body.envelopeId,
+      status: body.status,
+      eventKeys: Object.keys(body)
+    })
 
-    // DocuSign sends webhook data in this format
-    const { event, data } = body
+    // DocuSign Connect sends webhook data in this format:
+    // For envelope events: body.envelopeId and body.status
+    // For recipient events: body.envelopeId and body.recipients
     
-    if (!event || !data) {
-      console.log('Invalid webhook payload - missing event or data')
-      return NextResponse.json({ message: 'Invalid payload' }, { status: 400 })
+    const envelopeId = body.envelopeId
+    const envelopeStatus = body.status
+    
+    if (!envelopeId) {
+      secureLogger.info('No envelope ID found in webhook payload')
+      return NextResponse.json({ message: 'No envelope ID' }, { status: 400 })
     }
 
-    // We're interested in envelope completion events
-    if (event === 'envelope-completed' || event === 'envelope-sent' || event === 'recipient-completed') {
-      const envelopeId = data.envelopeId || data.envelopeSummary?.envelopeId
-      const envelopeStatus = data.envelopeStatus || data.envelopeSummary?.status
-      
-      if (!envelopeId) {
-        console.log('No envelope ID found in webhook data')
-        return NextResponse.json({ message: 'No envelope ID' }, { status: 400 })
-      }
+    secureLogger.info('Processing DocuSign envelope', { envelopeId, status: envelopeStatus })
 
-      console.log(`Processing envelope ${envelopeId} with status: ${envelopeStatus}`)
+    // We're interested in envelope completion events
+    if (envelopeStatus === 'completed' || envelopeStatus === 'sent' || body.recipientStatuses) {
+      // Check if any recipients have completed
+      let isCompleted = envelopeStatus === 'completed'
+      
+      if (body.recipientStatuses && Array.isArray(body.recipientStatuses)) {
+        const completedRecipients = body.recipientStatuses.filter(
+          (r: any) => r.status === 'completed'
+        )
+        if (completedRecipients.length > 0) {
+          secureLogger.info(`Found ${completedRecipients.length} completed recipients`)
+          isCompleted = true
+        }
+      }
+      
+      secureLogger.info('Envelope status determined', { envelopeId, isCompleted, status: envelopeStatus })
 
       // Find the task associated with this envelope
-      const tasksQuery = await adminDb
+      let tasksQuery = await adminDb
         .collection('tasks')
         .where('metadata.docuSignEnvelopeId', '==', envelopeId)
         .get()
 
       if (tasksQuery.empty) {
-        console.log(`No task found for envelope ID: ${envelopeId}`)
+        secureLogger.warn('No task found with envelope ID in metadata, checking all tasks', { envelopeId })
+        
+        // Fallback: Check all incomplete DocuSign tasks and match by envelope ID
+        // This helps if the webhook arrives before the task is updated with envelope ID
+        const allDocuSignTasks = await adminDb
+          .collection('tasks')
+          .where('type', '==', 'docusign_signature')
+          .where('status', '!=', 'completed')
+          .get()
+          
+        secureLogger.info('Found incomplete DocuSign tasks', { count: allDocuSignTasks.size })
+        
+        // Check if any of these tasks might be for this envelope
+        for (const doc of allDocuSignTasks.docs) {
+          const task = doc.data()
+          // Check if task metadata contains the envelope ID anywhere
+          if (task.metadata?.docuSignEnvelopeId === envelopeId || 
+              task.metadata?.envelopeId === envelopeId) {
+            tasksQuery = { empty: false, docs: [doc] } as any
+            secureLogger.info('Found task via fallback search', { taskId: doc.id, envelopeId })
+            break
+          }
+        }
+      }
+      
+      if (tasksQuery.empty) {
+        secureLogger.warn('No task found for envelope after fallback search', { envelopeId })
         return NextResponse.json({ message: 'No associated task found' }, { status: 200 })
       }
 
       // Process each task (should typically be just one)
       for (const taskDoc of tasksQuery.docs) {
         const task = taskDoc.data()
-        console.log(`Found task ${taskDoc.id} for envelope ${envelopeId}`)
+        secureLogger.info('Found task for envelope', { taskId: taskDoc.id, envelopeId })
 
         // Only complete the task if the envelope is actually completed
-        if (envelopeStatus === 'completed' && task.status !== 'completed') {
+        if (isCompleted && task.status !== 'completed') {
           try {
             let signedDocumentUrl = null
             
             // Download and store the signed document
             try {
-              console.log(`Downloading signed document for envelope ${envelopeId}`)
+              secureLogger.info(`Downloading signed document for envelope ${envelopeId}`)
               const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(envelopeId)
               
               // Extract participant ID from task (new structure)
@@ -63,7 +105,7 @@ export async function POST(request: NextRequest) {
               const donationId = task.donationId // fallback for backward compatibility
               
               if (participantId) {
-                console.log(`Uploading signed document to storage for participant ${participantId}`)
+                secureLogger.info(`Uploading signed document to storage for participant ${participantId}`)
                 // Use participant-based storage path
                 const uploadResult = await uploadDonationBufferAdmin(
                   `participants/${participantId}`,
@@ -74,10 +116,10 @@ export async function POST(request: NextRequest) {
                 )
                 
                 signedDocumentUrl = uploadResult.url
-                console.log(`Signed document stored at: ${signedDocumentUrl}`)
+                secureLogger.info(`Signed document stored at: ${signedDocumentUrl}`)
               } else if (donationId) {
                 // Fallback to donation-based storage for backward compatibility
-                console.log(`Uploading signed document to storage for donation ${donationId} (legacy)`)
+                secureLogger.info(`Uploading signed document to storage for donation ${donationId} (legacy)`)
                 const uploadResult = await uploadDonationBufferAdmin(
                   donationId,
                   'signed-documents',
@@ -87,12 +129,12 @@ export async function POST(request: NextRequest) {
                 )
                 
                 signedDocumentUrl = uploadResult.url
-                console.log(`Signed document stored at: ${signedDocumentUrl} (legacy path)`)
+                secureLogger.info(`Signed document stored at: ${signedDocumentUrl} (legacy path)`)
               } else {
-                console.warn(`No participantId or donationId found in task ${taskDoc.id} metadata`)
+                secureLogger.warn(`No participantId or donationId found in task ${taskDoc.id} metadata`)
               }
             } catch (downloadError) {
-              console.error(`Failed to download/store signed document for envelope ${envelopeId}:`, downloadError)
+              secureLogger.error(`Failed to download/store signed document for envelope ${envelopeId}:`, downloadError)
               // Continue with task completion even if document download fails
             }
 
@@ -103,17 +145,59 @@ export async function POST(request: NextRequest) {
               completedBy: 'docusign-webhook',
               metadata: {
                 ...task.metadata,
-                docuSignStatus: envelopeStatus,
+                docuSignStatus: isCompleted ? 'completed' : envelopeStatus,
                 docuSignCompletedAt: new Date().toISOString(),
                 signedDocumentUrl: signedDocumentUrl || null
               }
             })
 
-            console.log(`Task ${taskDoc.id} marked as completed via DocuSign webhook`)
+            secureLogger.info('Task marked as completed via DocuSign webhook', { 
+              taskId: taskDoc.id,
+              envelopeId,
+              participantId: task.participantId || task.donationId
+            })
+            
+            // Unblock dependent tasks
+            try {
+              // Find tasks that depend on this completed task
+              const dependentTasksQuery = task.participantId
+                ? adminDb.collection('tasks')
+                    .where('participantId', '==', task.participantId)
+                    .where('dependencies', 'array-contains', taskDoc.id)
+                : adminDb.collection('tasks')
+                    .where('donationId', '==', task.donationId)
+                    .where('dependencies', 'array-contains', taskDoc.id)
+                    
+              const dependentTasks = await dependentTasksQuery.get()
+              
+              if (!dependentTasks.empty) {
+                secureLogger.info('Found dependent tasks to unblock', { 
+                  count: dependentTasks.size,
+                  completedTaskId: taskDoc.id 
+                })
+                
+                for (const depTaskDoc of dependentTasks.docs) {
+                  const depTask = depTaskDoc.data()
+                  if (depTask.status === 'blocked') {
+                    await adminDb.collection('tasks').doc(depTaskDoc.id).update({
+                      status: 'pending',
+                      updatedAt: FieldValue.serverTimestamp()
+                    })
+                    
+                    secureLogger.info('Unblocked dependent task', { 
+                      taskId: depTaskDoc.id,
+                      taskType: depTask.type
+                    })
+                  }
+                }
+              }
+            } catch (depError) {
+              secureLogger.error('Error unblocking dependent tasks', depError, { taskId: taskDoc.id })
+            }
           } catch (error) {
-            console.error(`Failed to update task ${taskDoc.id}:`, error)
+            secureLogger.error(`Failed to update task ${taskDoc.id}:`, error)
           }
-        } else if (envelopeStatus !== 'completed') {
+        } else if (!isCompleted) {
           // Update task metadata with current status but don't complete
           try {
             await adminDb.collection('tasks').doc(taskDoc.id).update({
@@ -124,9 +208,9 @@ export async function POST(request: NextRequest) {
               }
             })
 
-            console.log(`Task ${taskDoc.id} updated with DocuSign status: ${envelopeStatus}`)
+            secureLogger.info(`Task ${taskDoc.id} updated with DocuSign status: ${envelopeStatus}`)
           } catch (error) {
-            console.error(`Failed to update task metadata ${taskDoc.id}:`, error)
+            secureLogger.error(`Failed to update task metadata ${taskDoc.id}:`, error)
           }
         }
       }
@@ -136,7 +220,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Webhook processed successfully' }, { status: 200 })
 
   } catch (error) {
-    console.error('DocuSign webhook error:', error)
+    secureLogger.error('DocuSign webhook error:', error)
     
     // Return success even on error to prevent DocuSign from retrying
     // Log the error for debugging but don't fail the webhook
