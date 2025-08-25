@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore'
 import { db, auth } from '@/lib/firebase/config'
 import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
@@ -8,6 +8,7 @@ export function useParticipantTasks(participantId: string | null) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [monitoringDocuSign, setMonitoringDocuSign] = useState(false)
 
   useEffect(() => {
     if (!participantId) {
@@ -131,12 +132,88 @@ export function useParticipantTasks(participantId: string | null) {
     }
   }
 
+  // Enhanced DocuSign monitoring function
+  const checkDocuSignCompletion = useCallback(async () => {
+    if (!participantId || monitoringDocuSign) {
+      return
+    }
+
+    // Find incomplete DocuSign tasks
+    const incompleteDocuSignTasks = tasks.filter(task => 
+      task.type === 'docusign_signature' && 
+      (task.status === 'pending' || task.status === 'in_progress') &&
+      (task.metadata as any)?.docuSignEnvelopeId
+    )
+
+    if (incompleteDocuSignTasks.length === 0) {
+      return
+    }
+
+    setMonitoringDocuSign(true)
+    secureLogger.info('Checking DocuSign completion status', {
+      participantId,
+      incompleteTasksCount: incompleteDocuSignTasks.length
+    })
+
+    try {
+      const response = await fetch('/api/tasks/monitor-docusign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await auth.currentUser?.getIdToken()}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to check DocuSign completion')
+      }
+
+      const result = await response.json()
+      secureLogger.info('DocuSign monitoring result', result)
+      
+      // Tasks will update automatically via Firestore listeners
+    } catch (error) {
+      secureLogger.error('Error checking DocuSign completion', error instanceof Error ? error : new Error(String(error)))
+    } finally {
+      setMonitoringDocuSign(false)
+    }
+  }, [participantId, tasks, monitoringDocuSign])
+
+  // Auto-check DocuSign tasks every 30 seconds if there are incomplete ones
+  useEffect(() => {
+    const hasIncompleteDocuSign = tasks.some(task => 
+      task.type === 'docusign_signature' && 
+      (task.status === 'pending' || task.status === 'in_progress') &&
+      (task.metadata as any)?.docuSignEnvelopeId
+    )
+
+    if (!hasIncompleteDocuSign || monitoringDocuSign) {
+      return
+    }
+
+    const interval = setInterval(() => {
+      checkDocuSignCompletion()
+    }, 30000) // Check every 30 seconds
+
+    // Also check immediately if we have incomplete tasks
+    const immediateCheck = setTimeout(() => {
+      checkDocuSignCompletion()
+    }, 1000)
+
+    return () => {
+      clearInterval(interval)
+      clearTimeout(immediateCheck)
+    }
+  }, [tasks, checkDocuSignCompletion, monitoringDocuSign])
+
   return {
     tasks,
     loading,
     error,
     completeTask,
-    handleCommitmentDecision
+    handleCommitmentDecision,
+    checkDocuSignCompletion,
+    monitoringDocuSign
   }
 }
 
