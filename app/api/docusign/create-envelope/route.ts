@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { docuSignClient } from '@/lib/docusign/simple-client'
 import { verifyAuth } from '@/lib/auth/verify-auth'
 import { adminDb } from '@/lib/firebase/admin'
+import { secureLogger } from '@/lib/logging/secure-logger'
 import path from 'path'
 
 export async function POST(request: NextRequest) {
@@ -75,12 +76,25 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date()
         })
         
-        console.log(`Updated task ${taskDoc.id} with envelope ID: ${envelope.envelopeId}`)
+        secureLogger.info('Updated task with envelope ID', { 
+          taskId: taskDoc.id, 
+          envelopeId: envelope.envelopeId,
+          participantId: donationId,
+          userId: user.uid
+        })
       } else {
-        console.log(`No DocuSign signature task found for ID ${donationId} and user ${user.uid}`)
+        secureLogger.warn('No DocuSign signature task found', {
+          searchId: donationId,
+          userId: user.uid,
+          taskType: 'docusign_signature'
+        })
       }
     } catch (taskUpdateError) {
-      console.error('Failed to update task with envelope ID:', taskUpdateError)
+      secureLogger.error('Failed to update task with envelope ID', taskUpdateError, {
+      searchId: donationId,
+      userId: user.uid,
+      envelopeId: envelope.envelopeId
+    })
       // Continue anyway - the envelope was created successfully
     }
 
@@ -94,7 +108,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('DocuSign envelope creation error:', error)
+    secureLogger.error('DocuSign envelope creation error', error)
     
     return NextResponse.json({
       error: 'Failed to create DocuSign envelope',

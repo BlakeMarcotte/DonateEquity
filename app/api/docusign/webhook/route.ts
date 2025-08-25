@@ -70,6 +70,14 @@ export async function POST(request: NextRequest) {
         // Check if any of these tasks might be for this envelope
         for (const doc of allDocuSignTasks.docs) {
           const task = doc.data()
+          secureLogger.info('Checking task for envelope match', { 
+            taskId: doc.id, 
+            taskMetadata: task.metadata,
+            searchEnvelopeId: envelopeId,
+            participantId: task.participantId,
+            donationId: task.donationId
+          })
+          
           // Check if task metadata contains the envelope ID anywhere
           if (task.metadata?.docuSignEnvelopeId === envelopeId || 
               task.metadata?.envelopeId === envelopeId) {
