@@ -1,6 +1,7 @@
 // DocuSign Simple Client using direct HTTP API calls (2025 approach)
 // Following the official DocuSign REST API quickstart guide
 import * as jwt from 'jsonwebtoken'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 interface DocuSignTokenResponse {
   access_token: string
@@ -282,9 +283,9 @@ export class DocuSignSimpleClient {
             { recipientEventStatusCode: 'declined' }
           ]
         }
-        console.log('DocuSign webhook configured for:', webhookUrl)
+        secureLogger.info('DocuSign webhook configured', { webhookUrl, baseUrl })
       } else {
-        console.log('DocuSign webhook disabled - HTTPS required, running on:', baseUrl)
+        secureLogger.warn('DocuSign webhook disabled - HTTPS required', { baseUrl })
       }
 
       // Create the envelope
@@ -438,9 +439,9 @@ export class DocuSignSimpleClient {
             { recipientEventStatusCode: 'declined' }
           ]
         }
-        console.log('DocuSign webhook configured for:', webhookUrl)
+        secureLogger.info('DocuSign webhook configured', { webhookUrl, baseUrl })
       } else {
-        console.log('DocuSign webhook disabled - HTTPS required, running on:', baseUrl)
+        secureLogger.warn('DocuSign webhook disabled - HTTPS required', { baseUrl })
       }
 
       // Create the envelope
