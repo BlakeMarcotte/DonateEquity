@@ -48,7 +48,6 @@ export default function InviteTeamMemberModal({
   const { 
     loading, 
     error, 
-    success, 
     execute, 
     reset 
   } = useFormSubmission('Team Invitation')

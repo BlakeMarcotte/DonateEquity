@@ -34,7 +34,6 @@ export default function CreateCampaignModal({
   const { 
     loading: saving, 
     error, 
-    success, 
     execute, 
     reset 
   } = useFormSubmission('Campaign Creation')

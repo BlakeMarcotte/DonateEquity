@@ -7,6 +7,7 @@ import { useFormSubmission } from '@/hooks/useAsyncOperation'
 import { updateOrganization, getOrCreateOrganization, type Organization } from '@/lib/firebase/organizations'
 import { formatPhoneNumber, formatEIN, cleanPhoneNumber, cleanEIN } from '@/lib/utils/formatters'
 import { Building2, Globe, Phone, MapPin, FileText } from 'lucide-react'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 interface CompleteOrganizationModalProps {
   isOpen: boolean
@@ -32,7 +33,6 @@ export default function CompleteOrganizationModal({
   const { 
     loading, 
     error, 
-    success, 
     execute, 
     reset 
   } = useFormSubmission('Organization Update')
@@ -66,7 +66,7 @@ export default function CompleteOrganizationModal({
       }
       reset()
     } catch (error) {
-      console.error('Error loading organization:', error)
+      secureLogger.error('Error loading organization', error, { organizationId: customClaims?.organizationId })
     }
   }
 
