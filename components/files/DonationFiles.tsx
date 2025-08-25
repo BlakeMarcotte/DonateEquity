@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useDonationFiles } from '@/hooks/useDonationFiles'
+import { useParticipantFiles } from '@/hooks/useParticipantFiles'
 import { FileUpload } from './FileUpload'
 import { useAuth } from '@/contexts/AuthContext'
 import { 
@@ -40,6 +41,17 @@ export function DonationFiles({
   className = '' 
 }: DonationFilesProps) {
   const { customClaims } = useAuth()
+  
+  // Check if donationId is actually a participant path
+  const isParticipantPath = donationId?.startsWith('participants/')
+  const participantId = isParticipantPath ? donationId.replace('participants/', '') : null
+  const actualDonationId = isParticipantPath ? null : donationId
+  
+  // Use appropriate hook based on path type
+  const donationHook = useDonationFiles(actualDonationId)
+  const participantHook = useParticipantFiles(participantId, actualDonationId)
+  
+  // Select the appropriate hook results
   const { 
     files, 
     loading, 
@@ -51,7 +63,7 @@ export function DonationFiles({
     getAllFolders,
     getTotalSize,
     getFileCount
-  } = useDonationFiles(donationId)
+  } = isParticipantPath ? participantHook : donationHook
 
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedFolder, setSelectedFolder] = useState<string>('all')
@@ -62,7 +74,7 @@ export function DonationFiles({
     try {
       await uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
     } catch (error) {
-      console.error('Upload failed:', error)
+      // Upload failed
       throw error
     }
   }
@@ -75,8 +87,8 @@ export function DonationFiles({
     setDeletingFile(filePath)
     try {
       await deleteFile(filePath)
-    } catch (error) {
-      console.error('Delete failed:', error)
+    } catch {
+      // Delete failed
       alert('Failed to delete file')
     } finally {
       setDeletingFile(null)

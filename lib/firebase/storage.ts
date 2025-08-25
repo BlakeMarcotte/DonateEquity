@@ -195,6 +195,101 @@ export async function listDonationFiles(
 }
 
 /**
+ * List files for a participant (supports both participant-based and donation-based storage)
+ */
+export async function listParticipantFiles(
+  participantId: string,
+  donationId?: string,
+  folder?: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general'
+) {
+  const allFiles = []
+  
+  // First, try participant-based storage path
+  if (participantId) {
+    const participantFolderPath = folder 
+      ? `participants/${participantId}/${folder}`
+      : `participants/${participantId}`
+    
+    const participantStorageRef = ref(storage, participantFolderPath)
+    
+    try {
+      const participantResult = await listAll(participantStorageRef)
+      
+      const participantFiles = await Promise.all(
+        participantResult.items.map(async (itemRef) => {
+          const metadata = await getMetadata(itemRef)
+          const url = await getDownloadURL(itemRef)
+          
+          return {
+            name: itemRef.name,
+            fullPath: itemRef.fullPath,
+            url,
+            size: metadata.size,
+            contentType: metadata.contentType,
+            timeCreated: metadata.timeCreated,
+            updated: metadata.updated,
+            customMetadata: metadata.customMetadata,
+            source: 'participant' as const
+          }
+        })
+      )
+      
+      allFiles.push(...participantFiles)
+      secureLogger.info('Found participant-based files', { 
+        participantId, 
+        folder, 
+        count: participantFiles.length 
+      })
+    } catch (error) {
+      secureLogger.info('No participant-based files found', { 
+        participantId, 
+        folder, 
+        error: (error as Error).message 
+      })
+    }
+  }
+  
+  // Also try donation-based storage path for backward compatibility
+  if (donationId) {
+    try {
+      const donationFiles = await listDonationFiles(donationId, folder)
+      const donationFilesWithSource = donationFiles.map(file => ({
+        ...file,
+        source: 'donation' as const
+      }))
+      allFiles.push(...donationFilesWithSource)
+      secureLogger.info('Found donation-based files', { 
+        donationId, 
+        folder, 
+        count: donationFiles.length 
+      })
+    } catch (error) {
+      secureLogger.info('No donation-based files found', { 
+        donationId, 
+        folder, 
+        error: (error as Error).message 
+      })
+    }
+  }
+  
+  // Remove duplicates based on file name (prefer participant-based files)
+  const uniqueFiles = allFiles.reduce((acc, file) => {
+    const existingIndex = acc.findIndex(existing => existing.name === file.name)
+    if (existingIndex >= 0) {
+      // If we have a participant-based file, keep it over donation-based
+      if (file.source === 'participant') {
+        acc[existingIndex] = file
+      }
+    } else {
+      acc.push(file)
+    }
+    return acc
+  }, [] as typeof allFiles)
+  
+  return uniqueFiles
+}
+
+/**
  * Delete a file from donation storage
  */
 export async function deleteDonationFile(filePath: string): Promise<void> {

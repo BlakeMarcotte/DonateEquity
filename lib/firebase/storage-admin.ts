@@ -25,7 +25,10 @@ export async function uploadDonationBufferAdmin(
   const bucket = storage.bucket()
   
   const fullFileName = `${Date.now()}_${fileName}`
-  const filePath = `donations/${donationId}/${folder}/${fullFileName}`
+  // Handle both donation-based and participant-based paths
+  const filePath = donationId.startsWith('participants/') 
+    ? `${donationId}/${folder}/${fullFileName}`
+    : `donations/${donationId}/${folder}/${fullFileName}`
   
   try {
     secureLogger.info('Uploading buffer to admin storage', {

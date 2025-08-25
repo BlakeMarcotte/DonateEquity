@@ -44,8 +44,8 @@ export default function ParticipantTasksPage() {
             const { participant } = await response.json()
             setParticipantData(participant)
           }
-        } catch (error) {
-          console.error('Error fetching participant data:', error)
+        } catch {
+          // Error fetching participant data
         } finally {
           setParticipantLoading(false)
         }
@@ -70,21 +70,7 @@ export default function ParticipantTasksPage() {
       
       const isAuthorized = isNonprofitAdmin || isDonorOwner || isAssignedAppraiser
       
-      // Debug logging
-      console.log('Authorization check:', {
-        userRole: customClaims.role,
-        userId: user.uid,
-        actualDonorId: actualDonorId,
-        participantAppraiserId: participantData?.appraiserId,
-        isNonprofitAdmin,
-        isDonorOwner,
-        isAssignedAppraiser,
-        isAuthorized: isAuthorized,
-        participantId: participantId
-      })
-      
       if (!isAuthorized) {
-        console.log('Authorization failed, redirecting to /tasks')
         router.push('/tasks')
         return
       }

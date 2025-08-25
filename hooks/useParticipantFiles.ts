@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react'
 import { 
   uploadDonationFile, 
-  listDonationFiles, 
+  listParticipantFiles, 
   deleteDonationFile,
   validateFile,
   UploadProgress,
   FileUploadResult
 } from '@/lib/firebase/storage'
 
-export interface DonationFile {
+export interface ParticipantFile {
   name: string
   fullPath: string
   url: string
@@ -20,6 +20,7 @@ export interface DonationFile {
   updated?: string
   customMetadata?: { [key: string]: string }
   folder: string
+  source: 'participant' | 'donation'
 }
 
 export interface FileUpload {
@@ -29,37 +30,41 @@ export interface FileUpload {
   error?: string
 }
 
-export function useDonationFiles(donationId: string | null) {
-  const [files, setFiles] = useState<DonationFile[]>([])
+export function useParticipantFiles(participantId: string | null, donationId?: string | null) {
+  const [files, setFiles] = useState<ParticipantFile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [uploads, setUploads] = useState<Map<string, FileUpload>>(new Map())
 
-  // Load files on mount and when donationId changes
+  // Load files on mount and when participantId changes
   useEffect(() => {
-    if (!donationId) {
+    if (!participantId) {
       setFiles([])
       setLoading(false)
       return
     }
 
     loadFiles()
-  }, [donationId])
+  }, [participantId, donationId])
 
   const loadFiles = async () => {
-    if (!donationId) return
+    if (!participantId) return
 
     setLoading(true)
     setError(null)
 
     try {
-      // Load files from all folders
+      // Load files from all folders, checking both participant and donation paths
       const folders = ['legal', 'financial', 'appraisals', 'signed-documents', 'general'] as const
-      const allFiles: DonationFile[] = []
+      const allFiles: ParticipantFile[] = []
 
       for (const folder of folders) {
         try {
-          const folderFiles = await listDonationFiles(donationId, folder)
+          const folderFiles = await listParticipantFiles(
+            participantId, 
+            donationId || undefined, 
+            folder
+          )
           const filesWithFolder = folderFiles.map(file => ({
             ...file,
             folder
@@ -79,7 +84,7 @@ export function useDonationFiles(donationId: string | null) {
 
       setFiles(allFiles)
     } catch (err) {
-      // Error loading donation files
+      // Error loading participant files
       setError('Failed to load files')
     } finally {
       setLoading(false)
@@ -90,8 +95,11 @@ export function useDonationFiles(donationId: string | null) {
     file: File,
     folder: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general' = 'general'
   ) => {
-    if (!donationId) {
-      throw new Error('No donation ID provided')
+    // For now, still use donation-based upload for user uploads
+    // The participant-based storage is primarily for system-generated files like signed documents
+    const uploadId = donationId || participantId
+    if (!uploadId) {
+      throw new Error('No donation ID or participant ID provided')
     }
 
     // Validate file
@@ -100,7 +108,7 @@ export function useDonationFiles(donationId: string | null) {
       throw new Error(validation.error)
     }
 
-    const uploadId = `${Date.now()}_${file.name}`
+    const uploadTrackingId = `${Date.now()}_${file.name}`
     
     // Initialize upload tracking
     const uploadData: FileUpload = { 
@@ -113,19 +121,19 @@ export function useDonationFiles(donationId: string | null) {
       } 
     }
     
-    setUploads(prev => new Map(prev).set(uploadId, uploadData))
+    setUploads(prev => new Map(prev).set(uploadTrackingId, uploadData))
 
     try {
       const result = await uploadDonationFile(
-        donationId,
+        uploadId,
         folder,
         file,
         (progress) => {
           setUploads(prev => {
             const newMap = new Map(prev)
-            const existing = newMap.get(uploadId)
+            const existing = newMap.get(uploadTrackingId)
             if (existing) {
-              newMap.set(uploadId, { ...existing, progress })
+              newMap.set(uploadTrackingId, { ...existing, progress })
             }
             return newMap
           })
@@ -135,9 +143,9 @@ export function useDonationFiles(donationId: string | null) {
       // Update upload with result
       setUploads(prev => {
         const newMap = new Map(prev)
-        const existing = newMap.get(uploadId)
+        const existing = newMap.get(uploadTrackingId)
         if (existing) {
-          newMap.set(uploadId, { ...existing, result })
+          newMap.set(uploadTrackingId, { ...existing, result })
         }
         return newMap
       })
@@ -149,7 +157,7 @@ export function useDonationFiles(donationId: string | null) {
       setTimeout(() => {
         setUploads(prev => {
           const newMap = new Map(prev)
-          newMap.delete(uploadId)
+          newMap.delete(uploadTrackingId)
           return newMap
         })
       }, 2000)
@@ -159,9 +167,9 @@ export function useDonationFiles(donationId: string | null) {
       // Update upload with error
       setUploads(prev => {
         const newMap = new Map(prev)
-        const existing = newMap.get(uploadId)
+        const existing = newMap.get(uploadTrackingId)
         if (existing) {
-          newMap.set(uploadId, { 
+          newMap.set(uploadTrackingId, { 
             ...existing, 
             error: err instanceof Error ? err.message : 'Upload failed' 
           })
@@ -173,7 +181,7 @@ export function useDonationFiles(donationId: string | null) {
       setTimeout(() => {
         setUploads(prev => {
           const newMap = new Map(prev)
-          newMap.delete(uploadId)
+          newMap.delete(uploadTrackingId)
           return newMap
         })
       }, 5000)

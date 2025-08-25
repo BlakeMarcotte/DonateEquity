@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       
       if (body.recipientStatuses && Array.isArray(body.recipientStatuses)) {
         const completedRecipients = body.recipientStatuses.filter(
-          (r: any) => r.status === 'completed'
+          (r: { status: string }) => r.status === 'completed'
         )
         if (completedRecipients.length > 0) {
           secureLogger.info(`Found ${completedRecipients.length} completed recipients`)
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
           // Check if task metadata contains the envelope ID anywhere
           if (task.metadata?.docuSignEnvelopeId === envelopeId || 
               task.metadata?.envelopeId === envelopeId) {
-            tasksQuery = { empty: false, docs: [doc] } as any
+            tasksQuery = { empty: false, docs: [doc] } as typeof tasksQuery
             secureLogger.info('Found task via fallback search', { taskId: doc.id, envelopeId })
             break
           }

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const task = taskDoc.data()
-    const taskEnvelopeId = task.metadata?.docuSignEnvelopeId
+    const taskEnvelopeId = task?.metadata?.docuSignEnvelopeId
 
     if (!taskEnvelopeId) {
       return NextResponse.json({ 
@@ -66,15 +66,15 @@ export async function POST(request: NextRequest) {
       })
 
       // If envelope is completed and task is not, update the task
-      if (envelopeStatus.status === 'completed' && task.status !== 'completed') {
+      if (envelopeStatus.status === 'completed' && task?.status !== 'completed') {
         let signedDocumentUrl = null
         
         // Try to download and store the signed document
         try {
           const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(taskEnvelopeId)
           
-          const participantId = task.participantId
-          const donationId = task.donationId
+          const participantId = task?.participantId
+          const donationId = task?.donationId
           
           if (participantId) {
             const uploadResult = await uploadDonationBufferAdmin(
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
           completedAt: FieldValue.serverTimestamp(),
           completedBy: 'manual-check',
           metadata: {
-            ...task.metadata,
+            ...task?.metadata,
             docuSignStatus: 'completed',
             docuSignCompletedAt: envelopeStatus.completedDateTime || new Date().toISOString(),
             signedDocumentUrl: signedDocumentUrl || null
@@ -116,12 +116,12 @@ export async function POST(request: NextRequest) {
 
         // Unblock dependent tasks
         try {
-          const dependentTasksQuery = task.participantId
+          const dependentTasksQuery = task?.participantId
             ? adminDb.collection('tasks')
-                .where('participantId', '==', task.participantId)
+                .where('participantId', '==', task?.participantId)
                 .where('dependencies', 'array-contains', taskDoc.id)
             : adminDb.collection('tasks')
-                .where('donationId', '==', task.donationId)
+                .where('donationId', '==', task?.donationId)
                 .where('dependencies', 'array-contains', taskDoc.id)
                 
           const dependentTasks = await dependentTasksQuery.get()
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
           success: true,
           task: {
             id: taskDoc.id,
-            status: task.status,
+            status: task?.status,
             docuSignStatus: envelopeStatus.status,
             completedDateTime: envelopeStatus.completedDateTime
           }
