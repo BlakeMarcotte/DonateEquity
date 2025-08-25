@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { 
-  uploadDonationFile, 
+  uploadParticipantFile,
   listParticipantFiles, 
   deleteDonationFile,
   validateFile,
@@ -95,11 +95,8 @@ export function useParticipantFiles(participantId: string | null, donationId?: s
     file: File,
     folder: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general' = 'general'
   ) => {
-    // For now, still use donation-based upload for user uploads
-    // The participant-based storage is primarily for system-generated files like signed documents
-    const uploadId = donationId || participantId
-    if (!uploadId) {
-      throw new Error('No donation ID or participant ID provided')
+    if (!participantId) {
+      throw new Error('No participant ID provided')
     }
 
     // Validate file
@@ -124,8 +121,8 @@ export function useParticipantFiles(participantId: string | null, donationId?: s
     setUploads(prev => new Map(prev).set(uploadTrackingId, uploadData))
 
     try {
-      const result = await uploadDonationFile(
-        uploadId,
+      const result = await uploadParticipantFile(
+        participantId,
         folder,
         file,
         (progress) => {

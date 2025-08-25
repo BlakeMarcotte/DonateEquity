@@ -83,6 +83,80 @@ export async function uploadDonationBuffer(
 /**
  * Upload a file to Firebase Storage for a specific donation
  */
+export async function uploadParticipantFile(
+  participantId: string,
+  folder: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general',
+  file: File,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<FileUploadResult> {
+  const fileName = `${Date.now()}_${file.name}`
+  const filePath = `participants/${participantId}/${folder}/${fileName}`
+  const storageRef = ref(storage, filePath)
+  
+  return new Promise((resolve, reject) => {
+    secureLogger.info('Starting participant file upload', {
+      filePath,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      participantId,
+      folder
+    })
+
+    const uploadTask = uploadBytesResumable(storageRef, file)
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+        onProgress?.({
+          bytesTransferred: snapshot.bytesTransferred,
+          totalBytes: snapshot.totalBytes,
+          progress,
+          state: snapshot.state as UploadProgress['state']
+        })
+      },
+      (error) => {
+        secureLogger.error('Participant file upload failed', error, {
+          filePath,
+          fileName: file.name,
+          participantId,
+          folder,
+          errorCode: error.code
+        })
+        reject(error)
+      },
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+          secureLogger.info('Participant file upload completed', {
+            filePath,
+            fileName: file.name,
+            participantId,
+            folder
+          })
+          resolve({
+            url: downloadURL,
+            path: filePath,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            uploadedAt: new Date()
+          })
+        } catch (error) {
+          secureLogger.error('Error getting download URL after upload', error, {
+            filePath,
+            fileName: file.name,
+            participantId,
+            folder
+          })
+          reject(error)
+        }
+      }
+    )
+  })
+}
+
 export async function uploadDonationFile(
   donationId: string,
   folder: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general',

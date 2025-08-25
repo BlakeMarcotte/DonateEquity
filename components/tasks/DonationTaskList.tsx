@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload, RefreshCw } from 'lucide-react'
 import { AppraiserInvitationForm } from './AppraiserInvitationForm'
 import { FileUpload } from '@/components/files/FileUpload'
-import { useDonationFiles } from '@/hooks/useDonationFiles'
+import { useParticipantFiles } from '@/hooks/useParticipantFiles'
 import { Modal } from '@/components/ui/modal'
 import { EquityCommitmentModal } from './EquityCommitmentModal'
 
@@ -56,7 +56,7 @@ export function DonationTaskList({
   const [currentCommitmentTask, setCurrentCommitmentTask] = useState<Task | null>(null)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const { uploadFile } = useDonationFiles(participantId ? `participants/${participantId}` : null)
+  const { uploadFile } = useParticipantFiles(participantId || null, null)
   const fileUploadRef = useRef<{ triggerUpload: () => Promise<void>; hasFiles: () => boolean } | null>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
