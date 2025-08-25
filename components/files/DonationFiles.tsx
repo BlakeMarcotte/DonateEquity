@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Modal } from '@/components/ui/modal'
 import { formatFileSize, getFileIcon } from '@/lib/firebase/storage'
+import { FileAccessTest } from '@/components/debug/FileAccessTest'
 
 interface DonationFilesProps {
   donationId: string
@@ -242,6 +243,9 @@ export function DonationFiles({
                 <div><strong>Files Loaded:</strong> {files.length}</div>
                 <div><strong>Folders:</strong> {getAllFolders().join(', ') || 'None'}</div>
               </div>
+              {participantId && (
+                <FileAccessTest participantId={participantId} />
+              )}
             </details>
           </div>
         )}

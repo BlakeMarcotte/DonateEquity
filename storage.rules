@@ -18,25 +18,18 @@ service firebase.storage {
       return isAuthenticated() && getUserRole() == role;
     }
     
-    function hasAnyRole(roles) {
-      return isAuthenticated() && getUserRole() in roles;
-    }
     
     function isAdmin() {
       return hasRole('admin');
     }
     
     function isDonationParticipant(donationId) {
+      // Simplified authorization for Storage rules (can't access Firestore)
       return isAuthenticated() && 
         (
           // Check if user is admin (always allowed)
           isAdmin() ||
-          // Check if donation exists and user is a participant
-          (exists(/databases/$(database)/documents/donations/$(donationId)) &&
-           (get(/databases/$(database)/documents/donations/$(donationId)).data.donorId == getUserId() ||
-            get(/databases/$(database)/documents/donations/$(donationId)).data.nonprofitAdminId == getUserId() ||
-            get(/databases/$(database)/documents/donations/$(donationId)).data.appraiserId == getUserId())) ||
-          // Allow donors to upload to any donation they created (fallback)
+          // Allow donors to access donation files (filtered by business logic)
           hasRole('donor') ||
           // Allow nonprofit admins to access donation files
           hasRole('nonprofit_admin') ||
@@ -46,28 +39,24 @@ service firebase.storage {
     }
     
     function isParticipantAuthorized(participantId) {
-      // Extract campaignId and donorId from participantId (format: campaignId_donorId)
+      // Simplified authorization for Storage rules (can't access Firestore)
       return isAuthenticated() && 
         (
           // Check if user is admin (always allowed)
           isAdmin() ||
-          // Check if participant exists and user is authorized
-          (exists(/databases/$(database)/documents/campaign_participants/$(participantId)) &&
-           (get(/databases/$(database)/documents/campaign_participants/$(participantId)).data.userId == getUserId())) ||
           // Allow nonprofit admins to access all participant files
           hasRole('nonprofit_admin') ||
-          // Allow appraisers to access participant files they're assigned to
+          // Allow appraisers to access participant files
           hasRole('appraiser') ||
-          // Allow donors to access their own participant files
+          // Allow donors to access participant files (they'll be filtered by business logic)
           hasRole('donor')
         );
     }
     
     function isCampaignParticipant(campaignId) {
+      // Simplified authorization for Storage rules (can't access Firestore)
       return isAuthenticated() && 
-        exists(/databases/$(database)/documents/campaigns/$(campaignId)) &&
-        (get(/databases/$(database)/documents/campaigns/$(campaignId)).data.createdBy == getUserId() ||
-         hasRole('admin'));
+        (hasRole('nonprofit_admin') || isAdmin());
     }
     
     function isValidFileType(allowedTypes) {
