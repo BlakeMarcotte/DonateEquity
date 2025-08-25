@@ -236,7 +236,7 @@ export class DocuSignSimpleClient {
       const documentBase64 = documentBytes.toString('base64')
 
       // Get webhook URL from environment - only use if HTTPS is available
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://donate-equity.vercel.app'
       const isHttps = baseUrl.startsWith('https://')
       
       const envelopeDefinition: DocuSignEnvelopeDefinition = {
@@ -392,7 +392,7 @@ export class DocuSignSimpleClient {
       const documentBase64 = documentBytes.toString('base64')
 
       // Get webhook URL from environment - only use if HTTPS is available
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://donate-equity.vercel.app'
       const isHttps = baseUrl.startsWith('https://')
       
       const envelopeDefinition: DocuSignEnvelopeDefinition = {

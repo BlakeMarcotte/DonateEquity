@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate invitation URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://donate-equity.vercel.app'
     const invitationUrl = generateInvitationUrl(invitationToken, baseUrl)
 
     // Send email using Resend

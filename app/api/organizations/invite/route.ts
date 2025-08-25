@@ -137,7 +137,12 @@ export async function POST(request: NextRequest) {
 
     // Send email notification
     try {
-      const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/join-team?token=${invitationToken}`
+      // Debug: Log the environment variable
+      console.log('NEXT_PUBLIC_APP_URL from env:', process.env.NEXT_PUBLIC_APP_URL)
+      
+      const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://donate-equity.vercel.app'}/join-team?token=${invitationToken}`
+      
+      console.log('Generated invitation URL:', invitationUrl)
       
       await sendTeamInvitationEmail({
         to: email,
@@ -164,7 +169,7 @@ export async function POST(request: NextRequest) {
       success: true,
       invitationId: invitationRef.id,
       message: `Invitation sent to ${email}`,
-      invitationUrl: `${process.env.NEXT_PUBLIC_APP_URL}/join-team?token=${invitationToken}`
+      invitationUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://donate-equity.vercel.app'}/join-team?token=${invitationToken}`
     })
 
   } catch (error: unknown) {

@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare email content based on whether user exists
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://donate-equity.vercel.app'
     const isExistingUser = !!existingUser
     
     let emailSubject: string
