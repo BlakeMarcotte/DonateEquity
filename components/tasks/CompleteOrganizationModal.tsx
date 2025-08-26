@@ -33,6 +33,7 @@ export default function CompleteOrganizationModal({
   const { 
     loading, 
     error, 
+    success,
     execute, 
     reset 
   } = useFormSubmission('Organization Update')
@@ -75,7 +76,7 @@ export default function CompleteOrganizationModal({
     if (!customClaims?.organizationId) return
 
     const organizationId = customClaims.organizationId
-    const result = await execute(async () => {
+    await execute(async () => {
       const cleanedData: Partial<Organization> = {
         name: formData.name.trim(),
         taxId: cleanEIN(formData.taxId),
@@ -95,13 +96,8 @@ export default function CompleteOrganizationModal({
       return { success: true }
     })
 
-    // If successful, close the modal after a brief delay
-    if (result) {
-      setTimeout(() => {
-        onComplete?.()
-        handleClose()
-      }, 1000)
-    }
+    // Success is handled by the success state in FormModal
+    // The modal will show success message before closing
   }
 
   const handleClose = () => {
@@ -116,6 +112,11 @@ export default function CompleteOrganizationModal({
     })
     reset()
     onClose()
+  }
+
+  const handleSuccessClose = () => {
+    onComplete?.()
+    handleClose()
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,6 +146,10 @@ export default function CompleteOrganizationModal({
       onSubmit={handleSubmit}
       loading={loading}
       loadingText="Updating Organization..."
+      success={success}
+      successTitle="Organization Updated!"
+      successMessage="Your organization information has been successfully updated."
+      onSuccessClose={handleSuccessClose}
       error={error}
       submitDisabled={!isFormValid}
       submitText="Update Organization"

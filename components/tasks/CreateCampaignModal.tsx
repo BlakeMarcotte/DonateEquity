@@ -34,6 +34,7 @@ export default function CreateCampaignModal({
   const { 
     loading: saving, 
     error, 
+    success,
     execute, 
     reset 
   } = useFormSubmission('Campaign Creation')
@@ -50,7 +51,7 @@ export default function CreateCampaignModal({
       organizationId 
     })
 
-    const result = await execute(async () => {
+    await execute(async () => {
       // Fetch organization name
       let organizationName = 'Unknown Organization'
       try {
@@ -91,22 +92,8 @@ export default function CreateCampaignModal({
       return { campaignTitle: formData.title, goal: formData.goal }
     })
 
-    // If successful, close the modal after a brief delay
-    if (result) {
-      setTimeout(() => {
-        setFormData({
-          title: '',
-          description: '',
-          goal: '',
-          endDate: '',
-          category: '',
-          status: 'draft',
-        })
-        reset()
-        onSuccess()
-        onClose()
-      }, 1000)
-    }
+    // Success is handled by the success state in FormModal
+    // The modal will show success message before closing
   }
 
   const handleClose = () => {
@@ -121,6 +108,11 @@ export default function CreateCampaignModal({
     })
     reset()
     onClose()
+  }
+
+  const handleSuccessClose = () => {
+    onSuccess()
+    handleClose()
   }
 
   const isFormValid = 
@@ -138,6 +130,10 @@ export default function CreateCampaignModal({
       onSubmit={handleSubmit}
       loading={saving}
       loadingText="Creating Campaign..."
+      success={success}
+      successTitle="Campaign Created!"
+      successMessage="Your campaign has been successfully created."
+      onSuccessClose={handleSuccessClose}
       error={error}
       submitDisabled={!isFormValid}
       submitText="Create Campaign"
