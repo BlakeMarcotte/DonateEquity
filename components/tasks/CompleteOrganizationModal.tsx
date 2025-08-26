@@ -76,7 +76,7 @@ export default function CompleteOrganizationModal({
     if (!customClaims?.organizationId) return
 
     const organizationId = customClaims.organizationId
-    await execute(async () => {
+    const result = await execute(async () => {
       const cleanedData: Partial<Organization> = {
         name: formData.name.trim(),
         taxId: cleanEIN(formData.taxId),
@@ -96,8 +96,13 @@ export default function CompleteOrganizationModal({
       return { success: true }
     })
 
-    // Success is handled by the success state in FormModal
-    // The modal will show success message before closing
+    if (result) {
+      // Wait a moment to show success state then close
+      setTimeout(() => {
+        onComplete?.()
+        handleClose()
+      }, 1500)
+    }
   }
 
   const handleClose = () => {

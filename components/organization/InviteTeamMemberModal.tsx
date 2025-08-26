@@ -67,13 +67,17 @@ export default function InviteTeamMemberModal({
       throw new Error('Please enter a valid email address')
     }
 
-    await execute(async () => {
+    const result = await execute(async () => {
       await onInvite(email, subrole, personalMessage)
       return { success: true }
     })
 
-    // Success is handled by the success state in FormModal
-    // The modal will show success message before closing
+    if (result) {
+      // Wait a moment to show success state then close
+      setTimeout(() => {
+        handleClose()
+      }, 1500)
+    }
   }
 
   const handleClose = () => {

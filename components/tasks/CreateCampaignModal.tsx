@@ -51,7 +51,7 @@ export default function CreateCampaignModal({
       organizationId 
     })
 
-    await execute(async () => {
+    const result = await execute(async () => {
       // Fetch organization name
       let organizationName = 'Unknown Organization'
       try {
@@ -92,8 +92,13 @@ export default function CreateCampaignModal({
       return { campaignTitle: formData.title, goal: formData.goal }
     })
 
-    // Success is handled by the success state in FormModal
-    // The modal will show success message before closing
+    if (result) {
+      // Wait a moment to show success state then close
+      setTimeout(() => {
+        onSuccess()
+        handleClose()
+      }, 1500)
+    }
   }
 
   const handleClose = () => {

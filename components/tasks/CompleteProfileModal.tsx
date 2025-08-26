@@ -52,7 +52,7 @@ export default function CompleteProfileModal({
     e.preventDefault()
     if (!user || !userProfile) return
 
-    await execute(async () => {
+    const result = await execute(async () => {
       // Update Firebase Auth profile
       await updateProfile(user, {
         displayName: formData.displayName
@@ -71,8 +71,13 @@ export default function CompleteProfileModal({
       return { success: true }
     })
 
-    // Success is handled by the success state in FormModal
-    // The modal will show success message before closing
+    if (result) {
+      // Wait a moment to show success state then close
+      setTimeout(() => {
+        onComplete?.()
+        handleClose()
+      }, 1500)
+    }
   }
 
   const handleClose = () => {
