@@ -207,9 +207,29 @@ export default function NonprofitDashboardPage() {
     }
   }
 
-  const handleModalComplete = (taskId: string) => {
+  const handleModalComplete = async (taskId: string) => {
+    // Mark complete first to prevent modal re-opening
     handleMarkComplete(taskId)
-    checkTaskCompletion()
+    
+    // Close the modal immediately
+    if (taskId === 'profile') setProfileModalOpen(false)
+    if (taskId === 'organization') setOrganizationModalOpen(false)
+    if (taskId === 'team') setInviteTeamModalOpen(false)
+    if (taskId === 'campaign') setCreateCampaignModalOpen(false)
+    
+    // Wait for user data to refresh before checking completion
+    try {
+      await refreshUserData()
+      // Small delay to ensure state updates are processed
+      setTimeout(() => {
+        checkTaskCompletion()
+      }, 200)
+    } catch {
+      // If refresh fails, still check completion after delay
+      setTimeout(() => {
+        checkTaskCompletion()
+      }, 500)
+    }
   }
 
   const handleResetTasks = async () => {

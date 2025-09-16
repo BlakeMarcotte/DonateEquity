@@ -93,9 +93,11 @@ export default function CreateCampaignModal({
     })
 
     if (result) {
+      // Mark completion immediately to prevent re-opening
+      onSuccess()
+      
       // Wait a moment to show success state then close
       setTimeout(() => {
-        onSuccess()
         handleClose()
       }, 1500)
     }
@@ -116,7 +118,7 @@ export default function CreateCampaignModal({
   }
 
   const handleSuccessClose = () => {
-    onSuccess()
+    // Don't call onSuccess again as it was already called
     handleClose()
   }
 
