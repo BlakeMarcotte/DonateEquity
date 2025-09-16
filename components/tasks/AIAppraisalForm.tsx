@@ -83,6 +83,21 @@ export function AIAppraisalForm({
       // Force token refresh to ensure it's valid
       const token = await user.getIdToken(true)
       
+      // Step 1.5: Ensure task is converted to ai_appraisal_request type
+      // This is needed because the task might still be of type 'invitation'
+      const conversionResponse = await fetch(`/api/tasks/${task.id}/convert-to-ai-appraisal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!conversionResponse.ok) {
+        const conversionError = await conversionResponse.json()
+        throw new Error(conversionError.error || 'Failed to prepare task for AI Appraisal')
+      }
+      
       // Step 2: Initiate AI Appraisal
       const response = await fetch('/api/valuation/request', {
         method: 'POST',
