@@ -458,12 +458,38 @@ export function AIAppraisalForm({
 
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t border-gray-200">
-          <button
-            onClick={() => currentStep > 1 ? setCurrentStep(prev => prev - 1) : onClose()}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            {currentStep > 1 ? 'Back' : 'Cancel'}
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => currentStep > 1 ? setCurrentStep(prev => prev - 1) : onClose()}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              {currentStep > 1 ? 'Back' : 'Cancel'}
+            </button>
+            
+            {/* Debug Test Button */}
+            <button
+              onClick={async () => {
+                try {
+                  const token = await (window as unknown as { firebase?: { auth(): { currentUser?: { getIdToken(): Promise<string> } } } }).firebase?.auth()?.currentUser?.getIdToken()
+                  const response = await fetch('/api/valuation/test-auth', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ test: true })
+                  })
+                  const result = await response.json()
+                  alert(`Test Result: ${response.status}\n\n${JSON.stringify(result, null, 2)}`)
+                } catch (err) {
+                  alert(`Test Error: ${err}`)
+                }
+              }}
+              className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded border hover:bg-gray-200 transition-colors"
+            >
+              Debug Auth
+            </button>
+          </div>
 
           <button
             onClick={() => {
