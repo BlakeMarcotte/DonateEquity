@@ -36,6 +36,7 @@ export interface Task {
     appraiserInvited?: string | null
     invitationToken?: string | null
     // AI Appraisal specific fields
+    appraisalMethod?: 'invite_appraiser' | 'ai_appraisal' | null
     valuationUserId?: string | null
     valuationId?: string | null
     valuationStatus?: 'pending' | 'in_progress' | 'completed' | 'failed' | null
