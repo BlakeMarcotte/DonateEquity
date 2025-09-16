@@ -73,12 +73,21 @@ export function AIAppraisalForm({
     setError(null)
     
     try {
-      // Step 1: Initiate AI Appraisal
+      // Step 1: Get fresh Firebase token
+      const currentUser = (window as unknown as { firebase?: { auth(): { currentUser?: { getIdToken(forceRefresh?: boolean): Promise<string> } } } }).firebase?.auth()?.currentUser
+      if (!currentUser) {
+        throw new Error('User not authenticated')
+      }
+      
+      // Force token refresh to ensure it's valid
+      const token = await currentUser.getIdToken(true)
+      
+      // Step 2: Initiate AI Appraisal
       const response = await fetch('/api/valuation/request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await (window as unknown as { firebase?: { auth(): { currentUser?: { getIdToken(): Promise<string> } } } }).firebase?.auth()?.currentUser?.getIdToken()}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           taskId: task.id,
@@ -110,7 +119,7 @@ export function AIAppraisalForm({
         const uploadResponse = await fetch('/api/valuation/upload', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${await (window as unknown as { firebase?: { auth(): { currentUser?: { getIdToken(): Promise<string> } } } }).firebase?.auth()?.currentUser?.getIdToken()}`
+            'Authorization': `Bearer ${token}`
           },
           body: formData
         })
@@ -470,7 +479,12 @@ export function AIAppraisalForm({
             <button
               onClick={async () => {
                 try {
-                  const token = await (window as unknown as { firebase?: { auth(): { currentUser?: { getIdToken(): Promise<string> } } } }).firebase?.auth()?.currentUser?.getIdToken()
+                  const currentUser = (window as unknown as { firebase?: { auth(): { currentUser?: { getIdToken(forceRefresh?: boolean): Promise<string> } } } }).firebase?.auth()?.currentUser
+                  if (!currentUser) {
+                    alert('User not authenticated')
+                    return
+                  }
+                  const token = await currentUser.getIdToken(true)
                   const response = await fetch('/api/valuation/test-auth', {
                     method: 'POST',
                     headers: {
