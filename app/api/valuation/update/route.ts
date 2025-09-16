@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Update valuation in 409.ai
-    const updatedValuation = await valuationClient.updateValuation(
+    const updatedValuation = await valuationClient.getInstance().updateValuation(
       valuationId,
       validated.valuationData
     )

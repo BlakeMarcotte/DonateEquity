@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Create shadow user in 409.ai system
-    const valuationUser = await valuationClient.createUser({
+    const valuationUser = await valuationClient.getInstance().createUser({
       email: userData.email || authResult.user.email || '',
       firstName: userData.firstName || userData.displayName?.split(' ')[0] || 'User',
       lastName: userData.lastName || userData.displayName?.split(' ')[1] || 'Name',
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     })
 
     // 6. Create valuation record
-    const valuation = await valuationClient.createValuation({
+    const valuation = await valuationClient.getInstance().createValuation({
       userId: valuationUser.id,
       companyInfo: validatedData.companyInfo,
     })
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     })
 
     // 8. Generate session token for direct access (if needed)
-    const sessionToken = await valuationClient.generateSessionToken({
+    const sessionToken = await valuationClient.getInstance().generateSessionToken({
       valuationId: valuation.id,
     })
 

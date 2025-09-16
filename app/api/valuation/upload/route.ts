@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     })
 
     // 7. Forward to 409.ai
-    const attachment = await valuationClient.uploadAttachment(
+    const attachment = await valuationClient.getInstance().uploadAttachment(
       valuationId,
       file,
       attachmentType

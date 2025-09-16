@@ -34,7 +34,37 @@ export class ValuationClient {
   private tokenExpiresAt: Date | null = null
 
   constructor(config?: Partial<ValuationServiceConfig>) {
-    // Validate environment variables
+    // Only validate environment variables if config is not provided
+    // This allows the module to load during build time
+    if (!config) {
+      this.config = {
+        clientId: '',
+        clientSecret: '',
+        apiUrl: '',
+        timeout: 30000, // 30 second default timeout
+      }
+    } else {
+      this.config = {
+        clientId: config.clientId || '',
+        clientSecret: config.clientSecret || '',
+        apiUrl: config.apiUrl || '',
+        timeout: config.timeout || 30000,
+      }
+    }
+
+    // Only log if we have actual config (not during build)
+    if (this.config.apiUrl) {
+      secureLogger.info('ValuationClient initialized', {
+        apiUrl: this.config.apiUrl,
+        clientId: this.config.clientId.substring(0, 4) + '****',
+      })
+    }
+  }
+
+  /**
+   * Validate configuration when actually needed
+   */
+  private validateConfig(): void {
     const envConfig = {
       VALUATION_409AI_CLIENT_ID: process.env.VALUATION_409AI_CLIENT_ID,
       VALUATION_409AI_CLIENT_SECRET: process.env.VALUATION_409AI_CLIENT_SECRET,
@@ -43,17 +73,16 @@ export class ValuationClient {
 
     const validatedEnv = valuationEnvSchema.parse(envConfig)
 
-    this.config = {
-      clientId: config?.clientId || validatedEnv.VALUATION_409AI_CLIENT_ID,
-      clientSecret: config?.clientSecret || validatedEnv.VALUATION_409AI_CLIENT_SECRET,
-      apiUrl: config?.apiUrl || validatedEnv.VALUATION_409AI_API_URL,
-      timeout: config?.timeout || 30000, // 30 second default timeout
+    // Update config with environment variables if not already set
+    if (!this.config.clientId) {
+      this.config.clientId = validatedEnv.VALUATION_409AI_CLIENT_ID
     }
-
-    secureLogger.info('ValuationClient initialized', {
-      apiUrl: this.config.apiUrl,
-      clientId: this.config.clientId.substring(0, 4) + '****',
-    })
+    if (!this.config.clientSecret) {
+      this.config.clientSecret = validatedEnv.VALUATION_409AI_CLIENT_SECRET
+    }
+    if (!this.config.apiUrl) {
+      this.config.apiUrl = validatedEnv.VALUATION_409AI_API_URL
+    }
   }
 
   /**
@@ -145,6 +174,9 @@ export class ValuationClient {
    * Ensure we have a valid authentication token
    */
   private async ensureAuthenticated(): Promise<void> {
+    // Validate configuration first
+    this.validateConfig()
+
     if (this.authToken && this.tokenExpiresAt && new Date() < this.tokenExpiresAt) {
       return
     }
@@ -382,5 +414,14 @@ export class ValuationClient {
   }
 }
 
-// Export singleton instance for convenience
-export const valuationClient = new ValuationClient()
+// Export lazy-loaded singleton instance for convenience
+let _valuationClient: ValuationClient | null = null
+
+export const valuationClient = {
+  getInstance(): ValuationClient {
+    if (!_valuationClient) {
+      _valuationClient = new ValuationClient()
+    }
+    return _valuationClient
+  }
+}

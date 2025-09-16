@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
 
     // 5. Get valuation status from 409.ai
     try {
-      const valuation = await valuationClient.getValuation(valuationId as string)
+      const valuation = await valuationClient.getInstance().getValuation(valuationId as string)
       
       // 6. Update task metadata with latest status
       const updates: Record<string, unknown> = {
