@@ -8,6 +8,7 @@ import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload, RefreshCw } from 'lucide-react'
 import { AppraiserInvitationForm } from './AppraiserInvitationForm'
+import { AppraisalMethodTask } from './AppraisalMethodTask'
 import { FileUpload } from '@/components/files/FileUpload'
 import { useParticipantFiles } from '@/hooks/useParticipantFiles'
 import { Modal } from '@/components/ui/modal'
@@ -95,8 +96,8 @@ export function DonationTaskList({
         setCompletingTasks(prev => new Set(prev).add(currentCommitmentTask.id))
         try {
           await completeTask(currentCommitmentTask.id, commitmentData)
-        } catch (error) {
-          console.error('Failed to complete equity commitment task:', error)
+        } catch {
+          // Error will be handled by the completion flow
         } finally {
           setCompletingTasks(prev => {
             const newSet = new Set(prev)
@@ -220,7 +221,19 @@ export function DonationTaskList({
         await completeTask(currentUploadTask.id)
       }
     } catch (error) {
-      console.error('Upload failed:', error)
+      // Error will be handled by the upload component
+      throw error
+    }
+  }
+
+  const handleAppraisalMethodSelect = async (taskId: string, method: 'invite_appraiser' | 'ai_appraisal') => {
+    try {
+      // Update the task to mark the appraisal method as selected
+      await completeTask(taskId, {
+        appraisalMethod: method
+      })
+    } catch (error) {
+      // Error will be handled by the parent component
       throw error
     }
   }
@@ -560,6 +573,21 @@ export function DonationTaskList({
                   campaignTitle={campaignTitle}
                   donorName={donorName || 'Anonymous Donor'}
                   organizationName={organizationName || 'Organization'}
+                />
+              </div>
+            )
+          }
+
+          // Special rendering for appraisal request tasks
+          if (task.type === 'appraisal_request') {
+            return (
+              <div key={task.id} className="group">
+                <AppraisalMethodTask 
+                  task={task} 
+                  onMethodSelect={handleAppraisalMethodSelect}
+                  campaignTitle={campaignTitle}
+                  donorName={donorName}
+                  organizationName={organizationName}
                 />
               </div>
             )
