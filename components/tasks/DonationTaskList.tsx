@@ -228,10 +228,27 @@ export function DonationTaskList({
 
   const handleAppraisalMethodSelect = async (taskId: string, method: 'invite_appraiser' | 'ai_appraisal') => {
     try {
-      // Update the task to mark the appraisal method as selected
-      await completeTask(taskId, {
-        appraisalMethod: method
-      })
+      if (method === 'ai_appraisal') {
+        // For AI Appraisal, we need to convert the invitation task to an ai_appraisal_request task
+        // This allows the AIAppraisalForm to submit to the correct API endpoint
+        const response = await fetch(`/api/tasks/${taskId}/convert-to-ai-appraisal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${await user?.getIdToken()}`
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to convert task for AI Appraisal')
+        }
+      } else {
+        // For invite appraiser, complete the task with the method selection
+        await completeTask(taskId, {
+          appraisalMethod: method
+        })
+      }
     } catch (error) {
       // Error will be handled by the parent component
       throw error
