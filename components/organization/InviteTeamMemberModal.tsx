@@ -48,7 +48,6 @@ export default function InviteTeamMemberModal({
   const { 
     loading, 
     error, 
-    success,
     execute, 
     reset 
   } = useFormSubmission('Team Invitation')
@@ -73,10 +72,8 @@ export default function InviteTeamMemberModal({
     })
 
     if (result) {
-      // Wait a moment to show success state then close
-      setTimeout(() => {
-        handleClose()
-      }, 1500)
+      // Close immediately without showing success state
+      handleClose()
     }
   }
 
@@ -87,10 +84,6 @@ export default function InviteTeamMemberModal({
     setPersonalMessage('')
     reset()
     onClose()
-  }
-
-  const handleSuccessClose = () => {
-    handleClose()
   }
 
   const isFormValid = email.trim().length > 0 && subrole
@@ -104,10 +97,6 @@ export default function InviteTeamMemberModal({
       onSubmit={handleSubmit}
       loading={loading}
       loadingText="Sending Invitation..."
-      success={success}
-      successTitle="Invitation Sent!"
-      successMessage="The invitation has been sent successfully."
-      onSuccessClose={handleSuccessClose}
       error={error}
       submitDisabled={!isFormValid}
       submitText="Send Invitation"
