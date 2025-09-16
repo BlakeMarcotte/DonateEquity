@@ -35,8 +35,16 @@ export interface Task {
     appraiserEmail?: string | null
     appraiserInvited?: string | null
     invitationToken?: string | null
+    // AI Appraisal specific fields
+    valuationUserId?: string | null
+    valuationId?: string | null
+    valuationStatus?: 'pending' | 'in_progress' | 'completed' | 'failed' | null
+    valuationAmount?: number | null
+    valuationReportUrl?: string | null
+    valuationCompletedAt?: string | null
   }
   comments: TaskComment[]
+  completionData?: TaskCompletionData
 }
 
 export type TaskType = 
@@ -50,6 +58,9 @@ export type TaskType =
   | 'appraisal_request'
   | 'appraisal_submission'
   | 'appraisal_review'
+  | 'ai_appraisal_request'
+  | 'ai_appraisal_submission'
+  | 'ai_appraisal_review'
   | 'equity_transfer'
   | 'tax_documentation'
   | 'legal_review'
@@ -109,10 +120,44 @@ export interface AppraisalData {
   notes?: string
 }
 
+export interface AIAppraisalData {
+  companyInfo?: {
+    legalName?: string
+    sicCode?: string
+    revenueModel?: string
+    numberOfEmployees?: string
+    inceptionDate?: string
+    exitTimeline?: string
+    lawFirm?: string
+    companyOverview?: string
+    competitors?: Array<{ name: string; website?: string }>
+    serviceCountries?: string[]
+    accountingSoftware?: string
+  }
+  capTableInfo?: {
+    hasLiquidityPreference?: boolean
+    liquidityPreferenceDetails?: string
+    hasConvertibleNotes?: boolean
+    convertibleNotesDetails?: string
+    hasSpecialRights?: boolean
+    specialRightsDetails?: string
+  }
+  reportContact?: {
+    name: string
+    title: string
+    email: string
+  }
+  valuationAmount?: number
+  valuationDate?: string
+  valuationReportUrl?: string
+  lastUpdatedAt?: string
+}
+
 // Union type for all possible completion data
 export type TaskCompletionData = 
   | CommitmentData 
   | DocumentUploadData 
   | AppraisalData 
+  | AIAppraisalData
   | Record<string, unknown>
   | undefined
