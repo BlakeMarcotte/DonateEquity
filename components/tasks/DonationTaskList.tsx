@@ -578,8 +578,9 @@ export function DonationTaskList({
             )
           }
 
-          // Special rendering for appraisal request tasks
-          if (task.type === 'appraisal_request') {
+          // Special rendering for invitation tasks that are appraisal-related
+          // Check if this is an appraiser invitation task that should show method options
+          if (task.type === 'invitation' && task.title.toLowerCase().includes('appraiser')) {
             return (
               <div key={task.id} className="group">
                 <AppraisalMethodTask 
