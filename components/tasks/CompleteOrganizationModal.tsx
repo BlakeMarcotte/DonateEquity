@@ -97,9 +97,11 @@ export default function CompleteOrganizationModal({
     })
 
     if (result) {
+      // Mark completion immediately to prevent re-opening
+      onComplete?.()
+      
       // Wait a moment to show success state then close
       setTimeout(() => {
-        onComplete?.()
         handleClose()
       }, 1500)
     }
@@ -120,7 +122,7 @@ export default function CompleteOrganizationModal({
   }
 
   const handleSuccessClose = () => {
-    onComplete?.()
+    // Don't call onComplete again as it was already called
     handleClose()
   }
 
