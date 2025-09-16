@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Task } from '@/types/task'
+import { useAuth } from '@/contexts/AuthContext'
 import { 
   X, 
   Building, 
@@ -45,6 +46,7 @@ export function AIAppraisalForm({
   onSuccess,
   task
 }: AIAppraisalFormProps) {
+  const { user } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -74,13 +76,12 @@ export function AIAppraisalForm({
     
     try {
       // Step 1: Get fresh Firebase token
-      const currentUser = (window as unknown as { firebase?: { auth(): { currentUser?: { getIdToken(forceRefresh?: boolean): Promise<string> } } } }).firebase?.auth()?.currentUser
-      if (!currentUser) {
+      if (!user) {
         throw new Error('User not authenticated')
       }
       
       // Force token refresh to ensure it's valid
-      const token = await currentUser.getIdToken(true)
+      const token = await user.getIdToken(true)
       
       // Step 2: Initiate AI Appraisal
       const response = await fetch('/api/valuation/request', {
@@ -479,12 +480,11 @@ export function AIAppraisalForm({
             <button
               onClick={async () => {
                 try {
-                  const currentUser = (window as unknown as { firebase?: { auth(): { currentUser?: { getIdToken(forceRefresh?: boolean): Promise<string> } } } }).firebase?.auth()?.currentUser
-                  if (!currentUser) {
+                  if (!user) {
                     alert('User not authenticated')
                     return
                   }
-                  const token = await currentUser.getIdToken(true)
+                  const token = await user.getIdToken(true)
                   const response = await fetch('/api/valuation/test-auth', {
                     method: 'POST',
                     headers: {
