@@ -90,22 +90,22 @@ export async function POST(request: NextRequest) {
 
     // 6. Create valuation record
     const valuation = await valuationClient.getInstance().createValuation({
-      userId: valuationUser.id,
+      userId: valuationUser.user_uuid,
       companyInfo: validatedData.companyInfo,
     })
 
     // 7. Update task with valuation information
     await taskRef.update({
       status: 'in_progress',
-      'metadata.valuationUserId': valuationUser.id,
-      'metadata.valuationId': valuation.id,
+      'metadata.valuationUserId': valuationUser.user_uuid,
+      'metadata.valuationId': valuation.valuation_uuid,
       'metadata.valuationStatus': 'pending',
       updatedAt: FieldValue.serverTimestamp(),
     })
 
     // 8. Generate session token for direct access (if needed)
     const sessionToken = await valuationClient.getInstance().generateSessionToken({
-      valuationId: valuation.id,
+      valuationId: valuation.valuation_uuid,
     })
 
     // 9. Audit log
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       userId: authResult.user.uid,
       action: 'request_ai_appraisal',
       resource: 'valuation',
-      resourceId: valuation.id,
+      resourceId: valuation.valuation_uuid,
       ip: request.headers.get('x-forwarded-for') || 'unknown',
     }, {
       taskId: validatedData.taskId,
@@ -123,8 +123,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      valuationId: valuation.id,
-      valuationUserId: valuationUser.id,
+      valuationId: valuation.valuation_uuid,
+      valuationUserId: valuationUser.user_uuid,
       sessionUrl: sessionToken.loginUrl,
       message: 'AI Appraisal initiated successfully',
     })

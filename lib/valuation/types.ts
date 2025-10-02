@@ -18,13 +18,17 @@ export interface ValuationSessionToken {
 
 // User types
 export interface ValuationUser {
-  id: string;
+  user_uuid: string; // 409ai uses user_uuid instead of id
   email: string;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   phone?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  partner?: {
+    name: string;
+    subdomain: string;
+  };
+  valuations?: unknown[];
 }
 
 export interface CreateValuationUserRequest {
@@ -54,16 +58,15 @@ export interface CompanyInfo {
 
 // Valuation types
 export interface Valuation {
-  id: string;
-  userId: string;
-  companyInfo: CompanyInfo;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  valuationAmount?: number;
-  valuationDate?: string;
+  valuation_uuid: string;
+  user_uuid: string;
+  state: 'pending' | 'in_progress' | 'completed' | 'failed';
+  created_at: string;
+  updated_at: string;
+  valuation_amount?: number;
+  valuation_date?: string;
   currency?: string;
-  reportUrl?: string;
-  createdAt: string;
-  updatedAt: string;
+  report_url?: string;
 }
 
 export interface CreateValuationRequest {
@@ -120,6 +123,7 @@ export interface ValuationApiError extends Error {
   code: 'AUTH_FAILED' | 'VALIDATION_ERROR' | 'NOT_FOUND' | 'RATE_LIMITED' | 'SERVER_ERROR';
   statusCode: number;
   details?: unknown;
+  responseBody?: string;
 }
 
 // Service configuration

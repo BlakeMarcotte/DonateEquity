@@ -19,8 +19,8 @@ export const companyInfoSchema = z.object({
   sicCode: z.string().regex(/^\d{4}$/, 'SIC code must be 4 digits').optional(),
   revenueModel: z.enum(['SaaS', 'Services', 'Product', 'Marketplace', 'Other']).optional(),
   numberOfEmployees: z.enum(['1-10', '11-50', '51-200', '201-500', '500+']).optional(),
-  inceptionDate: z.string().datetime().optional(),
-  exitTimeline: z.string().datetime().optional(),
+  inceptionDate: z.string().min(1).optional().or(z.literal('')),
+  exitTimeline: z.string().min(1).optional().or(z.literal('')),
   lawFirm: z.string().max(200).trim().optional(),
   companyOverview: z.string().max(1000, 'Company overview must be under 1000 characters').trim().optional(),
   competitors: z.array(z.object({
@@ -58,7 +58,7 @@ export const reportContactSchema = z.object({
 
 // Create valuation request validation
 export const createValuationRequestSchema = z.object({
-  userId: z.string().uuid('Invalid user ID format'),
+  userId: z.string().min(1, 'User ID is required'),
   companyInfo: companyInfoSchema.partial().optional(),
 });
 
@@ -93,15 +93,15 @@ export const authTokenSchema = z.object({
 // Session token validation
 export const sessionTokenSchema = z.object({
   token: z.string().min(1),
-  loginUrl: z.string().url(),
-  expiresAt: z.string().datetime(),
+  loginUrl: z.string().min(1), // Can be relative path, not always full URL
+  expiresAt: z.string(), // Not a strict datetime, can be any string
 });
 
 // Valuation ID validation
-export const valuationIdSchema = z.string().uuid('Invalid valuation ID format');
+export const valuationIdSchema = z.string().min(1, 'Valuation ID is required');
 
 // User ID validation
-export const userIdSchema = z.string().uuid('Invalid user ID format');
+export const userIdSchema = z.string().min(1, 'User ID is required');
 
 // Environment variable validation
 export const valuationEnvSchema = z.object({

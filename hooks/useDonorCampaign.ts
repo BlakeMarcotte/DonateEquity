@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSearchParams } from 'next/navigation'
 
 interface DonorCampaign {
   id: string
@@ -22,10 +23,19 @@ interface DonorDonation {
 
 export function useDonorCampaign() {
   const { user, customClaims } = useAuth()
+  const searchParams = useSearchParams()
   const [campaign, setCampaign] = useState<DonorCampaign | null>(null)
   const [donation, setDonation] = useState<DonorDonation | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => {
+    const refreshParam = searchParams?.get('refresh')
+    if (refreshParam) {
+      setRefreshKey(prev => prev + 1)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (!user || (customClaims?.role !== 'donor' && customClaims?.role !== 'appraiser')) {
@@ -213,7 +223,7 @@ export function useDonorCampaign() {
     )
 
     return () => unsubscribeDonations()
-  }, [user, customClaims?.role])
+  }, [user, customClaims?.role, refreshKey])
 
   return { campaign, donation, loading, error }
 }

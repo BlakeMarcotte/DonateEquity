@@ -104,7 +104,7 @@ export class ValuationClient {
         ...options,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.authToken!.token}`,
+          'authentication': this.authToken!.token,
           ...options.headers,
         },
         signal: controller.signal,
@@ -115,17 +115,22 @@ export class ValuationClient {
       const responseData = await response.json() as ApiResponse<T>
 
       if (!response.ok) {
-        const error = new Error(
-          responseData.error?.message || 'API request failed'
-        ) as ValuationApiError
+        // 409ai API error format: {status: "error", message: "...", errors: [...]}
+        const responseBodyStr = JSON.stringify(responseData)
+        const apiMessage = (responseData as Record<string, unknown>).message as string || 'API request failed'
+        
+        const error = new Error(apiMessage) as ValuationApiError
         error.code = this.mapStatusToErrorCode(response.status)
         error.statusCode = response.status
-        error.details = responseData.error?.details
+        error.details = responseData.error?.details || (responseData as Record<string, unknown>).errors
+        error.responseBody = responseBodyStr
 
         secureLogger.error('Valuation API request failed', error, {
           endpoint,
           statusCode: response.status,
           method: options.method || 'GET',
+          responseBody: responseBodyStr,
+          requestBody: options.body,
         })
 
         throw error
@@ -138,7 +143,16 @@ export class ValuationClient {
         ip: 'outgoing',
       })
 
-      return responseData.data as T
+      // Log the actual response structure for debugging
+      secureLogger.info('API Response structure', {
+        endpoint,
+        hasData: 'data' in responseData,
+        responseKeys: Object.keys(responseData),
+        responseType: typeof responseData,
+      })
+
+      // 409ai API doesn't wrap response in 'data' field
+      return (responseData.data || responseData) as T
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         const timeoutError = new Error('Request timeout') as ValuationApiError
@@ -202,11 +216,13 @@ export class ValuationClient {
         throw new Error(`Authentication failed: ${response.statusText}`)
       }
 
-      const data = await response.json() as { token: string; expires_at: string }
+      const data = await response.json() as { authentication: string }
       
+      // The API returns 'authentication' instead of 'token'
+      // For expires_at, we'll set it to 24 hours from now (based on the JWT exp claim)
       const authToken: ValuationAuthToken = {
-        token: data.token,
-        expiresAt: data.expires_at,
+        token: data.authentication,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       }
 
       const validated = authTokenSchema.parse(authToken)
@@ -233,24 +249,94 @@ export class ValuationClient {
   async createUser(userData: CreateValuationUserRequest): Promise<ValuationUser> {
     const validated = createValuationUserSchema.parse(userData)
     
-    const response = await this.makeRequest<ValuationUser>('/api/users/create', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: validated.email,
-        first_name: validated.firstName,
-        last_name: validated.lastName,
-        phone: validated.phone,
-      }),
-    })
+    await this.ensureAuthenticated()
+    
+    try {
+      const response = await this.makeRequest<ValuationUser>('/api/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          authentication: this.authToken!.token,
+          email: validated.email,
+          first_name: validated.firstName,
+          last_name: validated.lastName,
+          phone: validated.phone,
+        }),
+      })
 
-    secureLogger.audit('Valuation user created', {
-      userId: response.id,
-      action: 'create_valuation_user',
-      resource: 'valuation_user',
-      resourceId: response.id,
-    })
+      secureLogger.audit('Valuation user created', {
+        userId: response.user_uuid,
+        action: 'create_valuation_user',
+        resource: 'valuation_user',
+        resourceId: response.user_uuid,
+      })
 
-    return response
+      return response
+    } catch (error) {
+      // If user already exists (email taken), try to find and return existing user
+      const isValuationError = error && typeof error === 'object' && 'statusCode' in error
+      const valuationError = error as ValuationApiError
+      const errorDetails = isValuationError && 'details' in error ? valuationError.details : undefined
+      const errorMessage = error && typeof error === 'object' && 'message' in error ? (error as Error).message : ''
+      const responseBody = isValuationError && 'responseBody' in error ? valuationError.responseBody || '' : ''
+      const errorDetailsStr = errorDetails ? JSON.stringify(errorDetails) : ''
+      
+      const hasAlreadyTaken = 
+        errorDetailsStr.includes('already been taken') || 
+        errorMessage.includes('already been taken') ||
+        responseBody.includes('already been taken')
+      
+      secureLogger.info('User creation error details', {
+        isValuationError,
+        statusCode: isValuationError ? valuationError.statusCode : undefined,
+        errorMessage,
+        errorDetailsStr,
+        responseBodyLength: responseBody.length,
+        hasAlreadyTaken,
+      })
+      
+      if (isValuationError && valuationError.statusCode === 422 && hasAlreadyTaken) {
+        secureLogger.info('User already exists, fetching existing user', {
+          email: validated.email,
+        })
+        
+        // Get list of users and find by email
+        const users = await this.makeRequest<ValuationUser[]>('/api/users', {
+          method: 'GET',
+        })
+        
+        secureLogger.info('Fetched users list', {
+          usersCount: Array.isArray(users) ? users.length : 'not-array',
+          firstUserKeys: Array.isArray(users) && users.length > 0 ? Object.keys(users[0]) : [],
+          firstUserSample: Array.isArray(users) && users.length > 0 ? JSON.stringify(users[0]) : 'none',
+        })
+        
+        const existingUser = Array.isArray(users) ? users.find(u => u.email === validated.email) : undefined
+        
+        if (existingUser) {
+          secureLogger.info('Found existing user', {
+            userKeys: Object.keys(existingUser),
+            hasId: 'id' in existingUser,
+            userSample: JSON.stringify(existingUser),
+          })
+          
+          secureLogger.audit('Existing valuation user retrieved', {
+            userId: existingUser.user_uuid,
+            action: 'get_existing_valuation_user',
+            resource: 'valuation_user',
+            resourceId: existingUser.user_uuid,
+          })
+          
+          return existingUser
+        }
+        
+        secureLogger.error('Could not find existing user in list', undefined, {
+          email: validated.email,
+          usersCount: Array.isArray(users) ? users.length : 'not-array',
+        })
+      }
+      
+      throw error
+    }
   }
 
   /**
@@ -259,11 +345,52 @@ export class ValuationClient {
   async createValuation(request: CreateValuationRequest): Promise<Valuation> {
     const validated = createValuationRequestSchema.parse(request)
     
-    const response = await this.makeRequest<Valuation>('/api/valuations/create', {
+    await this.ensureAuthenticated()
+    
+    // Convert to 409ai API format with separate objects
+    const companyInfo: Record<string, unknown> = {}
+    const companyDetails: Record<string, unknown> = {}
+    const summary: Record<string, unknown> = {}
+    
+    if (validated.companyInfo) {
+      const info = validated.companyInfo
+      
+      // company_info object
+      if (info.legalName) companyInfo.company_name = info.legalName
+      if (info.inceptionDate && info.inceptionDate !== '') companyInfo.company_inception_date = info.inceptionDate
+      if (info.revenueModel) companyInfo.revenue_model = info.revenueModel
+      if (info.sicCode) companyInfo.industry_id = info.sicCode
+      if (info.exitTimeline && info.exitTimeline !== '') companyInfo.exit_timeline = info.exitTimeline
+      if (info.lawFirm) companyInfo.law_firm = info.lawFirm
+      companyInfo.business_status = 'Pre-Revenue' // Default value
+      if (info.numberOfEmployees) companyInfo.employee_no = info.numberOfEmployees
+      companyInfo.estimated_months_of_runway = 0 // Default value
+      
+      // company_details object
+      companyDetails.overview = info.companyOverview || 'Company overview to be provided'
+      
+      // summary object (required fields)
+      summary.person_name = 'Valuation Contact'
+      summary.title = 'Contact'
+      summary.currency = 'USD'
+      summary.valuation_date = new Date().toISOString().split('T')[0]
+    }
+    
+    secureLogger.info('Creating valuation with 409ai format', {
+      userId: validated.userId,
+      companyInfo: JSON.stringify(companyInfo),
+      companyDetails: JSON.stringify(companyDetails),
+      summary: JSON.stringify(summary),
+    })
+    
+    const response = await this.makeRequest<Valuation>('/api/valuations', {
       method: 'POST',
       body: JSON.stringify({
+        authentication: this.authToken!.token,
         user_id: validated.userId,
-        company_info: validated.companyInfo,
+        company_info: companyInfo,
+        company_details: companyDetails,
+        summary: summary,
       }),
     })
 
@@ -271,7 +398,7 @@ export class ValuationClient {
       userId: validated.userId,
       action: 'create_valuation',
       resource: 'valuation',
-      resourceId: response.id,
+      resourceId: response.valuation_uuid,
     })
 
     return response
@@ -324,26 +451,41 @@ export class ValuationClient {
   ): Promise<ValuationAttachment> {
     const validatedId = valuationIdSchema.parse(valuationId)
     
+    await this.ensureAuthenticated()
+    
     const formData = new FormData()
+    formData.append('authentication', this.authToken!.token)
+    formData.append('valuation_uuid', validatedId)
     formData.append('file', file)
-    formData.append('attachment_type', attachmentType)
+
+    secureLogger.info('Uploading attachment to 409ai', {
+      valuationId: validatedId,
+      fileName: file.name,
+      fileSize: file.size,
+      attachmentType,
+    })
 
     const response = await fetch(
-      `${this.config.apiUrl}/api/attachments/${validatedId}`,
+      `${this.config.apiUrl}/api/attachments`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.authToken!.token}`,
-        },
         body: formData,
       }
     )
 
+    const responseText = await response.text()
+    
+    secureLogger.info('Attachment upload response', {
+      statusCode: response.status,
+      statusText: response.statusText,
+      responseBody: responseText.substring(0, 500),
+    })
+
     if (!response.ok) {
-      throw new Error(`Attachment upload failed: ${response.statusText}`)
+      throw new Error(`Attachment upload failed: ${response.status} ${response.statusText} - ${responseText}`)
     }
 
-    const attachment = await response.json() as ValuationAttachment
+    const attachment = JSON.parse(responseText) as ValuationAttachment
 
     secureLogger.audit('Valuation attachment uploaded', {
       userId: 'system',
@@ -369,7 +511,11 @@ export class ValuationClient {
       throw new Error('Either userId or valuationId must be provided')
     }
 
-    const body: Record<string, string> = {}
+    await this.ensureAuthenticated()
+
+    const body: Record<string, string> = {
+      authentication: this.authToken!.token,
+    }
     
     if (params.userId) {
       body.user_id = userIdSchema.parse(params.userId)
@@ -379,19 +525,36 @@ export class ValuationClient {
     }
 
     const response = await this.makeRequest<{
-      access_token: string
+      authentication: string
       login_url: string
-      expires_at: string
     }>('/api/authentication/sessions', {
       method: 'POST',
       body: JSON.stringify(body),
     })
 
+    secureLogger.info('Session token response received', {
+      responseKeys: Object.keys(response),
+      hasAuthentication: 'authentication' in response,
+      hasLoginUrl: 'login_url' in response,
+      loginUrlValue: response.login_url,
+    })
+
+    // Convert relative login URL to absolute URL
+    const loginUrl = response.login_url.startsWith('http') 
+      ? response.login_url 
+      : `${this.config.apiUrl}${response.login_url}`
+
     const sessionToken: ValuationSessionToken = {
-      token: response.access_token,
-      loginUrl: response.login_url,
-      expiresAt: response.expires_at,
+      token: response.authentication,
+      loginUrl: loginUrl,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Default 24 hours
     }
+
+    secureLogger.info('Validating session token', {
+      tokenLength: sessionToken.token?.length || 0,
+      loginUrl: sessionToken.loginUrl,
+      expiresAt: sessionToken.expiresAt,
+    })
 
     const validated = sessionTokenSchema.parse(sessionToken)
 

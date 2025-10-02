@@ -52,14 +52,14 @@ export function AIAppraisalForm({
   const [error, setError] = useState<string | null>(null)
   
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
-    legalName: '',
-    sicCode: '',
-    revenueModel: undefined,
-    numberOfEmployees: undefined,
-    inceptionDate: '',
+    legalName: 'Test Company Inc',
+    sicCode: '6211',
+    revenueModel: 'SaaS',
+    numberOfEmployees: '11-50',
+    inceptionDate: '2020-01-01',
     exitTimeline: '',
-    lawFirm: '',
-    companyOverview: ''
+    lawFirm: 'Deloitte',
+    companyOverview: 'A software-as-a-service company providing innovative solutions for the technology industry.'
   })
   
   const [uploadedFiles, setUploadedFiles] = useState<{
@@ -491,7 +491,7 @@ export function AIAppraisalForm({
               {currentStep > 1 ? 'Back' : 'Cancel'}
             </button>
             
-            {/* Debug Test Button */}
+            {/* Debug Test Buttons */}
             <button
               onClick={async () => {
                 try {
@@ -517,6 +517,40 @@ export function AIAppraisalForm({
               className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded border hover:bg-gray-200 transition-colors"
             >
               Debug Auth
+            </button>
+            
+            <button
+              onClick={async () => {
+                try {
+                  if (!user) {
+                    alert('User not authenticated')
+                    return
+                  }
+                  const token = await user.getIdToken(true)
+                  const response = await fetch('/api/valuation/test-409', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    }
+                  })
+                  const result = await response.json()
+                  const resultText = JSON.stringify(result, null, 2)
+                  
+                  // Copy to clipboard
+                  await navigator.clipboard.writeText(resultText)
+                  
+                  // Show in console for easy viewing
+                  console.log('409.ai Test Result:', result)
+                  
+                  alert(`409.ai Test Result copied to clipboard!\n\nStatus: ${response.status}\n\nCheck console for full details or paste the clipboard contents.`)
+                } catch (err) {
+                  alert(`Test Error: ${err}`)
+                }
+              }}
+              className="px-3 py-1 text-xs bg-blue-100 text-blue-600 rounded border hover:bg-blue-200 transition-colors"
+            >
+              Test 409.ai
             </button>
           </div>
 
