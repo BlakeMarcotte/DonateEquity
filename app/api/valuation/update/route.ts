@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     // 6. Update task metadata
     await taskRef.update({
-      'metadata.valuationStatus': updatedValuation.status,
+      'metadata.valuationStatus': updatedValuation.state,
       updatedAt: FieldValue.serverTimestamp(),
     })
 
@@ -111,8 +111,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      valuationId: updatedValuation.id,
-      status: updatedValuation.status,
+      valuationId: updatedValuation.valuation_uuid,
+      status: updatedValuation.state,
       message: 'AI Appraisal data updated successfully',
     })
 

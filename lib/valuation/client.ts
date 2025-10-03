@@ -117,12 +117,13 @@ export class ValuationClient {
       if (!response.ok) {
         // 409ai API error format: {status: "error", message: "...", errors: [...]}
         const responseBodyStr = JSON.stringify(responseData)
-        const apiMessage = (responseData as Record<string, unknown>).message as string || 'API request failed'
+        const responseAsRecord = responseData as unknown as Record<string, unknown>
+        const apiMessage = responseAsRecord.message as string || 'API request failed'
         
         const error = new Error(apiMessage) as ValuationApiError
         error.code = this.mapStatusToErrorCode(response.status)
         error.statusCode = response.status
-        error.details = responseData.error?.details || (responseData as Record<string, unknown>).errors
+        error.details = responseData.error?.details || responseAsRecord.errors
         error.responseBody = responseBodyStr
 
         secureLogger.error('Valuation API request failed', error, {
@@ -423,7 +424,7 @@ export class ValuationClient {
     )
 
     secureLogger.audit('Valuation updated', {
-      userId: response.userId,
+      userId: response.user_uuid,
       action: 'update_valuation',
       resource: 'valuation',
       resourceId: validatedId,

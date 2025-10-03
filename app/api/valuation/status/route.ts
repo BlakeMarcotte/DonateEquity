@@ -79,20 +79,20 @@ export async function GET(request: NextRequest) {
       
       // 6. Update task metadata with latest status
       const updates: Record<string, unknown> = {
-        'metadata.valuationStatus': valuation.status,
+        'metadata.valuationStatus': valuation.state,
         updatedAt: new Date(),
       }
       
-      if (valuation.valuationAmount) {
-        updates['metadata.valuationAmount'] = valuation.valuationAmount
+      if (valuation.valuation_amount) {
+        updates['metadata.valuationAmount'] = valuation.valuation_amount
       }
       
-      if (valuation.reportUrl) {
-        updates['metadata.valuationReportUrl'] = valuation.reportUrl
+      if (valuation.report_url) {
+        updates['metadata.valuationReportUrl'] = valuation.report_url
       }
       
-      if (valuation.status === 'completed') {
-        updates['metadata.valuationCompletedAt'] = valuation.updatedAt
+      if (valuation.state === 'completed') {
+        updates['metadata.valuationCompletedAt'] = valuation.updated_at
       }
       
       await taskRef.update(updates)
@@ -100,12 +100,12 @@ export async function GET(request: NextRequest) {
       // 7. Return status information
       return NextResponse.json({
         success: true,
-        status: valuation.status,
-        valuationId: valuation.id,
-        valuationAmount: valuation.valuationAmount,
-        reportUrl: valuation.reportUrl,
-        completedAt: valuation.status === 'completed' ? valuation.updatedAt : null,
-        message: getStatusMessage(valuation.status),
+        status: valuation.state,
+        valuationId: valuation.valuation_uuid,
+        valuationAmount: valuation.valuation_amount,
+        reportUrl: valuation.report_url,
+        completedAt: valuation.state === 'completed' ? valuation.updated_at : null,
+        message: getStatusMessage(valuation.state),
       })
 
     } catch (valuationError) {
