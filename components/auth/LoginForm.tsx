@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
+
 interface LoginFormProps {
   onSuccess?: () => void
   redirectTo?: string
@@ -41,7 +42,7 @@ export default function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
     try {
       const user = await signIn(email, password)
       await refreshUserData()
-      
+
       if (onSuccess) {
         onSuccess()
       } else {
@@ -72,7 +73,7 @@ export default function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
       }
     } catch (error: unknown) {
       console.error('Login error:', error)
-      
+
       const authError = error as { code?: string }
       switch (authError.code) {
         case 'auth/user-not-found':
