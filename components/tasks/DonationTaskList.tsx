@@ -8,6 +8,7 @@ import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload, RefreshCw } from 'lucide-react'
 import { AppraiserInvitationForm } from './AppraiserInvitationForm'
+import { AppraisalMethodTask } from './AppraisalMethodTask'
 import { FileUpload } from '@/components/files/FileUpload'
 import { useParticipantFiles } from '@/hooks/useParticipantFiles'
 import { Modal } from '@/components/ui/modal'
@@ -95,8 +96,8 @@ export function DonationTaskList({
         setCompletingTasks(prev => new Set(prev).add(currentCommitmentTask.id))
         try {
           await completeTask(currentCommitmentTask.id, commitmentData)
-        } catch (error) {
-          console.error('Failed to complete equity commitment task:', error)
+        } catch {
+          // Error will be handled by the completion flow
         } finally {
           setCompletingTasks(prev => {
             const newSet = new Set(prev)
@@ -220,7 +221,36 @@ export function DonationTaskList({
         await completeTask(currentUploadTask.id)
       }
     } catch (error) {
-      console.error('Upload failed:', error)
+      // Error will be handled by the upload component
+      throw error
+    }
+  }
+
+  const handleAppraisalMethodSelect = async (taskId: string, method: 'invite_appraiser' | 'ai_appraisal') => {
+    try {
+      if (method === 'ai_appraisal') {
+        // For AI Appraisal, we need to convert the invitation task to an ai_appraisal_request task
+        // This allows the AIAppraisalForm to submit to the correct API endpoint
+        const response = await fetch(`/api/tasks/${taskId}/convert-to-ai-appraisal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${await user?.getIdToken()}`
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to convert task for AI Appraisal')
+        }
+      } else {
+        // For invite appraiser, complete the task with the method selection
+        await completeTask(taskId, {
+          appraisalMethod: method
+        })
+      }
+    } catch (error) {
+      // Error will be handled by the parent component
       throw error
     }
   }
@@ -560,6 +590,22 @@ export function DonationTaskList({
                   campaignTitle={campaignTitle}
                   donorName={donorName || 'Anonymous Donor'}
                   organizationName={organizationName || 'Organization'}
+                />
+              </div>
+            )
+          }
+
+          // Special rendering for invitation tasks that are appraisal-related
+          // Check if this is an appraiser invitation task that should show method options
+          if (task.type === 'invitation' && task.title.toLowerCase().includes('appraiser')) {
+            return (
+              <div key={task.id} className="group">
+                <AppraisalMethodTask 
+                  task={task} 
+                  onMethodSelect={handleAppraisalMethodSelect}
+                  campaignTitle={campaignTitle}
+                  donorName={donorName}
+                  organizationName={organizationName}
                 />
               </div>
             )

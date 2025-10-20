@@ -221,7 +221,8 @@ export function withSecurity<T>(
       
       return response
     } catch (error) {
-      console.error('API Handler Error:', error)
+      const { secureLogger } = await import('@/lib/logging/secure-logger')
+      secureLogger.error('API Handler Error', error, { pathname })
       
       const errorResponse = NextResponse.json(
         { error: 'Internal server error' },
@@ -239,7 +240,7 @@ export function withSecurity<T>(
 }
 
 // Logging utility for security events
-export function logSecurityEvent(
+export async function logSecurityEvent(
   event: 'rate_limit_exceeded' | 'validation_failed' | 'auth_failed' | 'suspicious_activity',
   details: {
     ip?: string
@@ -257,7 +258,8 @@ export function logSecurityEvent(
   }
   
   // In production, send to secure logging service
-  console.warn('SECURITY EVENT:', JSON.stringify(logEntry))
+  const { secureLogger } = await import('@/lib/logging/secure-logger')
+  secureLogger.security(`Security Event: ${event}`, logEntry)
 }
 
 // CORS helper

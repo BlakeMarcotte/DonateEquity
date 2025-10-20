@@ -13,9 +13,10 @@ import { Heart, CheckSquare, FileText } from 'lucide-react'
 
 function MyCampaignPage() {
   const { user, customClaims, loading } = useAuth()
-  const { campaign, donation, loading: campaignLoading } = useDonorCampaign()
   const searchParams = useSearchParams()
   const campaignIdFromUrl = searchParams.get('campaignId')
+  const shouldRefresh = searchParams.get('refresh') === '1'
+  const { campaign, donation, loading: campaignLoading } = useDonorCampaign(shouldRefresh)
   
   // Create participant ID for task querying
   // For appraisers, we need to get the donor's participant ID since tasks are stored there

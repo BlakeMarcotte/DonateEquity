@@ -164,7 +164,7 @@ export default function InvitationPage() {
             if (acceptanceResult.data?.campaignId && (acceptanceResult.data?.participantId || acceptanceResult.data?.donorId)) {
               const campaignId = acceptanceResult.data.campaignId
               const donorId = acceptanceResult.data.donorId || user?.uid
-              router.push(`/campaigns/${campaignId}/participants/${donorId}/tasks`)
+              router.push(`/campaigns/${campaignId}/participants/${donorId}/tasks?refresh=1`)
             } else {
               // Fallback to my-campaign if participant data is not available
               secureLogger.warn('Missing participant data for direct redirect, using fallback', {
@@ -172,11 +172,11 @@ export default function InvitationPage() {
                 hasDonorId: !!acceptanceResult.data?.donorId,
                 hasCampaignId: !!acceptanceResult.data?.campaignId
               })
-              // Pass campaign ID as query param to help with immediate loading
+              // Pass campaign ID and refresh flag as query params to help with immediate loading
               if (acceptanceResult.data?.campaignId) {
-                router.push(`/my-campaign?campaignId=${acceptanceResult.data.campaignId}`)
+                router.push(`/my-campaign?campaignId=${acceptanceResult.data.campaignId}&refresh=1`)
               } else {
-                router.push('/my-campaign')
+                router.push('/my-campaign?refresh=1')
               }
             }
           }, 2000)

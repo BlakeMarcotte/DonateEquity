@@ -20,12 +20,19 @@ interface DonorDonation {
   status: string
 }
 
-export function useDonorCampaign() {
+export function useDonorCampaign(forceRefresh = false) {
   const { user, customClaims } = useAuth()
   const [campaign, setCampaign] = useState<DonorCampaign | null>(null)
   const [donation, setDonation] = useState<DonorDonation | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => {
+    if (forceRefresh) {
+      setRefreshKey(prev => prev + 1)
+    }
+  }, [forceRefresh])
 
   useEffect(() => {
     if (!user || (customClaims?.role !== 'donor' && customClaims?.role !== 'appraiser')) {
@@ -213,7 +220,7 @@ export function useDonorCampaign() {
     )
 
     return () => unsubscribeDonations()
-  }, [user, customClaims?.role])
+  }, [user, customClaims?.role, refreshKey])
 
   return { campaign, donation, loading, error }
 }
