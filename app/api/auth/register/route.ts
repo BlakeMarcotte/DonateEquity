@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import { UserRole, NonprofitSubrole } from '@/types/auth'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 interface RegisterRequest {
   email: string
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
           finalOrganizationId = invitationData.organizationId
         }
       } catch (error) {
-        console.error('Error fetching team invitation for organization:', error)
+        secureLogger.error('Error fetching team invitation for organization', error)
       }
     }
 
@@ -252,7 +253,7 @@ export async function POST(request: NextRequest) {
               acceptedUserId: userRecord.uid
             })
 
-            console.log('Team invitation accepted during registration:', {
+            secureLogger.info('Team invitation accepted during registration', {
               invitationId: invitationDoc.id,
               userId: userRecord.uid,
               organizationId: finalOrganizationId
@@ -260,7 +261,7 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (inviteError) {
-        console.error('Error processing team invitation:', inviteError)
+        secureLogger.error('Error processing team invitation', inviteError)
         // Don't fail registration if invitation processing fails
       }
     }
@@ -268,7 +269,7 @@ export async function POST(request: NextRequest) {
     // Handle appraiser invitation acceptance if provided
     if (appraiserInvitationToken && role === 'appraiser') {
       try {
-        console.log('Processing appraiser invitation during registration:', appraiserInvitationToken)
+        secureLogger.info('Processing appraiser invitation during registration', { appraiserInvitationToken })
         
         // Find the invitation
         const invitationsQuery = adminDb.collection('appraiser_invitations')
@@ -296,7 +297,7 @@ export async function POST(request: NextRequest) {
             // Handle participant-based system
             if (donationId.includes('_')) {
               const participantId = donationId
-              console.log('Processing participant-based appraiser invitation:', participantId)
+              secureLogger.info('Processing participant-based appraiser invitation', { participantId })
               
               // Update participant-based appraiser tasks
               const participantTasksQuery = adminDb.collection('tasks')
@@ -341,15 +342,18 @@ export async function POST(request: NextRequest) {
             }
             
             await batch.commit()
-            console.log('Appraiser invitation processed successfully during registration')
+            secureLogger.info('Appraiser invitation processed successfully during registration')
           } else {
-            console.log('Invitation email mismatch during registration:', invitationData.appraiserEmail, 'vs', email)
+            secureLogger.warn('Invitation email mismatch during registration', {
+              invitationEmail: invitationData.appraiserEmail,
+              registrationEmail: email
+            })
           }
         } else {
-          console.log('Appraiser invitation not found during registration:', appraiserInvitationToken)
+          secureLogger.warn('Appraiser invitation not found during registration', { appraiserInvitationToken })
         }
       } catch (invitationError) {
-        console.error('Error processing appraiser invitation during registration:', invitationError)
+        secureLogger.error('Error processing appraiser invitation during registration', invitationError)
         // Don't fail registration if invitation processing fails
       }
     }
@@ -369,7 +373,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error: unknown) {
-    console.error('Registration error:', error)
+    secureLogger.error('Registration error', error)
     
     // Handle Firebase Auth errors
     const authError = error as { code?: string }
