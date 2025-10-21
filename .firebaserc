@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "donateequity-6d8a4"
+    "default": "donateequity-6d8a4",
+    "staging": "donateequity-staging",
+    "production": "donateequity-prod"
   }
 }
