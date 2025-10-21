@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 interface ResendEmailData {
   from: string
@@ -30,7 +31,7 @@ interface MockResend {
 const hasResendKey = !!process.env.RESEND_API_KEY
 
 if (!hasResendKey) {
-  console.warn('Warning: RESEND_API_KEY is not set in environment variables. Email sending will be disabled.')
+  secureLogger.warn('RESEND_API_KEY is not set in environment variables. Email sending will be disabled.')
 }
 
 // Create Resend instance only if we have an API key
@@ -41,7 +42,7 @@ export const resend = hasResendKey
       // Mock Resend object for development without API key
       emails: {
         send: async (data: ResendEmailData): Promise<ResendEmailResponse> => {
-          console.log('Mock email send:', data)
+          secureLogger.info('Mock email send', { to: data.to, subject: data.subject })
           return { 
             data: { id: 'mock-email-id' }, 
             error: null 

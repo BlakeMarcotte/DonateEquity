@@ -1,6 +1,7 @@
 import { renderAsync } from '@react-email/components'
 import { resend, EMAIL_CONFIG, EMAIL_SUBJECTS } from './resend'
 import TeamInvitationEmail from './templates/team-invitation'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 interface SendTeamInvitationEmailProps {
   to: string
@@ -48,7 +49,7 @@ export async function sendTeamInvitationEmail({
       throw new Error('Failed to render email template - HTML content is not a valid string')
     }
 
-    console.log('Rendered email HTML length:', emailHtml.length)
+    secureLogger.info('Rendered email HTML length', { length: emailHtml.length })
 
     // Send the email
     const result = await resend.emails.send({
@@ -57,21 +58,16 @@ export async function sendTeamInvitationEmail({
       subject: EMAIL_SUBJECTS.teamInvitation(inviterName, organizationName),
       html: emailHtml,
       replyTo: EMAIL_CONFIG.replyTo,
-      tags: [
-        { name: 'category', value: 'team-invitation' },
-        { name: 'organization', value: organizationName.replace(/[^a-zA-Z0-9_-]/g, '_') },
-      ],
     })
 
     if (result.error) {
-      console.error('Failed to send team invitation email:', result.error)
+      secureLogger.error('Failed to send team invitation email', result.error, { to, organizationName })
       throw new Error(`Email sending failed: ${(result.error as Error)?.message || 'Unknown error'}`)
     }
 
-    console.log('Team invitation email sent successfully:', {
+    secureLogger.info('Team invitation email sent successfully', {
       emailId: result.data?.id,
       to,
-      inviterName,
       organizationName,
     })
 
@@ -80,7 +76,7 @@ export async function sendTeamInvitationEmail({
       emailId: result.data?.id,
     }
   } catch (error) {
-    console.error('Error sending team invitation email:', error)
+    secureLogger.error('Error sending team invitation email', error, { to, organizationName })
     throw error
   }
 }
