@@ -17,6 +17,7 @@ import {
   CheckCircle
 } from 'lucide-react'
 import { NonprofitSubrole } from '@/types/auth'
+import { Badge } from '@/components/ui/badge'
 
 interface TeamMember {
   uid: string
@@ -55,11 +56,11 @@ const SUBROLE_ICONS = {
   signatory: PenTool,
 }
 
-const SUBROLE_COLORS = {
-  admin: 'text-yellow-600 bg-yellow-50',
-  member: 'text-gray-600 bg-gray-50',
-  marketer: 'text-purple-600 bg-purple-50',
-  signatory: 'text-blue-600 bg-blue-50',
+const SUBROLE_BADGE_VARIANTS = {
+  admin: 'warning' as const,
+  member: 'default' as const,
+  marketer: 'info' as const,
+  signatory: 'info' as const,
 }
 
 const SUBROLE_LABELS = {
@@ -275,10 +276,13 @@ export default function CampaignAssignments({ campaignId, campaignTitle }: Campa
                     </div>
 
                     <div className="flex items-center space-x-4">
-                      <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${SUBROLE_COLORS[assignment.userSubrole as NonprofitSubrole] || 'text-gray-600 bg-gray-50'}`}>
-                        <SubroleIcon className="h-4 w-4" />
-                        <span>{SUBROLE_LABELS[assignment.userSubrole as NonprofitSubrole] || assignment.userSubrole}</span>
-                      </div>
+                      <Badge
+                        variant={SUBROLE_BADGE_VARIANTS[assignment.userSubrole as NonprofitSubrole] || 'default'}
+                        size="md"
+                        icon={<SubroleIcon />}
+                      >
+                        {SUBROLE_LABELS[assignment.userSubrole as NonprofitSubrole] || assignment.userSubrole}
+                      </Badge>
 
                       <button
                         onClick={() => handleRemoveAssignment(assignment.id)}
@@ -427,10 +431,13 @@ function AssignMembersModal({
                         </div>
                       </div>
                       
-                      <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${SUBROLE_COLORS[member.subrole]}`}>
-                        <SubroleIcon className="h-4 w-4" />
-                        <span>{SUBROLE_LABELS[member.subrole]}</span>
-                      </div>
+                      <Badge
+                        variant={SUBROLE_BADGE_VARIANTS[member.subrole]}
+                        size="md"
+                        icon={<SubroleIcon />}
+                      >
+                        {SUBROLE_LABELS[member.subrole]}
+                      </Badge>
                     </div>
                   </div>
                 )

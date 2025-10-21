@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Campaign } from '@/types/campaign'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { 
   CalendarDays, 
   Users, 
@@ -87,9 +88,9 @@ export default function CampaignCard({ campaign, className = '' }: CampaignCardP
           
           {/* Category Badge */}
           <div className="absolute top-3 left-3">
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/90 text-gray-700 shadow-sm">
+            <Badge variant="default" className="bg-white/90 shadow-sm">
               {campaign.category}
-            </span>
+            </Badge>
           </div>
 
           {/* Action Buttons */}
@@ -115,16 +116,13 @@ export default function CampaignCard({ campaign, className = '' }: CampaignCardP
           {/* Days Left Badge */}
           {daysLeft !== null && (
             <div className="absolute bottom-3 right-3">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium shadow-sm ${
-                daysLeft <= 7 
-                  ? 'bg-red-100 text-red-700' 
-                  : daysLeft <= 30 
-                    ? 'bg-yellow-100 text-yellow-700'
-                    : 'bg-green-100 text-green-700'
-              }`}>
-                <CalendarDays className="w-3 h-3 mr-1" />
+              <Badge 
+                variant={daysLeft <= 7 ? 'error' : daysLeft <= 30 ? 'warning' : 'success'}
+                icon={<CalendarDays />}
+                className="shadow-sm"
+              >
                 {daysLeft === 0 ? 'Last day' : `${daysLeft} days left`}
-              </span>
+              </Badge>
             </div>
           )}
         </div>

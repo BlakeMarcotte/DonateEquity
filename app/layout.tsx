@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { APP_NAME, APP_DESCRIPTION } from '@/lib/constants'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { PreviewModeProvider } from '@/contexts/PreviewModeContext'
 import Navbar from '@/components/layout/Navbar'
 import LayoutWrapper from '@/components/layout/LayoutWrapper'
 import ErrorBoundary from '@/components/error/ErrorBoundary'
@@ -37,10 +38,12 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <ErrorBoundary>
           <AuthProvider>
-            <Navbar />
-            <LayoutWrapper>
-              {children}
-            </LayoutWrapper>
+            <PreviewModeProvider>
+              <Navbar />
+              <LayoutWrapper>
+                {children}
+              </LayoutWrapper>
+            </PreviewModeProvider>
           </AuthProvider>
         </ErrorBoundary>
       </body>

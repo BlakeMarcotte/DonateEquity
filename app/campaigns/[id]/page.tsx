@@ -22,6 +22,7 @@ import { Campaign } from '@/types/campaign'
 import { Donation } from '@/types/donation'
 import { secureLogger } from '@/lib/logging/secure-logger'
 import CampaignAssignments from '@/components/campaigns/CampaignAssignments'
+import { Badge } from '@/components/ui/badge'
 import {
   Heart,
   ArrowLeft,
@@ -431,18 +432,18 @@ export default function CampaignDetailPage() {
     return Math.min((raised / goal) * 100, 100)
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string): 'success' | 'default' | 'warning' | 'info' => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800'
+        return 'success'
       case 'draft':
-        return 'bg-gray-100 text-gray-800'
+        return 'default'
       case 'paused':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'warning'
       case 'completed':
-        return 'bg-blue-100 text-blue-800'
+        return 'info'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'default'
     }
   }
 
@@ -517,9 +518,9 @@ export default function CampaignDetailPage() {
                   <div>
                     <h1 className="text-3xl font-bold text-gray-900">{campaign.title}</h1>
                     <div className="flex items-center space-x-4 mt-2">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(campaign.status)}`}>
+                      <Badge variant={getStatusVariant(campaign.status)} size="sm" className="capitalize">
                         {campaign.status}
-                      </span>
+                      </Badge>
                       <span className="text-sm text-gray-500">
                         Created {campaign.createdAt.toLocaleDateString()}
                       </span>
@@ -580,14 +581,14 @@ export default function CampaignDetailPage() {
                       <Icon className="w-4 h-4" />
                       <span>{tab.name}</span>
                       {tab.id === 'donations' && (
-                        <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
+                        <Badge variant="default" size="sm">
                           {participants.length}
-                        </span>
+                        </Badge>
                       )}
                       {tab.id === 'pending' && (
-                        <span className="bg-yellow-100 text-yellow-600 py-0.5 px-2 rounded-full text-xs">
+                        <Badge variant="warning" size="sm">
                           {pendingInvitations.length}
-                        </span>
+                        </Badge>
                       )}
                     </button>
                   )

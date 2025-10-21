@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { NonprofitSubrole } from '@/types/auth'
+import { Badge } from '@/components/ui/badge'
 
 interface TeamMember {
   uid: string
@@ -43,13 +44,6 @@ const SUBROLE_ICONS = {
   member: User,
   marketer: Megaphone,
   signatory: PenTool,
-}
-
-const SUBROLE_COLORS = {
-  admin: 'text-yellow-600 bg-yellow-50',
-  member: 'text-gray-600 bg-gray-50',
-  marketer: 'text-purple-600 bg-purple-50',
-  signatory: 'text-blue-600 bg-blue-50',
 }
 
 const SUBROLE_LABELS = {
@@ -176,9 +170,7 @@ export default function TeamMemberList({
                           {member.displayName || 'Unnamed User'}
                         </h3>
                         {isCurrentUser && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            You
-                          </span>
+                          <Badge variant="primary">You</Badge>
                         )}
                       </div>
                       <div className="flex items-center space-x-4 mt-1">
@@ -196,10 +188,17 @@ export default function TeamMemberList({
 
                   <div className="flex items-center space-x-3">
                     {/* Role Badge */}
-                    <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${SUBROLE_COLORS[member.subrole]}`}>
+                    <Badge 
+                      variant={
+                        member.subrole === 'admin' ? 'warning' :
+                        member.subrole === 'signatory' ? 'primary' :
+                        member.subrole === 'marketer' ? 'secondary' :
+                        'default'
+                      }
+                    >
                       <SubroleIcon className="h-4 w-4" />
                       <span>{SUBROLE_LABELS[member.subrole]}</span>
-                    </div>
+                    </Badge>
 
                     {/* Actions Menu */}
                     {canModify && (

@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Download
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 interface AIAppraisalStatusProps {
   task: Task
@@ -191,9 +192,15 @@ export function AIAppraisalStatus({ task, onRefresh }: AIAppraisalStatusProps) {
           <div className="flex-1">
             <div className="flex items-center space-x-2">
               <h3 className="text-lg font-semibold text-gray-900">AI Appraisal</h3>
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusDisplay.color} ${statusDisplay.bgColor} border`}>
+              <Badge variant={
+                statusData.status === 'pending' ? 'warning' :
+                statusData.status === 'in_progress' ? 'info' :
+                statusData.status === 'completed' ? 'success' :
+                statusData.status === 'failed' ? 'error' :
+                'default'
+              }>
                 {statusDisplay.label}
-              </span>
+              </Badge>
             </div>
             <p className="text-gray-700 mt-1">{statusDisplay.description}</p>
             {statusData.message && (

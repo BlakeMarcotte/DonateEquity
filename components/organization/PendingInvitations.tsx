@@ -13,6 +13,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { NonprofitSubrole } from '@/types/auth'
+import { Badge } from '@/components/ui/badge'
 
 interface PendingInvitation {
   id: string
@@ -40,11 +41,11 @@ const SUBROLE_ICONS = {
   signatory: PenTool,
 }
 
-const SUBROLE_COLORS = {
-  admin: 'text-yellow-600 bg-yellow-50',
-  member: 'text-gray-600 bg-gray-50',
-  marketer: 'text-purple-600 bg-purple-50',
-  signatory: 'text-blue-600 bg-blue-50',
+const SUBROLE_VARIANTS = {
+  admin: 'warning' as const,
+  member: 'default' as const,
+  marketer: 'info' as const,
+  signatory: 'info' as const,
 }
 
 const SUBROLE_LABELS = {
@@ -178,16 +179,19 @@ export default function PendingInvitations({
                         {invitation.invitedEmail}
                       </h4>
                       {expired && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <Badge variant="error" size="sm">
                           Expired
-                        </span>
+                        </Badge>
                       )}
                     </div>
                     <div className="flex items-center space-x-4 mt-1">
-                      <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${SUBROLE_COLORS[invitation.subrole]}`}>
-                        <SubroleIcon className="h-3 w-3" />
-                        <span>{SUBROLE_LABELS[invitation.subrole]}</span>
-                      </div>
+                      <Badge 
+                        variant={SUBROLE_VARIANTS[invitation.subrole]} 
+                        size="sm"
+                        icon={<SubroleIcon />}
+                      >
+                        {SUBROLE_LABELS[invitation.subrole]}
+                      </Badge>
                       <span className="text-xs text-gray-500">
                         Invited by {invitation.inviterName}
                       </span>

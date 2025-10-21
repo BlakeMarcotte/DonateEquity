@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { UserRole } from '@/types/auth'
+import { isPreviewMode } from '@/lib/preview-mode/preview-data'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -24,6 +25,8 @@ export default function ProtectedRoute({
   const router = useRouter()
 
   useEffect(() => {
+    if (isPreviewMode()) return
+    
     if (loading) return
 
     // Redirect to login if not authenticated
@@ -52,6 +55,11 @@ export default function ProtectedRoute({
       }
     }
   }, [user, customClaims, loading, requiredRoles, requiredPermissions, router, fallbackUrl])
+
+  // Preview mode bypasses all auth checks
+  if (isPreviewMode()) {
+    return <>{children}</>
+  }
 
   // Show loading state
   if (loading) {

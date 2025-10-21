@@ -149,17 +149,17 @@ const SkeletonTable = React.forwardRef<
 })
 SkeletonTable.displayName = "Skeleton.Table"
 
-export { 
-  Skeleton,
-  SkeletonCard,
-  SkeletonAvatar,
-  SkeletonList,
-  SkeletonTable,
-}
-
-export default Object.assign(Skeleton, {
+const SkeletonWithSubComponents = Object.assign(Skeleton, {
   Card: SkeletonCard,
   Avatar: SkeletonAvatar,
   List: SkeletonList,
   Table: SkeletonTable,
 })
+
+export { 
+  SkeletonWithSubComponents as Skeleton,
+  SkeletonCard,
+  SkeletonAvatar,
+  SkeletonList,
+  SkeletonTable,
+}

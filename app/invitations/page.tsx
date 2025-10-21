@@ -10,6 +10,7 @@ import { CampaignInvitation } from '@/types/invitations'
 import { Campaign } from '@/types/campaign'
 import { secureLogger } from '@/lib/logging/secure-logger'
 import { Mail, Heart, CheckCircle, XCircle, Clock, Calendar, Target, DollarSign } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 
 interface InvitationWithCampaign extends CampaignInvitation {
@@ -143,18 +144,18 @@ export default function InvitationsPage() {
     return Math.min((raised / goal) * 100, 100)
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string): 'warning' | 'success' | 'error' | 'default' => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'warning'
       case 'accepted':
-        return 'bg-green-100 text-green-800'
+        return 'success'
       case 'declined':
-        return 'bg-red-100 text-red-800'
+        return 'error'
       case 'expired':
-        return 'bg-gray-100 text-gray-800'
+        return 'default'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'default'
     }
   }
 
@@ -221,9 +222,9 @@ export default function InvitationsPage() {
                             )}
                           </div>
                         </div>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(invitation.status)}`}>
+                        <Badge variant={getStatusVariant(invitation.status)}>
                           {invitation.status}
-                        </span>
+                        </Badge>
                       </div>
 
                       {invitation.campaign && (
@@ -333,9 +334,9 @@ export default function InvitationsPage() {
                           </p>
                         </div>
                       </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(invitation.status)}`}>
+                      <Badge variant={getStatusVariant(invitation.status)}>
                         {invitation.status}
-                      </span>
+                      </Badge>
                     </div>
                   </div>
                 ))}

@@ -15,6 +15,7 @@ import { NonprofitSubrole } from '@/types/auth'
 import { secureLogger } from '@/lib/logging/secure-logger'
 import PageErrorBoundary from '@/components/error/PageErrorBoundary'
 import { PageLoading } from '@/components/shared/LoadingStates'
+import { Badge } from '@/components/ui/badge'
 import {
   CheckCircle2,
   User,
@@ -377,9 +378,7 @@ export default function NonprofitDashboardPage() {
                             {task.title}
                           </h3>
                           {task.isComplete && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Complete
-                            </span>
+                            <Badge variant="success" size="sm">Complete</Badge>
                           )}
                         </div>
                         <p className="text-gray-600">{task.description}</p>

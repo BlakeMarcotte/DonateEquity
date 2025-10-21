@@ -30,6 +30,7 @@ import {
   Users
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 interface DonationWithCampaign extends Donation {
   campaignTitle?: string
@@ -107,21 +108,6 @@ export default function DonationsPage() {
       fetchDonations()
     }
   }, [user, fetchDonations])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800'
-      case 'processing':
-        return 'bg-blue-100 text-blue-800'
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'cancelled':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -345,10 +331,17 @@ export default function DonationsPage() {
                           <h3 className="text-lg font-semibold text-gray-900">
                             {donation.campaignTitle}
                           </h3>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(donation.status)}`}>
+                          <Badge 
+                            variant={
+                              donation.status === 'completed' ? 'success' :
+                              donation.status === 'processing' ? 'info' :
+                              donation.status === 'pending' ? 'warning' :
+                              donation.status === 'cancelled' ? 'error' : 'default'
+                            }
+                          >
                             {getStatusIcon(donation.status)}
-                            <span className="ml-1">{donation.status}</span>
-                          </span>
+                            <span className="ml-1 capitalize">{donation.status}</span>
+                          </Badge>
                         </div>
                         
                         <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
@@ -431,21 +424,6 @@ function DonationDetailsModal({
     }).format(amount)
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800'
-      case 'processing':
-        return 'bg-blue-100 text-blue-800'
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'cancelled':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -465,9 +443,17 @@ function DonationDetailsModal({
           {/* Status and Amount */}
           <div className="bg-gray-50 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium capitalize ${getStatusColor(donation.status)}`}>
+              <Badge 
+                variant={
+                  donation.status === 'completed' ? 'success' :
+                  donation.status === 'processing' ? 'info' :
+                  donation.status === 'pending' ? 'warning' :
+                  donation.status === 'cancelled' ? 'error' : 'default'
+                }
+                className="capitalize"
+              >
                 {donation.status}
-              </span>
+              </Badge>
               <span className="text-2xl font-bold text-gray-900">
                 {formatAmount(donation.amount)}
               </span>

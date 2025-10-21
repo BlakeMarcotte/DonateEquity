@@ -7,6 +7,7 @@ import { onAuthChange, getCurrentUser } from '@/lib/firebase/auth'
 import { db } from '@/lib/firebase/config'
 import { UserProfile, UserRole, CustomClaims, NonprofitSubrole } from '@/types/auth'
 import { secureLogger } from '@/lib/logging/secure-logger'
+import { isPreviewMode, getPreviewUser, getPreviewProfile, getPreviewClaims } from '@/lib/preview-mode/preview-data'
 
 interface AuthContextType {
   user: User | null
@@ -110,6 +111,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   useEffect(() => {
+    // Handle preview mode
+    if (isPreviewMode()) {
+      const role: UserRole = 'nonprofit_admin'
+      setUser(getPreviewUser(role) as User)
+      setUserProfile(getPreviewProfile(role))
+      setCustomClaims(getPreviewClaims(role))
+      setLoading(false)
+      return
+    }
+
     const unsubscribe = onAuthChange(async (user) => {
       setUser(user)
       setLoading(true)

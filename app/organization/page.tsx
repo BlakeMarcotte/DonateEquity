@@ -12,6 +12,8 @@ import InviteTeamMemberModal from '@/components/organization/InviteTeamMemberMod
 import TeamMemberList from '@/components/organization/TeamMemberList'
 import PendingInvitations from '@/components/organization/PendingInvitations'
 import { NonprofitSubrole } from '@/types/auth'
+import { isPreviewMode } from '@/lib/preview-mode/preview-data'
+import { usePreviewMode } from '@/contexts/PreviewModeContext'
 import {
   Building2,
   Globe,
@@ -54,6 +56,7 @@ interface PendingInvitation {
 
 function OrganizationPageContent() {
   const { user, userProfile, customClaims, loading: authLoading } = useAuth()
+  const previewMode = usePreviewMode()
   const searchParams = useSearchParams()
   const router = useRouter()
   const [organization, setOrganization] = useState<Organization | null>(null)
@@ -106,6 +109,16 @@ function OrganizationPageContent() {
   }, [customClaims?.organizationId, customClaims?.role, userProfile])
 
   useEffect(() => {
+    // Handle preview mode
+    if (isPreviewMode() && previewMode.isPreview) {
+      setOrganization(previewMode.organization)
+      setEditForm(previewMode.organization)
+      setTeamMembers(previewMode.teamMembers)
+      setPendingInvitations(previewMode.pendingTeamInvitations)
+      setLoading(false)
+      return
+    }
+
     // Wait for auth to fully load before attempting to fetch
     if (!authLoading && customClaims?.organizationId) {
       fetchOrganization()
@@ -114,7 +127,7 @@ function OrganizationPageContent() {
       setError('No organization ID found in user claims')
     }
 
-  }, [customClaims?.organizationId, authLoading, customClaims, fetchOrganization])
+  }, [customClaims?.organizationId, authLoading, customClaims, fetchOrganization, previewMode])
 
 
   const handleSave = async () => {
