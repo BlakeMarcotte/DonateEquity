@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Task } from '@/types/task'
-import { Scale, CheckCircle, User, Bot } from 'lucide-react'
+import { CheckCircle, User, Bot } from 'lucide-react'
 import { AppraiserInvitationForm } from './AppraiserInvitationForm'
 import { AIAppraisalForm } from './AIAppraisalForm'
 import { Modal } from '@/components/ui/modal'

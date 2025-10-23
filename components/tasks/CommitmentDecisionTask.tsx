@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Task, CommitmentData, TaskOption } from '@/types/task'
-import { Heart, CheckCircle } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { EquityCommitmentModal } from './EquityCommitmentModal'
 

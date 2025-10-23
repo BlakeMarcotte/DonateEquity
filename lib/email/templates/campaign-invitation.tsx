@@ -140,6 +140,8 @@ const container = {
   marginBottom: '64px',
   borderRadius: '8px',
   maxWidth: '600px',
+  width: '100%',
+  boxSizing: 'border-box' as const,
 }
 
 const logoContainer = {
@@ -162,6 +164,8 @@ const heading = {
   textAlign: 'center' as const,
   padding: '0 20px',
   margin: '0 0 32px',
+  wordWrap: 'break-word' as const,
+  maxWidth: '100%',
 }
 
 const paragraph = {
@@ -170,13 +174,17 @@ const paragraph = {
   color: '#374151',
   padding: '0 20px',
   margin: '0 0 16px',
+  wordWrap: 'break-word' as const,
+  maxWidth: '100%',
 }
 
 const campaignCard = {
   backgroundColor: '#f3f4f6',
   borderRadius: '8px',
-  padding: '24px',
+  padding: '20px',
   margin: '24px 20px',
+  boxSizing: 'border-box' as const,
+  maxWidth: 'calc(100% - 40px)',
 }
 
 const campaignTitleStyle = {
@@ -185,6 +193,8 @@ const campaignTitleStyle = {
   fontWeight: '700',
   color: '#111827',
   margin: '0 0 12px',
+  wordWrap: 'break-word' as const,
+  maxWidth: '100%',
 }
 
 const campaignDescriptionStyle = {
@@ -192,16 +202,23 @@ const campaignDescriptionStyle = {
   lineHeight: '1.5',
   color: '#4b5563',
   margin: '0 0 16px',
+  wordWrap: 'break-word' as const,
+  maxWidth: '100%',
 }
 
 const progressContainer = {
   marginTop: '16px',
+  width: '100%',
+  maxWidth: '100%',
+  boxSizing: 'border-box' as const,
 }
 
 const progressText = {
   fontSize: '14px',
   color: '#374151',
   margin: '0 0 8px',
+  wordWrap: 'break-word' as const,
+  maxWidth: '100%',
 }
 
 const progressBar = {
@@ -210,6 +227,9 @@ const progressBar = {
   height: '12px',
   overflow: 'hidden',
   marginBottom: '8px',
+  width: '100%',
+  maxWidth: '100%',
+  boxSizing: 'border-box' as const,
 }
 
 const progressFill = {
@@ -222,6 +242,9 @@ const progressStats = {
   fontSize: '14px',
   color: '#6b7280',
   margin: '0',
+  wordWrap: 'break-word' as const,
+  maxWidth: '100%',
+  whiteSpace: 'normal' as const,
 }
 
 const messageBox = {
@@ -229,6 +252,8 @@ const messageBox = {
   borderRadius: '8px',
   padding: '16px',
   margin: '24px 20px',
+  boxSizing: 'border-box' as const,
+  maxWidth: 'calc(100% - 40px)',
 }
 
 const messageLabel = {
@@ -236,6 +261,8 @@ const messageLabel = {
   fontWeight: '600',
   color: '#1e40af',
   margin: '0 0 8px',
+  wordWrap: 'break-word' as const,
+  maxWidth: '100%',
 }
 
 const messageText = {
@@ -243,6 +270,8 @@ const messageText = {
   lineHeight: '1.5',
   color: '#1e3a8a',
   margin: '0',
+  wordWrap: 'break-word' as const,
+  maxWidth: '100%',
 }
 
 const buttonContainer = {
@@ -274,6 +303,8 @@ const footer = {
   textAlign: 'center' as const,
   padding: '0 20px',
   margin: '0 0 8px',
+  wordWrap: 'break-word' as const,
+  maxWidth: '100%',
 }
 
 const link = {
