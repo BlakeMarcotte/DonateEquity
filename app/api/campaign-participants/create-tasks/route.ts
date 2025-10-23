@@ -48,7 +48,37 @@ export async function POST(request: NextRequest) {
     const batch = adminDb.batch()
     const tasksToCreate = []
 
-    // Task 1: Donor - Sign NDA
+    // Task 1: Donor - Choose Appraisal Method (Invite Appraiser or AI Appraisal)
+    const inviteAppraiserTaskId = `${participantId}_invite_appraiser`
+    const inviteAppraiserTask = {
+      id: inviteAppraiserTaskId,
+      participantId: participantId,
+      campaignId: campaignId,
+      donorId: participantData.userId,
+      assignedTo: participantData.userId,
+      assignedRole: 'donor',
+      title: 'Donor: Invite Appraiser or AI Appraisal',
+      description: 'Choose your preferred appraisal method: invite a professional appraiser or use our AI-powered appraisal service.',
+      type: 'invitation',
+      status: 'pending',
+      priority: 'high',
+      order: 1,
+      dependencies: [],
+      metadata: {
+        invitationType: 'appraiser',
+        role: 'appraiser'
+      },
+      comments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: participantData.userId
+    }
+
+    const inviteAppraiserTaskRef = adminDb.collection('tasks').doc(inviteAppraiserTaskId)
+    batch.set(inviteAppraiserTaskRef, inviteAppraiserTask)
+    tasksToCreate.push(inviteAppraiserTask)
+
+    // Task 2: Donor - Sign NDA
     const signNDATaskId = `${participantId}_sign_nda`
     const signNDATask = {
       id: signNDATaskId,
@@ -60,10 +90,10 @@ export async function POST(request: NextRequest) {
       title: 'Donor: Sign NDA',
       description: 'Review and digitally sign the Non-Disclosure Agreement before proceeding with the donation process.',
       type: 'docusign_signature',
-      status: 'pending',
+      status: 'blocked',
       priority: 'high',
-      order: 1,
-      dependencies: [],
+      order: 2,
+      dependencies: [inviteAppraiserTaskId],
       metadata: {
         documentPath: '/public/nda-general.pdf',
         documentName: 'General NDA',
@@ -82,7 +112,7 @@ export async function POST(request: NextRequest) {
     batch.set(signNDATaskRef, signNDATask)
     tasksToCreate.push(signNDATask)
 
-    // Task 2: Donor - Commitment Decision
+    // Task 3: Donor - Commitment Decision
     const commitmentTaskId = `${participantId}_commitment_decision`
     const commitmentTask = {
       id: commitmentTaskId,
@@ -96,7 +126,7 @@ export async function POST(request: NextRequest) {
       type: 'commitment_decision',
       status: 'blocked',
       priority: 'high',
-      order: 2,
+      order: 3,
       dependencies: [signNDATaskId],
       metadata: {
         options: [
@@ -124,36 +154,6 @@ export async function POST(request: NextRequest) {
     batch.set(commitmentTaskRef, commitmentTask)
     tasksToCreate.push(commitmentTask)
 
-    // Task 3: Donor - Invite Appraiser
-    const inviteAppraiserTaskId = `${participantId}_invite_appraiser`
-    const inviteAppraiserTask = {
-      id: inviteAppraiserTaskId,
-      participantId: participantId,
-      campaignId: campaignId,
-      donorId: participantData.userId,
-      assignedTo: participantData.userId,
-      assignedRole: 'donor',
-      title: 'Donor: Invite Appraiser',
-      description: 'Invite a professional appraiser to join the platform and conduct your equity valuation.',
-      type: 'invitation',
-      status: 'blocked',
-      priority: 'high',
-      order: 3,
-      dependencies: [commitmentTaskId],
-      metadata: {
-        invitationType: 'appraiser',
-        role: 'appraiser'
-      },
-      comments: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: participantData.userId
-    }
-
-    const inviteAppraiserTaskRef = adminDb.collection('tasks').doc(inviteAppraiserTaskId)
-    batch.set(inviteAppraiserTaskRef, inviteAppraiserTask)
-    tasksToCreate.push(inviteAppraiserTask)
-
     // Task 4: Donor - Upload Company Information (File Upload)
     const companyInfoTaskId = `${participantId}_company_info`
     const companyInfoTask = {
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
       status: 'blocked',
       priority: 'high',
       order: 4,
-      dependencies: [inviteAppraiserTaskId],
+      dependencies: [commitmentTaskId],
       metadata: {
         documentTypes: ['company_info', 'financial_statements'],
         documentPath: `participants/${participantId}/financial/`,

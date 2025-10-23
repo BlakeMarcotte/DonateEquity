@@ -81,8 +81,8 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { campaign } = useDonorCampaign()
 
-  // Don't show navbar on auth pages or landing page
-  if (pathname?.startsWith('/auth/') || pathname === '/unauthorized' || pathname === '/') {
+  // Don't show navbar on auth pages, landing page, or pledge page (white-labeled)
+  if (pathname?.startsWith('/auth/') || pathname === '/unauthorized' || pathname === '/' || pathname === '/pledge') {
     return null
   }
 

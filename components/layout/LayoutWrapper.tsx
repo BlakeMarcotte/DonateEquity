@@ -12,12 +12,14 @@ export default function LayoutWrapper({
   const { user, loading } = useAuth()
 
   // Determine if we should show sidebar padding
-  const showSidebarPadding = 
-    user && 
-    !loading && 
-    !pathname?.startsWith('/auth/') && 
-    pathname !== '/unauthorized' && 
-    pathname !== '/'
+  // Exclude pledge page for white-label experience
+  const showSidebarPadding =
+    user &&
+    !loading &&
+    !pathname?.startsWith('/auth/') &&
+    pathname !== '/unauthorized' &&
+    pathname !== '/' &&
+    pathname !== '/pledge'
 
   return (
     <div className="min-h-screen">

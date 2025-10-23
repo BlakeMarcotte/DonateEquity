@@ -12,6 +12,7 @@ export interface Task {
   priority: 'low' | 'medium' | 'high' | 'urgent'
   dependencies: string[] // Task IDs that must be completed first
   order?: number // Explicit ordering for consistent display
+  workflowType?: 'donation' | 'pledge' // Distinguish between donation and Pledge 1% workflows
   dueDate?: Date
   completedAt?: Date
   completedBy?: string
@@ -48,7 +49,11 @@ export interface Task {
   completionData?: TaskCompletionData
 }
 
-export type TaskType = 
+export type TaskType =
+  | 'quiz'
+  | 'review_results'
+  | 'download_templates'
+  | 'upload_completed_files'
   | 'commitment_decision'
   | 'invitation'
   | 'document_upload'
@@ -154,11 +159,18 @@ export interface AIAppraisalData {
   lastUpdatedAt?: string
 }
 
+export interface QuizData {
+  answers: Record<string, string | string[] | Record<string, string>>
+  completedAt: string
+  donationPath?: string
+}
+
 // Union type for all possible completion data
-export type TaskCompletionData = 
-  | CommitmentData 
-  | DocumentUploadData 
-  | AppraisalData 
+export type TaskCompletionData =
+  | QuizData
+  | CommitmentData
+  | DocumentUploadData
+  | AppraisalData
   | AIAppraisalData
   | Record<string, unknown>
   | undefined

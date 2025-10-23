@@ -9,6 +9,7 @@ export interface CustomClaims {
   permissions: string[]
 }
 
+
 export interface UserProfile {
   uid: string
   email: string

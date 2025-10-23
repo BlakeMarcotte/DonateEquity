@@ -47,16 +47,16 @@ export function Modal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 backdrop-blur-sm bg-black/50">
       {/* Backdrop - invisible area for click to close */}
-      <div 
+      <div
         className="absolute inset-0"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div className={`
-        bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto
+        bg-white rounded-xl shadow-2xl my-8
         w-full ${sizeClasses[size]} relative ${className}
       `}>
         {/* Header */}
@@ -73,9 +73,9 @@ export function Modal({
             </button>
           </div>
         )}
-        
+
         {/* Content */}
-        <div className="p-6 overflow-y-auto">
+        <div className="p-6">
           {children}
         </div>
       </div>

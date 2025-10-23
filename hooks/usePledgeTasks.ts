@@ -4,7 +4,7 @@ import { db, auth } from '@/lib/firebase/config'
 import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
 import { secureLogger } from '@/lib/logging/secure-logger'
 
-export function useParticipantTasks(participantId: string | null) {
+export function usePledgeTasks(participantId: string | null) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -12,31 +12,32 @@ export function useParticipantTasks(participantId: string | null) {
 
   useEffect(() => {
     if (!participantId) {
-      secureLogger.info('No participantId provided to useParticipantTasks')
+      secureLogger.info('No participantId provided to usePledgeTasks')
       setTasks([])
       setLoading(false)
       return
     }
 
-    secureLogger.info('Querying tasks for participant', {
+    secureLogger.info('Querying tasks for pledge participant', {
       participantId
     })
     const tasksRef = collection(db, 'tasks')
-    
-    // Query only participant-based tasks, ordered by order field
+
+    // Query only participant-based tasks for Pledge 1% workflow, ordered by order field
     const participantQuery = query(
       tasksRef,
       where('participantId', '==', participantId),
+      where('workflowType', '==', 'pledge'),
       orderBy('order', 'asc')
     )
 
     const unsubscribe = onSnapshot(
       participantQuery,
       (snapshot) => {
-        secureLogger.info('Participant tasks snapshot received', {
+        secureLogger.info('Pledge participant tasks snapshot received', {
           taskCount: snapshot.docs.length
         })
-        const allTasksData = snapshot.docs.map(doc => ({
+        const tasksData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate?.() || new Date(),
@@ -45,29 +46,22 @@ export function useParticipantTasks(participantId: string | null) {
           completedAt: doc.data().completedAt?.toDate?.() || null,
         })) as Task[]
 
-        // Filter out pledge workflow tasks - only show donation workflow or legacy tasks (no workflowType)
-        const tasksData = allTasksData.filter(task =>
-          task.workflowType === 'donation' || task.workflowType === undefined || task.workflowType === null
-        )
-
-        secureLogger.info('Participant tasks data loaded (filtered for donation workflow)', {
-          totalTasks: allTasksData.length,
-          donationTasks: tasksData.length,
-          tasks: tasksData.map(t => ({ id: t.id, title: t.title, type: t.type, order: t.order, workflowType: t.workflowType }))
+        secureLogger.info('Pledge participant tasks data loaded', {
+          tasks: tasksData.map(t => ({ id: t.id, title: t.title, type: t.type, order: t.order }))
         })
 
         // Use debug utility for detailed analysis
-        secureLogger.info('Tasks loaded for participant', {
+        secureLogger.info('Tasks loaded for pledge participant', {
           participantId,
           taskCount: tasksData.length
         })
 
         // Calculate blocking status based on dependencies
-        secureLogger.info('Calculating blocking status for tasks', {
+        secureLogger.info('Calculating blocking status for pledge tasks', {
           taskCount: tasksData.length
         })
         const updatedTasks = calculateBlockingStatus(tasksData)
-        secureLogger.info('Blocking status calculated', {
+        secureLogger.info('Blocking status calculated for pledge', {
           updatedTasks: updatedTasks.map(t => ({ id: t.id, title: t.title, status: t.status }))
         })
         setTasks(updatedTasks)
@@ -75,7 +69,7 @@ export function useParticipantTasks(participantId: string | null) {
         setError(null)
       },
       (err) => {
-        secureLogger.error('Error fetching participant tasks', err instanceof Error ? err : new Error(String(err)), {
+        secureLogger.error('Error fetching pledge participant tasks', err instanceof Error ? err : new Error(String(err)), {
           participantId
         })
         setError('Failed to fetch tasks')
@@ -105,7 +99,7 @@ export function useParticipantTasks(participantId: string | null) {
 
       // The real-time listener will automatically update the UI
     } catch (error) {
-      secureLogger.error('Error completing task', error instanceof Error ? error : new Error(String(error)), {
+      secureLogger.error('Error completing pledge task', error instanceof Error ? error : new Error(String(error)), {
         taskId,
         participantId
       })
@@ -131,7 +125,7 @@ export function useParticipantTasks(participantId: string | null) {
 
       // The real-time listener will automatically update the UI
     } catch (error) {
-      secureLogger.error('Error processing commitment decision', error instanceof Error ? error : new Error(String(error)), {
+      secureLogger.error('Error processing pledge commitment decision', error instanceof Error ? error : new Error(String(error)), {
         taskId,
         participantId
       })
@@ -146,8 +140,8 @@ export function useParticipantTasks(participantId: string | null) {
     }
 
     // Find incomplete DocuSign tasks
-    const incompleteDocuSignTasks = tasks.filter(task => 
-      task.type === 'docusign_signature' && 
+    const incompleteDocuSignTasks = tasks.filter(task =>
+      task.type === 'docusign_signature' &&
       (task.status === 'pending' || task.status === 'in_progress') &&
       (task.metadata as any)?.docuSignEnvelopeId
     )
@@ -157,7 +151,7 @@ export function useParticipantTasks(participantId: string | null) {
     }
 
     setMonitoringDocuSign(true)
-    secureLogger.info('Checking DocuSign completion status', {
+    secureLogger.info('Checking DocuSign completion status for pledge', {
       participantId,
       incompleteTasksCount: incompleteDocuSignTasks.length
     })
@@ -176,11 +170,11 @@ export function useParticipantTasks(participantId: string | null) {
       }
 
       const result = await response.json()
-      secureLogger.info('DocuSign monitoring result', result)
-      
+      secureLogger.info('DocuSign monitoring result for pledge', result)
+
       // Tasks will update automatically via Firestore listeners
     } catch (error) {
-      secureLogger.error('Error checking DocuSign completion', error instanceof Error ? error : new Error(String(error)))
+      secureLogger.error('Error checking DocuSign completion for pledge', error instanceof Error ? error : new Error(String(error)))
     } finally {
       setMonitoringDocuSign(false)
     }
@@ -188,8 +182,8 @@ export function useParticipantTasks(participantId: string | null) {
 
   // Auto-check DocuSign tasks every 30 seconds if there are incomplete ones
   useEffect(() => {
-    const hasIncompleteDocuSign = tasks.some(task => 
-      task.type === 'docusign_signature' && 
+    const hasIncompleteDocuSign = tasks.some(task =>
+      task.type === 'docusign_signature' &&
       (task.status === 'pending' || task.status === 'in_progress') &&
       (task.metadata as any)?.docuSignEnvelopeId
     )
@@ -228,7 +222,7 @@ export function useParticipantTasks(participantId: string | null) {
 function calculateBlockingStatus(tasks: Task[]): Task[] {
   const taskStatusMap = new Map<string, Task['status']>()
   const taskTypeMap = new Map<string, string>() // Maps task type to task ID
-  
+
   // Create maps for both task IDs and task types
   tasks.forEach(task => {
     taskStatusMap.set(task.id, task.status)
@@ -237,7 +231,7 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
     }
   })
 
-  secureLogger.info('Calculating blocking status', {
+  secureLogger.info('Calculating blocking status for pledge', {
     taskStatusMap: Array.from(taskStatusMap.entries()),
     taskTypeMap: Array.from(taskTypeMap.entries())
   })
@@ -247,17 +241,17 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
     if (task.dependencies && task.dependencies.length > 0) {
       const allDependenciesCompleted = task.dependencies.every(depId => {
         let status = taskStatusMap.get(depId)
-        
+
         // Debug specific task
         if (task.title?.includes('Appraiser: Sign NDA')) {
-          secureLogger.info('Checking task dependency', {
+          secureLogger.info('Checking pledge task dependency', {
             dependencyId: depId,
             directStatus: status,
             inMap: taskStatusMap.has(depId),
             mapSize: taskStatusMap.size
           })
         }
-        
+
         // If dependency ID is not found directly, try to find by task type
         if (!status) {
           const parts = depId.split('_')
@@ -267,7 +261,7 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
             if (foundTaskId) {
               status = taskStatusMap.get(foundTaskId)
               if (task.title?.includes('Appraiser: Sign NDA')) {
-                secureLogger.info('Found task by type mapping', {
+                secureLogger.info('Found pledge task by type mapping', {
                   taskType,
                   foundTaskId,
                   status
@@ -276,21 +270,21 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
             }
           }
         }
-        
+
         // Additional check: sometimes the completed status might be a string 'completed' vs an enum
         const isCompleted = (status as string) === 'completed' || (status as string) === 'complete'
-        
+
         if (task.title?.includes('Appraiser: Sign NDA')) {
-          secureLogger.info('Dependency final check', {
+          secureLogger.info('Pledge dependency final check', {
             dependencyId: depId,
             status,
             isCompleted
           })
         }
-        
+
         return isCompleted
       })
-      
+
       // Update status based on dependencies
       let newStatus = task.status
       if (task.status !== 'completed') {
@@ -301,26 +295,13 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
           newStatus = 'pending'
         }
       }
-      
-      // Only log for debugging specific issues
-      // if (task.title?.includes('Appraiser: Sign NDA')) {
-      // Debug logging for task status calculation
-      // secureLogger.info('Task status calculation', {
-      //   taskTitle: task.title,
-      //   dependencies: task.dependencies,
-      //   depStatuses,
-      //   allDependenciesCompleted,
-      //   currentStatus: task.status,
-      //   newStatus
-      //   })
-      // }
-      
+
       return {
         ...task,
         status: newStatus
       }
     }
-    
+
     return task
   })
 }
