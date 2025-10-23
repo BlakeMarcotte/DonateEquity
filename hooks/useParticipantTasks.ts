@@ -36,7 +36,7 @@ export function useParticipantTasks(participantId: string | null) {
         secureLogger.info('Participant tasks snapshot received', {
           taskCount: snapshot.docs.length
         })
-        const allTasksData = snapshot.docs.map(doc => ({
+        const tasksData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate?.() || new Date(),
@@ -45,15 +45,8 @@ export function useParticipantTasks(participantId: string | null) {
           completedAt: doc.data().completedAt?.toDate?.() || null,
         })) as Task[]
 
-        // Filter out pledge workflow tasks - only show donation workflow or legacy tasks (no workflowType)
-        const tasksData = allTasksData.filter(task =>
-          task.workflowType === 'donation' || task.workflowType === undefined || task.workflowType === null
-        )
-
-        secureLogger.info('Participant tasks data loaded (filtered for donation workflow)', {
-          totalTasks: allTasksData.length,
-          donationTasks: tasksData.length,
-          tasks: tasksData.map(t => ({ id: t.id, title: t.title, type: t.type, order: t.order, workflowType: t.workflowType }))
+        secureLogger.info('Participant tasks data loaded', {
+          tasks: tasksData.map(t => ({ id: t.id, title: t.title, type: t.type, order: t.order }))
         })
 
         // Use debug utility for detailed analysis

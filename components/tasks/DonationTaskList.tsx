@@ -584,12 +584,13 @@ export function DonationTaskList({
           if (task.type === 'commitment_decision' && handleCommitmentDecision && task.title !== 'Donor: Makes Equity Commitment') {
             return (
               <div key={task.id} className="group">
-                <CommitmentDecisionTask 
-                  task={task} 
+                <CommitmentDecisionTask
+                  task={task}
                   onDecision={handleCommitmentDecisionWrapper}
                   campaignTitle={campaignTitle}
                   donorName={donorName || 'Anonymous Donor'}
                   organizationName={organizationName || 'Organization'}
+                  stepNumber={index + 1}
                 />
               </div>
             )
@@ -600,12 +601,13 @@ export function DonationTaskList({
           if (task.type === 'invitation' && task.title.toLowerCase().includes('appraiser')) {
             return (
               <div key={task.id} className="group">
-                <AppraisalMethodTask 
-                  task={task} 
+                <AppraisalMethodTask
+                  task={task}
                   onMethodSelect={handleAppraisalMethodSelect}
                   campaignTitle={campaignTitle}
                   donorName={donorName}
                   organizationName={organizationName}
+                  stepNumber={index + 1}
                 />
               </div>
             )

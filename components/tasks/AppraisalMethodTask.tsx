@@ -15,14 +15,16 @@ interface AppraisalMethodTaskProps {
   campaignTitle?: string
   donorName?: string
   organizationName?: string
+  stepNumber?: number
 }
 
-export function AppraisalMethodTask({ 
-  task, 
-  onMethodSelect, 
+export function AppraisalMethodTask({
+  task,
+  onMethodSelect,
   campaignTitle = 'this campaign',
   donorName,
-  organizationName 
+  organizationName,
+  stepNumber
 }: AppraisalMethodTaskProps) {
   const [loading, setLoading] = useState(false)
   const [selectedMethod, setSelectedMethod] = useState<AppraisalMethod | null>(null)
@@ -100,9 +102,11 @@ export function AppraisalMethodTask({
     <>
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <div className="flex items-start space-x-3 mb-6">
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mt-1">
-            <Scale className="w-5 h-5 text-blue-600" />
-          </div>
+          {stepNumber && (
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-md">
+              {stepNumber}
+            </div>
+          )}
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
             <p className="text-gray-600 mt-1">{task.description}</p>

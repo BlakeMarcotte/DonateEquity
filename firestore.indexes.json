@@ -277,6 +277,20 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "participantId",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "workflowType",
           "order": "ASCENDING"
         },
