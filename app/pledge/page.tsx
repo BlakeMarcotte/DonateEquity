@@ -10,7 +10,7 @@ import { usePledgeTasks } from '@/hooks/usePledgeTasks'
 import { CheckSquare, FileText } from 'lucide-react'
 
 function PledgePage() {
-  const { user, customClaims, loading } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
 
   // For demo purposes, use a fixed demo participant ID based on user
@@ -46,8 +46,8 @@ function PledgePage() {
           if (!response.ok) {
             throw new Error('Failed to create demo tasks')
           }
-        } catch (error) {
-          // Error creating demo tasks
+        } catch {
+          // Error creating demo tasks - silently fail
         } finally {
           setCreatingDemoTasks(false)
         }

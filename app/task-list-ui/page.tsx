@@ -1938,7 +1938,7 @@ function StageView() {
           <span className="font-semibold">💡 How it works:</span> Each stage must be fully completed before the next stage unlocks.
           Within each stage, tasks are organized into levels - tasks at the same level can be done in parallel,
           but each level must be completed before the next level unlocks.
-          Hover over nodes to see task details. Click "Show Details" to see the full task list for each stage.
+          Hover over nodes to see task details. Click &quot;Show Details&quot; to see the full task list for each stage.
           Node colors represent which role is responsible for each task.
         </p>
       </div>
