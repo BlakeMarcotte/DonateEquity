@@ -10,7 +10,6 @@ export interface CustomClaims {
 }
 
 
-
 export interface UserProfile {
   uid: string
   email: string
