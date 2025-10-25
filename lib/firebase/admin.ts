@@ -2,6 +2,7 @@ import { initializeApp, cert, getApps, getApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 const createFirebaseAdminApp = () => {
   if (getApps().length > 0) {
@@ -9,9 +10,9 @@ const createFirebaseAdminApp = () => {
   }
 
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-  
+
   if (!privateKey || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
-    console.error('Missing Firebase Admin credentials:', {
+    secureLogger.error('Missing Firebase Admin credentials', undefined, {
       hasPrivateKey: !!privateKey,
       hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
       hasProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
