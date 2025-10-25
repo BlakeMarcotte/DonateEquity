@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
+import { secureLogger } from '@/lib/logging/secure-logger'
 
 export async function POST(request: NextRequest) {
+  let campaignId: string | undefined
+  let userId: string | undefined
+
   try {
     // Verify authentication and admin role
     const authHeader = request.headers.get('authorization')
@@ -12,13 +16,15 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.split('Bearer ')[1]
     const decodedToken = await adminAuth.verifyIdToken(token)
-    
+    userId = decodedToken.uid
+
     // Only admins can sync campaign stats
     if (decodedToken.role !== 'admin' && decodedToken.role !== 'nonprofit_admin') {
       return NextResponse.json({ error: 'Access denied: Admin privileges required' }, { status: 403 })
     }
 
-    const { campaignId } = await request.json()
+    const body = await request.json()
+    campaignId = body.campaignId
 
     if (!campaignId) {
       return NextResponse.json({ error: 'Campaign ID is required' }, { status: 400 })
@@ -47,7 +53,12 @@ export async function POST(request: NextRequest) {
       updatedAt: FieldValue.serverTimestamp()
     })
 
-    console.log(`Synced campaign ${campaignId}: ${donorCount} donors, $${totalAmount} raised`)
+    secureLogger.info('Campaign statistics synced', {
+      campaignId,
+      donorCount,
+      totalAmount,
+      userId
+    })
 
     return NextResponse.json({
       success: true,
@@ -59,7 +70,10 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error syncing campaign stats:', error)
+    secureLogger.error('Error syncing campaign stats', error, {
+      campaignId,
+      userId
+    })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -69,6 +83,8 @@ export async function POST(request: NextRequest) {
 
 // Sync all campaigns
 export async function PUT(request: NextRequest) {
+  let userId: string | undefined
+
   try {
     // Verify authentication and admin role
     const authHeader = request.headers.get('authorization')
@@ -78,7 +94,8 @@ export async function PUT(request: NextRequest) {
 
     const token = authHeader.split('Bearer ')[1]
     const decodedToken = await adminAuth.verifyIdToken(token)
-    
+    userId = decodedToken.uid
+
     // Only admins can sync all campaign stats
     if (decodedToken.role !== 'admin') {
       return NextResponse.json({ error: 'Access denied: Admin privileges required' }, { status: 403 })
@@ -120,8 +137,18 @@ export async function PUT(request: NextRequest) {
         totalAmount
       })
 
-      console.log(`Synced campaign ${campaignId}: ${donorCount} donors, $${totalAmount} raised`)
+      secureLogger.info('Campaign statistics synced', {
+        campaignId,
+        donorCount,
+        totalAmount,
+        userId
+      })
     }
+
+    secureLogger.info('All campaigns synced', {
+      campaignCount: syncResults.length,
+      userId
+    })
 
     return NextResponse.json({
       success: true,
@@ -130,7 +157,9 @@ export async function PUT(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error syncing all campaign stats:', error)
+    secureLogger.error('Error syncing all campaign stats', error, {
+      userId
+    })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

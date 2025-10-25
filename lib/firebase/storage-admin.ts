@@ -1,5 +1,4 @@
-import { getStorage } from 'firebase-admin/storage'
-import adminApp from './admin'
+import { getAdminStorage } from './admin'
 import { secureLogger } from '@/lib/logging/secure-logger'
 
 export interface ServerFileUploadResult {
@@ -21,7 +20,7 @@ export async function uploadDonationBufferAdmin(
   fileName: string,
   contentType: string = 'application/pdf'
 ): Promise<ServerFileUploadResult> {
-  const storage = getStorage(adminApp)
+  const storage = getAdminStorage()
   const bucket = storage.bucket()
   
   const fullFileName = `${Date.now()}_${fileName}`

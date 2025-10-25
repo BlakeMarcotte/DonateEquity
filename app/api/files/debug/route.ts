@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuth } from '@/lib/auth/verify-auth'
-import { adminDb } from '@/lib/firebase/admin'
-import { getStorage } from 'firebase-admin/storage'
-import adminApp from '@/lib/firebase/admin'
+import { adminDb, getAdminStorage } from '@/lib/firebase/admin'
 import { secureLogger } from '@/lib/logging/secure-logger'
 
 /**
@@ -24,14 +22,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'participantId is required' }, { status: 400 })
     }
 
-    secureLogger.info('File debug requested', { 
-      participantId, 
+    secureLogger.info('File debug requested', {
+      participantId,
       folder,
       userId: user?.uid,
       userRole: user?.customClaims?.role
     })
 
-    const storage = getStorage(adminApp)
+    const storage = getAdminStorage()
     const bucket = storage.bucket()
     
     // Check different possible paths for files
@@ -158,7 +156,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Quick check of just the signed-documents folder
-    const storage = getStorage(adminApp)
+    const storage = getAdminStorage()
     const bucket = storage.bucket()
     
     const path = `participants/${participantId}/signed-documents`
