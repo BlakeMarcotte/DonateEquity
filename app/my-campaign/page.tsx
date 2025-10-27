@@ -24,7 +24,7 @@ function MyCampaignPage() {
   const participantId = campaign?.participantId || (campaign && user ? `${campaign.id}_${user.uid}` : null)
 
   const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
-  
+
   // Use participant tasks exclusively
   const tasks = participantTasks
   const tasksLoading = participantTasksLoading
@@ -67,7 +67,9 @@ function MyCampaignPage() {
 
   // Combined loading state - wait for everything to be ready
   const isAuthFullyLoaded = !loading && (user ? customClaims !== null : true)
-  const isDataFullyLoaded = isAuthFullyLoaded && !campaignLoading && !tasksLoading
+  // Also wait if we have a participantId but no campaign yet (state update race condition)
+  const hasParticipantButNoCampaign = participantId && !campaign
+  const isDataFullyLoaded = isAuthFullyLoaded && !campaignLoading && !tasksLoading && !hasParticipantButNoCampaign
 
   useEffect(() => {
     console.log('MyCampaign auth check:', {
@@ -111,9 +113,10 @@ function MyCampaignPage() {
     return null
   }
 
-  // Only show "No Campaign Found" if we have no campaign AND no tasks
+  // Only show "No Campaign Found" if we have no campaign AND no tasks AND no participantId
+  // If we have a participantId, that means we have participation, so never show "not found"
   // If we have tasks, show the page even without a campaign object
-  if (!campaign && tasks.length === 0) {
+  if (!campaign && tasks.length === 0 && !participantId) {
     // If we have a campaign ID from URL, show loading while redirecting
     if (campaignIdFromUrl) {
       return (
