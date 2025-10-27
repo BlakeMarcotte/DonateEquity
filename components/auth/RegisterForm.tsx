@@ -622,8 +622,8 @@ export default function RegisterForm({
               Organization Details
             </h3>
             <p className="text-sm text-gray-600">
-              {formData.role === 'donor' 
-                ? 'Tell us about your donor organization or foundation'
+              {formData.role === 'donor'
+                ? 'Tell us about your company'
                 : `Tell us about your ${formData.role === 'nonprofit_admin' ? 'nonprofit organization' : 'appraisal firm'}`
               }
             </p>
