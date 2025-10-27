@@ -1,7 +1,6 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
 import { PledgeTaskList } from '@/components/tasks/PledgeTaskList'
 import { DonationFiles } from '@/components/files/DonationFiles'
@@ -11,10 +10,9 @@ import { CheckSquare, FileText } from 'lucide-react'
 
 function PledgePage() {
   const { user, loading } = useAuth()
-  const router = useRouter()
 
-  // For demo purposes, use a fixed demo participant ID based on user
-  const participantId = user ? `pledge_demo_${user.uid}` : null
+  // For demo purposes, use a fixed demo participant ID based on user (or guest ID if no user)
+  const participantId = user ? `pledge_demo_${user.uid}` : 'pledge_demo_guest'
 
   const { tasks: pledgeTasks, loading: pledgeTasksLoading, handleCommitmentDecision } = usePledgeTasks(participantId)
 
@@ -28,18 +26,24 @@ function PledgePage() {
   // Auto-create demo tasks if none exist
   useEffect(() => {
     const createDemoTasks = async () => {
-      if (!user || !participantId || tasksLoading || creatingDemoTasks) return
+      if (!participantId || tasksLoading || creatingDemoTasks) return
 
       // If no tasks exist, create demo tasks
       if (tasks.length === 0) {
         setCreatingDemoTasks(true)
         try {
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+          }
+
+          // Only add auth token if user is logged in
+          if (user) {
+            headers['Authorization'] = `Bearer ${await user.getIdToken()}`
+          }
+
           const response = await fetch('/api/pledge/create-demo-tasks', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${await user.getIdToken()}`
-            },
+            headers,
             body: JSON.stringify({ participantId })
           })
 
@@ -81,25 +85,12 @@ function PledgePage() {
     }
   }
 
-  useEffect(() => {
-    // Only redirect to login if no user at all
-    if (!loading && !user) {
-      router.push('/auth/login')
-      return
-    }
-  }, [user, loading, router])
-
   if (loading || tasksLoading || creatingDemoTasks) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#005A7D]"></div>
       </div>
     )
-  }
-
-  // Always show the page if user is authenticated
-  if (!user) {
-    return null
   }
 
   return (
