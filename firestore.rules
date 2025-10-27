@@ -264,20 +264,25 @@ service cloud.firestore {
         return exists(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)) &&
                get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.organizationId == getOrganizationId();
       }
-      
+
+      function isCampaignOwnerForCreate() {
+        return exists(/databases/$(database)/documents/campaigns/$(request.resource.data.campaignId)) &&
+               get(/databases/$(database)/documents/campaigns/$(request.resource.data.campaignId)).data.organizationId == getOrganizationId();
+      }
+
       allow read: if isAuthenticated() && (
         resource.data.inviterUserId == getUserId() ||
         resource.data.invitedUserId == getUserId() ||
         (isNonprofitAdmin() && isCampaignOwner())
       );
-      
+
       // Allow unauthenticated read for valid invitation tokens only
-      allow get: if resource.data.status == 'pending' && 
+      allow get: if resource.data.status == 'pending' &&
                     resource.data.expiresAt > request.time;
-      
-      allow create: if isNonprofitAdmin() && 
+
+      allow create: if isNonprofitAdmin() &&
                        request.resource.data.inviterUserId == getUserId() &&
-                       isCampaignOwner();
+                       isCampaignOwnerForCreate();
       
       allow update: if isAuthenticated() && (
         (resource.data.inviterUserId == getUserId() && isCampaignOwner()) ||
