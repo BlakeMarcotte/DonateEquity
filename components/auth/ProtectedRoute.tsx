@@ -24,10 +24,19 @@ export default function ProtectedRoute({
   const { user, customClaims, loading } = useAuth()
   const router = useRouter()
 
+  // Preview mode bypasses all auth checks
+  if (isPreviewMode()) {
+    return <>{children}</>
+  }
+
+  // Wait for auth to fully load (including customClaims)
+  const isFullyLoaded = !loading && (user ? customClaims !== null : true)
+
   useEffect(() => {
     if (isPreviewMode()) return
-    
-    if (loading) return
+
+    // Don't do anything until fully loaded
+    if (!isFullyLoaded) return
 
     // Redirect to login if not authenticated
     if (!user) {
@@ -35,7 +44,12 @@ export default function ProtectedRoute({
       return
     }
 
-    // Check role requirements
+    // Check role requirements - wait for customClaims to be loaded
+    if (requiredRoles && !customClaims) {
+      // Still loading claims, don't redirect yet
+      return
+    }
+
     if (requiredRoles && customClaims) {
       const hasRequiredRole = requiredRoles.includes(customClaims.role)
       if (!hasRequiredRole) {
@@ -54,15 +68,10 @@ export default function ProtectedRoute({
         return
       }
     }
-  }, [user, customClaims, loading, requiredRoles, requiredPermissions, router, fallbackUrl])
+  }, [user, customClaims, isFullyLoaded, requiredRoles, requiredPermissions, router, fallbackUrl])
 
-  // Preview mode bypasses all auth checks
-  if (isPreviewMode()) {
-    return <>{children}</>
-  }
-
-  // Show loading state
-  if (loading) {
+  // Show loading state until everything is loaded
+  if (!isFullyLoaded) {
     return (
       loadingComponent || (
         <div className="min-h-screen flex items-center justify-center">
@@ -75,6 +84,17 @@ export default function ProtectedRoute({
   // Don't render children if not authenticated or authorized
   if (!user) {
     return null
+  }
+
+  // Wait for customClaims if role check is required
+  if (requiredRoles && !customClaims) {
+    return (
+      loadingComponent || (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      )
+    )
   }
 
   if (requiredRoles && customClaims && !requiredRoles.includes(customClaims.role)) {

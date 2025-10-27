@@ -106,13 +106,14 @@ export default function InvitationPage() {
   }, [params.token, fetchInvitation])
 
   useEffect(() => {
-    // Check authentication after invitation is loaded
-    if (!authLoading && invitation) {
-      if (!user) {
-        // User is not authenticated, redirect to signup with invitation token and campaign
-        router.push(`/auth/register?invitation=${params.token}&campaign=${invitation.campaignId}`)
-        return
-      }
+    // Check authentication after invitation is loaded AND auth is fully loaded
+    if (authLoading) return // Wait for auth to load
+    if (!invitation) return // Wait for invitation to load
+
+    if (!user) {
+      // User is not authenticated, redirect to signup with invitation token and campaign
+      router.push(`/auth/register?invitation=${params.token}&campaign=${invitation.campaignId}`)
+      return
     }
   }, [user, authLoading, router, params.token, invitation])
 

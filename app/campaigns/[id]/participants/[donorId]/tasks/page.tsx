@@ -56,28 +56,36 @@ export default function ParticipantTasksPage() {
     }
   }, [participantId, user])
 
+  // Combined loading check - wait for everything to be ready
+  const isFullyLoaded = !loading && !participantLoading && !tasksLoading
+
   useEffect(() => {
-    if (!loading && !user) {
+    // Don't do anything until everything is loaded
+    if (!isFullyLoaded) return
+
+    if (!user) {
       router.push('/auth/login')
       return
     }
 
-    // Allow access for nonprofit_admin, assigned appraiser, and the specific donor
-    if (!loading && !participantLoading && user && customClaims?.role) {
-      const isNonprofitAdmin = customClaims.role === 'nonprofit_admin'
-      const isDonorOwner = customClaims.role === 'donor' && user.uid === actualDonorId
-      const isAssignedAppraiser = customClaims.role === 'appraiser' && participantData?.appraiserId === user.uid
-      
-      const isAuthorized = isNonprofitAdmin || isDonorOwner || isAssignedAppraiser
-      
-      if (!isAuthorized) {
-        router.push('/tasks')
-        return
-      }
-    }
-  }, [user, loading, customClaims, router, actualDonorId, participantLoading, participantData, participantId])
+    // Wait for customClaims to be available
+    if (!customClaims?.role) return
 
-  if (loading || tasksLoading || participantLoading) {
+    // Allow access for nonprofit_admin, assigned appraiser, and the specific donor
+    const isNonprofitAdmin = customClaims.role === 'nonprofit_admin'
+    const isDonorOwner = customClaims.role === 'donor' && user.uid === actualDonorId
+    const isAssignedAppraiser = customClaims.role === 'appraiser' && participantData?.appraiserId === user.uid
+
+    const isAuthorized = isNonprofitAdmin || isDonorOwner || isAssignedAppraiser
+
+    if (!isAuthorized) {
+      router.push('/tasks')
+      return
+    }
+  }, [user, customClaims, isFullyLoaded, router, actualDonorId, participantData, participantId])
+
+  // Show loading until everything is ready
+  if (!isFullyLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -85,6 +93,7 @@ export default function ParticipantTasksPage() {
     )
   }
 
+  // Don't render if not authenticated or missing claims
   if (!user || !customClaims?.role) {
     return null
   }
