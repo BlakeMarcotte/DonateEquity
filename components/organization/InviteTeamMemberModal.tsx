@@ -23,16 +23,6 @@ const SUBROLE_OPTIONS = [
     value: 'member' as NonprofitSubrole,
     label: 'Member',
     description: 'Basic nonprofit permissions for viewing and participating'
-  },
-  {
-    value: 'marketer' as NonprofitSubrole,
-    label: 'Marketer',
-    description: 'Marketing content creation and social media management'
-  },
-  {
-    value: 'signatory' as NonprofitSubrole,
-    label: 'Signatory',
-    description: 'Document signing and legal approval authority'
   }
 ]
 
