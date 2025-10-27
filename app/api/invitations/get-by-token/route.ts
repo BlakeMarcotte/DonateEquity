@@ -16,13 +16,13 @@ export async function GET(request: NextRequest) {
     console.log('Looking up invitation by token:', token)
 
     // Find invitation by token using Admin SDK (bypasses Firestore rules)
+    // Don't filter by status - let the frontend handle the logic
     const invitationsQuery = await adminDb
       .collection('campaign_invitations')
       .where('invitationToken', '==', token)
-      .where('status', '==', 'pending')
       .limit(1)
       .get()
-    
+
     if (invitationsQuery.empty) {
       console.log('Invitation not found for token:', token)
       return NextResponse.json(
