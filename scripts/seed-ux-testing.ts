@@ -28,16 +28,16 @@ interface TestUser {
 // Test users with memorable credentials
 const TEST_USERS: TestUser[] = [
   {
-    email: 'donor@uxtest.com',
-    password: 'UXTest2024!',
+    email: 'donor-test@example.com',
+    password: 'TestPass123!',
     displayName: 'Sarah Chen',
     role: 'donor',
     organizationName: 'TechStartup Inc.',
     phoneNumber: '+1-555-0101',
   },
   {
-    email: 'nonprofit@uxtest.com',
-    password: 'UXTest2024!',
+    email: 'nonprofit-test@example.com',
+    password: 'TestPass123!',
     displayName: 'Michael Rodriguez',
     role: 'nonprofit_admin',
     subrole: 'admin',
@@ -45,8 +45,8 @@ const TEST_USERS: TestUser[] = [
     phoneNumber: '+1-555-0102',
   },
   {
-    email: 'appraiser@uxtest.com',
-    password: 'UXTest2024!',
+    email: 'appraiser-test@example.com',
+    password: 'TestPass123!',
     displayName: 'Jennifer Liu',
     role: 'appraiser',
     organizationName: 'Elite Appraisal Services',
@@ -226,19 +226,27 @@ async function createSampleCampaign(nonprofitUser: CreatedUser): Promise<string>
     const campaignId = campaignRef.id
 
     await campaignRef.set({
-      name: 'Education for All Initiative',
+      title: 'UX Testing',
       description:
-        'Help us provide quality education and resources to underserved communities worldwide.',
+        'Test campaign for UX testing and demonstration purposes. This campaign includes a complete workflow with donor, nonprofit, and appraiser roles.',
       organizationId: nonprofitUser.organizationId,
       createdBy: nonprofitUser.uid,
       goal: 500000,
-      raised: 0,
+      currentAmount: 0,
+      donorCount: 0,
       startDate: new Date(),
       endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
       status: 'active',
       visibility: 'public',
-      category: 'education',
-      images: [],
+      category: 'Education',
+      tags: [],
+      images: {
+        hero: '',
+        gallery: []
+      },
+      settings: {
+        allowRecurring: true
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -267,6 +275,7 @@ async function createSamplePledge(
       id: participantId,
       campaignId,
       userId: donorUser.uid,
+      userRole: 'donor',
       donorId: donorUser.uid,
       donorEmail: donorUser.email,
       nonprofitId: nonprofitUser.organizationId,
@@ -280,6 +289,7 @@ async function createSamplePledge(
       companyName: 'TechStartup Inc.',
       triggerEvent: 'ipo',
       pledgeDate: new Date(),
+      joinedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -384,7 +394,20 @@ async function createTasksForParticipant(
       priority: 'high',
       order: 3,
       dependencies: [signNDATaskId],
-      metadata: {},
+      metadata: {
+        options: [
+          {
+            id: 'commit_now',
+            label: 'Make Commitment Now',
+            description: 'I\'m ready to specify my commitment amount and details now, before the appraisal is complete.'
+          },
+          {
+            id: 'commit_after_appraisal',
+            label: 'Wait for Appraisal',
+            description: 'I\'d like to see the appraisal results before making my final commitment decision.'
+          }
+        ]
+      },
       comments: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -593,7 +616,7 @@ async function seedUXTesting() {
   console.log('\n═══════════════════════════════════════════════════')
   console.log('🎉 UX Testing Environment Ready!\n')
 
-  console.log('📧 TEST ACCOUNTS (All use password: UXTest2024!):')
+  console.log('📧 TEST ACCOUNTS (All use password: TestPass123!):')
   console.log('─────────────────────────────────────────────────')
   TEST_USERS.forEach((user) => {
     console.log(`\n🔐 ${user.displayName} (${user.role.toUpperCase()})`)
@@ -608,22 +631,22 @@ async function seedUXTesting() {
   console.log('\n📝 WHAT WAS CREATED:')
   console.log('  ✓ 3 test user accounts (donor, nonprofit admin, appraiser)')
   console.log('  ✓ 3 organizations (one for each user)')
-  console.log('  ✓ 1 active campaign (Education for All Initiative)')
+  console.log('  ✓ 1 active campaign (UX Testing)')
   console.log('  ✓ 1 pledge/donation with all 3 roles connected')
   console.log('  ✓ 9 workflow tasks (assigned to appropriate roles)')
 
   console.log('\n💡 TESTING WORKFLOW:')
-  console.log('  1. Login as DONOR (donor@uxtest.com)')
+  console.log('  1. Login as DONOR (donor-test@example.com)')
   console.log('     • View the campaign and your pledge')
   console.log('     • See your assigned tasks (Sign NDA, Upload Documents, etc.)')
   console.log('     • First task already completed (Appraiser was "invited")')
   console.log('')
-  console.log('  2. Login as NONPROFIT (nonprofit@uxtest.com)')
+  console.log('  2. Login as NONPROFIT (nonprofit-test@example.com)')
   console.log('     • View your campaign details')
   console.log('     • See the incoming pledge/donation')
   console.log('     • Review tasks assigned to you (Document approval, etc.)')
   console.log('')
-  console.log('  3. Login as APPRAISER (appraiser@uxtest.com)')
+  console.log('  3. Login as APPRAISER (appraiser-test@example.com)')
   console.log('     • View your assigned appraisal tasks')
   console.log('     • See the donation you\'re connected to')
   console.log('     • Review tasks (Sign NDA, Upload Appraisal, etc.)')

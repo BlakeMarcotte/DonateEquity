@@ -1,0 +1,127 @@
+================================================================================
+                    DONATEEQUITY - UX TESTING GUIDE
+================================================================================
+
+STAGING ENVIRONMENT: https://donate-equity-git-staging-bpnsolutions.vercel.app
+
+================================================================================
+                           TEST ACCOUNT CREDENTIALS
+================================================================================
+
+All accounts use password: TestPass123!
+
+1. NONPROFIT ADMIN
+   Email:    nonprofit-test@example.com
+   Password: TestPass123!
+   Name:     Michael Rodriguez
+   Org:      Save The Planet Foundation
+
+2. DONOR
+   Email:    donor-test@example.com
+   Password: TestPass123!
+   Name:     Sarah Chen
+   Org:      TechStartup Inc.
+
+3. APPRAISER
+   Email:    appraiser-test@example.com
+   Password: TestPass123!
+   Name:     Jennifer Liu
+   Org:      Elite Appraisal Services
+
+================================================================================
+                              WHAT'S ALREADY SET UP
+================================================================================
+
+✓ Campaign "UX Testing" created by the nonprofit
+✓ All three users are connected to the same donation/pledge
+✓ Complete workflow with 9 tasks across all roles
+✓ First task already completed (appraiser invited)
+✓ Tasks follow dependency chain (some blocked until previous tasks complete)
+
+================================================================================
+                              TESTING WORKFLOW
+================================================================================
+
+STEP 1: TEST AS NONPROFIT ADMIN
+---------------------------------
+1. Login with nonprofit-test@example.com / TestPass123!
+2. Navigate to your dashboard
+3. View the "UX Testing" campaign
+4. Check incoming pledges/donations
+5. Review tasks assigned to you (document approvals)
+
+
+STEP 2: TEST AS DONOR
+-----------------------
+1. Login with donor-test@example.com / TestPass123!
+2. View your dashboard
+3. Find the "UX Testing" campaign
+4. View your pledge details
+5. Complete pending tasks:
+   - Sign NDA (next available task)
+   - Make commitment decision
+   - Upload company information
+   - Approve appraiser documents
+6. Test document upload functionality
+7. Test DocuSign integration (if available)
+
+STEP 3: TEST AS APPRAISER
+---------------------------
+1. Login with appraiser-test@example.com / TestPass123!
+2. View your dashboard
+3. See assigned appraisal tasks
+4. Complete tasks when they become available:
+   - Sign NDA
+   - Upload appraisal documents
+5. Test document upload functionality
+6. View donation details you're connected to
+
+================================================================================
+                           TASK WORKFLOW OVERVIEW
+================================================================================
+
+The workflow follows this sequence:
+
+1. ✅ Donor: Invite Appraiser (COMPLETED)
+2. ⏳ Donor: Sign NDA (READY TO COMPLETE)
+3. 🔒 Donor: Commitment Decision (blocked until #2 complete)
+4. 🔒 Donor: Upload Company Information (blocked until #3 complete)
+5. 🔒 Appraiser: Sign NDA (blocked until #4 complete)
+6. 🔒 Appraiser: Upload Documents (blocked until #5 complete)
+7. 🔒 Donor: Approve Documents (blocked until #6 complete)
+8. 🔒 Nonprofit: Approve Documents (blocked until #7 complete)
+9. 🔒 Nonprofit: Upload Final Documents (blocked until #8 complete)
+
+Tasks unlock as previous tasks are completed, simulating real workflow.
+
+================================================================================
+                              TESTING TIPS
+================================================================================
+
+• Switch between accounts by logging out and logging in with different emails
+• Test the complete workflow by completing tasks in sequence
+• All three accounts are already linked - no invitations needed
+• Check that tasks unlock properly as dependencies complete
+• Test document uploads in different formats
+• Verify email notifications (if enabled)
+• Check that role-based permissions work correctly
+• Test both mobile and desktop views
+
+================================================================================
+                              RESET INSTRUCTIONS
+================================================================================
+
+If you need to reset the task list, hit the reset task list button. 
+If there is anything else you need to reset reach out to Blake.
+
+================================================================================
+                           SUPPORT & QUESTIONS
+================================================================================
+
+For technical issues or questions, contact the development team.
+
+This is a STAGING environment - all data is for testing purposes only.
+
+Do not worry about breaking anything, it is encouraged!
+
+================================================================================

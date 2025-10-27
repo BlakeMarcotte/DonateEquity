@@ -480,6 +480,31 @@ export function DonationTaskList({
     }
   }
 
+  const getBlockingTaskInfo = (task: Task) => {
+    if (task.status !== 'blocked' || !task.dependencies || task.dependencies.length === 0) {
+      return null
+    }
+
+    // Find the first blocking task (the one that needs to be completed)
+    const blockingTaskId = task.dependencies[0]
+    const blockingTask = tasks.find(t => t.id === blockingTaskId)
+
+    if (!blockingTask) {
+      return null
+    }
+
+    // Get the role name for display
+    const roleName = blockingTask.assignedRole === 'donor' ? 'Donor' :
+                     blockingTask.assignedRole === 'nonprofit_admin' ? 'Nonprofit' :
+                     blockingTask.assignedRole === 'appraiser' ? 'Appraiser' :
+                     blockingTask.assignedRole
+
+    return {
+      role: roleName,
+      taskTitle: blockingTask.title
+    }
+  }
+
   const canCompleteTask = (task: Task) => {
     if (task.status === 'completed' || task.status === 'blocked') {
       return false
@@ -653,12 +678,17 @@ export function DonationTaskList({
                           {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                         </span>
                       </span>
-                      {task.status === 'blocked' && (
-                        <span className="flex items-center text-gray-500 bg-gray-100/60 px-2 py-1 rounded-full">
-                          <Lock className="w-3 h-3 mr-1" />
-                          Waiting for previous task
-                        </span>
-                      )}
+                      {task.status === 'blocked' && (() => {
+                        const blockingInfo = getBlockingTaskInfo(task)
+                        return (
+                          <span className="flex items-center text-gray-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                            <Lock className="w-3 h-3 mr-1" />
+                            {blockingInfo
+                              ? `Waiting for ${blockingInfo.role} to complete their task`
+                              : 'Waiting for previous task'}
+                          </span>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -752,9 +782,22 @@ export function DonationTaskList({
                       <span className="text-emerald-700 font-medium text-sm">Completed</span>
                     </div>
                   ) : task.status === 'blocked' ? (
-                    <div className="flex items-center bg-gray-100/60 px-3 py-2 rounded-lg">
-                      <Lock className="h-4 w-4 mr-1.5 text-gray-400" />
-                      <span className="text-gray-500 font-medium text-sm">Blocked</span>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                        <Lock className="h-4 w-4 mr-1.5 text-amber-600" />
+                        <span className="text-amber-700 font-medium text-sm">Blocked</span>
+                      </div>
+                      {(() => {
+                        const blockingInfo = getBlockingTaskInfo(task)
+                        if (blockingInfo) {
+                          return (
+                            <span className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                              Waiting for {blockingInfo.role}
+                            </span>
+                          )
+                        }
+                        return null
+                      })()}
                     </div>
                   ) : (
                     <div className="px-3 py-2 bg-white/60 rounded-lg">
