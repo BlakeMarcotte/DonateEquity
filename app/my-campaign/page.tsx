@@ -65,16 +65,25 @@ function MyCampaignPage() {
     }
   }
 
+  // Combined loading state - wait for everything to be ready
+  const isAuthFullyLoaded = !loading && (user ? customClaims !== null : true)
+  const isDataFullyLoaded = isAuthFullyLoaded && !campaignLoading && !tasksLoading
+
   useEffect(() => {
     console.log('MyCampaign auth check:', {
       loading,
       user: !!user,
       userRole: customClaims?.role,
-      userId: user?.uid
+      userId: user?.uid,
+      isAuthFullyLoaded,
+      isDataFullyLoaded
     })
 
+    // Don't do anything until auth is fully loaded
+    if (!isAuthFullyLoaded) return
+
     // Only redirect to login if no user at all
-    if (!loading && !user) {
+    if (!user) {
       console.log('MyCampaign: No user, redirecting to login')
       router.push('/auth/login')
       return
@@ -82,20 +91,22 @@ function MyCampaignPage() {
 
     // For everyone else (donors, appraisers, anyone), just show the page
     // The page content will handle showing appropriate UI based on role
-    if (!loading && user) {
-      console.log('MyCampaign: User authenticated, showing page regardless of role')
-    }
-  }, [user, loading, router, customClaims?.role])
+    console.log('MyCampaign: User authenticated, showing page regardless of role')
+  }, [user, loading, customClaims, router, isAuthFullyLoaded, isDataFullyLoaded])
 
-  if (loading || campaignLoading || tasksLoading) {
+  // Show loading until auth AND data are fully loaded
+  if (!isDataFullyLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your campaign...</p>
+        </div>
       </div>
     )
   }
 
-  // Always show the page if user is authenticated
+  // Don't render if not authenticated
   if (!user) {
     return null
   }
