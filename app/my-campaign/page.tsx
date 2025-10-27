@@ -69,7 +69,10 @@ function MyCampaignPage() {
   const isAuthFullyLoaded = !loading && (user ? customClaims !== null : true)
   // Also wait if we have a participantId but no campaign yet (state update race condition)
   const hasParticipantButNoCampaign = participantId && !campaign
-  const isDataFullyLoaded = isAuthFullyLoaded && !campaignLoading && !tasksLoading && !hasParticipantButNoCampaign
+  // CRITICAL: If campaign loaded but tasks are empty, we're in the waterfall gap - keep loading
+  // This handles the render that happens BEFORE useParticipantTasks updates tasksLoading to true
+  const inTaskLoadingGap = campaign && participantId && tasks.length === 0
+  const isDataFullyLoaded = isAuthFullyLoaded && !campaignLoading && !tasksLoading && !hasParticipantButNoCampaign && !inTaskLoadingGap
 
   useEffect(() => {
     console.log('MyCampaign auth check:', {
