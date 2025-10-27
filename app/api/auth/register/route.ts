@@ -49,9 +49,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
 
 const SUBROLE_PERMISSIONS: Record<NonprofitSubrole, string[]> = {
   admin: ['manage_organization_users', 'manage_all_campaigns', 'approve_donations'],
-  member: [],
-  marketer: ['create_marketing_content', 'manage_social_media'],
-  signatory: ['sign_documents', 'approve_legal_documents']
+  member: []
 }
 
 export async function POST(request: NextRequest) {

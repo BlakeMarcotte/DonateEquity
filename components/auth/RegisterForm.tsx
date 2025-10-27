@@ -499,8 +499,6 @@ export default function RegisterForm({
                       >
                         <option value="admin">Admin - Full organization management</option>
                         <option value="member">Member - Basic nonprofit permissions</option>
-                        <option value="marketer">Marketer - Marketing and social media</option>
-                        <option value="signatory">Signatory - Document signing authority</option>
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
                     </div>
@@ -624,8 +622,8 @@ export default function RegisterForm({
               Organization Details
             </h3>
             <p className="text-sm text-gray-600">
-              {formData.role === 'donor' 
-                ? 'Tell us about your donor organization or foundation'
+              {formData.role === 'donor'
+                ? 'Tell us about your company'
                 : `Tell us about your ${formData.role === 'nonprofit_admin' ? 'nonprofit organization' : 'appraisal firm'}`
               }
             </p>

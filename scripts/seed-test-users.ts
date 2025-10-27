@@ -67,9 +67,7 @@ const SUBROLE_PERMISSIONS: Record<NonprofitSubrole, string[]> = {
     'manage_all_campaigns',
     'approve_donations',
   ],
-  member: [],
-  marketer: ['create_marketing_content', 'manage_social_media'],
-  signatory: ['sign_documents', 'approve_legal_documents'],
+  member: []
 }
 
 async function seedTestUsers() {

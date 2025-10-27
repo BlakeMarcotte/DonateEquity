@@ -2,15 +2,13 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { 
-  Users, 
-  Crown, 
-  User, 
-  Megaphone, 
-  PenTool, 
-  MoreHorizontal, 
-  Edit, 
-  Trash2, 
+import {
+  Users,
+  Crown,
+  User,
+  MoreHorizontal,
+  Edit,
+  Trash2,
   Calendar,
   Mail,
   AlertCircle
@@ -41,16 +39,12 @@ interface TeamMemberListProps {
 
 const SUBROLE_ICONS = {
   admin: Crown,
-  member: User,
-  marketer: Megaphone,
-  signatory: PenTool,
+  member: User
 }
 
 const SUBROLE_LABELS = {
   admin: 'Admin',
-  member: 'Member',
-  marketer: 'Marketer',
-  signatory: 'Signatory',
+  member: 'Member'
 }
 
 export default function TeamMemberList({ 
@@ -188,12 +182,9 @@ export default function TeamMemberList({
 
                   <div className="flex items-center space-x-3">
                     {/* Role Badge */}
-                    <Badge 
+                    <Badge
                       variant={
-                        member.subrole === 'admin' ? 'warning' :
-                        member.subrole === 'signatory' ? 'primary' :
-                        member.subrole === 'marketer' ? 'secondary' :
-                        'default'
+                        member.subrole === 'admin' ? 'warning' : 'default'
                       }
                     >
                       <SubroleIcon className="h-4 w-4" />
