@@ -11,6 +11,9 @@ export function useParticipantTasks(participantId: string | null) {
   const [monitoringDocuSign, setMonitoringDocuSign] = useState(false)
 
   useEffect(() => {
+    // When participantId changes, reset to loading state
+    setLoading(true)
+
     if (!participantId) {
       secureLogger.info('No participantId provided to useParticipantTasks')
       setTasks([])
