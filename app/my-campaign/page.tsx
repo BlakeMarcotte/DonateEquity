@@ -111,7 +111,9 @@ function MyCampaignPage() {
     return null
   }
 
-  if (!campaign) {
+  // Only show "No Campaign Found" if we have no campaign AND no tasks
+  // If we have tasks, show the page even without a campaign object
+  if (!campaign && tasks.length === 0) {
     // If we have a campaign ID from URL, show loading while redirecting
     if (campaignIdFromUrl) {
       return (
