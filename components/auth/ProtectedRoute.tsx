@@ -24,16 +24,12 @@ export default function ProtectedRoute({
   const { user, customClaims, loading } = useAuth()
   const router = useRouter()
 
-  // Preview mode bypasses all auth checks
-  if (isPreviewMode()) {
-    return <>{children}</>
-  }
-
   // Wait for auth to fully load (including customClaims)
   const isFullyLoaded = !loading && (user ? customClaims !== null : true)
+  const previewMode = isPreviewMode()
 
   useEffect(() => {
-    if (isPreviewMode()) return
+    if (previewMode) return
 
     // Don't do anything until fully loaded
     if (!isFullyLoaded) return
@@ -68,7 +64,12 @@ export default function ProtectedRoute({
         return
       }
     }
-  }, [user, customClaims, isFullyLoaded, requiredRoles, requiredPermissions, router, fallbackUrl])
+  }, [user, customClaims, isFullyLoaded, requiredRoles, requiredPermissions, router, fallbackUrl, previewMode])
+
+  // Preview mode bypasses all auth checks
+  if (previewMode) {
+    return <>{children}</>
+  }
 
   // Show loading state until everything is loaded
   if (!isFullyLoaded) {
