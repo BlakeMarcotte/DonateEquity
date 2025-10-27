@@ -11,7 +11,6 @@ import {
   Mail,
   Building2,
   Save,
-  Bell,
   Camera,
   Calendar,
   CheckCircle
@@ -30,14 +29,6 @@ interface UserProfileData {
   }
   bio: string
   title: string
-  notifications: {
-    email: boolean
-    sms: boolean
-    push: boolean
-    campaigns: boolean
-    donations: boolean
-    marketing: boolean
-  }
 }
 
 // Format phone number as user types
@@ -77,15 +68,7 @@ function ProfilePageContent() {
       country: ''
     },
     bio: '',
-    title: '',
-    notifications: {
-      email: true,
-      sms: false,
-      push: true,
-      campaigns: true,
-      donations: true,
-      marketing: false
-    }
+    title: ''
   })
 
   const fetchOrganization = useCallback(async () => {
@@ -115,21 +98,13 @@ function ProfilePageContent() {
           country: ''
         },
         bio: '',
-        title: '',
-        notifications: {
-          email: true,
-          sms: false,
-          push: true,
-          campaigns: true,
-          donations: true,
-          marketing: false
-        }
+        title: ''
       })
-      
+
       if (customClaims?.organizationId) {
         fetchOrganization()
       }
-      
+
       setLoading(false)
     }
   }, [userProfile, user, customClaims, fetchOrganization])
@@ -186,7 +161,6 @@ function ProfilePageContent() {
 
   const tabs = [
     { id: 'profile', name: 'Profile', icon: User },
-    { id: 'notifications', name: 'Notifications', icon: Bell },
   ]
 
   if (loading) {
@@ -371,50 +345,6 @@ function ProfilePageContent() {
                           <Calendar className="w-4 h-4" />
                           <span>{userProfile?.updatedAt?.toLocaleDateString()}</span>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'notifications' && (
-              <div className="bg-white rounded-lg shadow">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h2 className="text-xl font-semibold text-gray-900">Notification Preferences</h2>
-                </div>
-
-                <div className="p-6">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Communication Preferences</h3>
-                      <div className="space-y-4">
-                        {Object.entries(profileData.notifications).map(([key, value]) => (
-                          <div key={key} className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-gray-900 capitalize">
-                                {key.replace(/([A-Z])/g, ' $1')}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {key === 'email' && 'Receive notifications via email'}
-                                {key === 'sms' && 'Receive notifications via SMS'}
-                                {key === 'push' && 'Receive push notifications'}
-                                {key === 'campaigns' && 'Updates about your campaigns'}
-                                {key === 'donations' && 'Notifications about donations'}
-                                {key === 'marketing' && 'Marketing and promotional emails'}
-                              </p>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={value}
-                                onChange={(e) => handleInputChange(`notifications.${key}`, e.target.checked)}
-                                className="sr-only peer"
-                              />
-                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
-                          </div>
-                        ))}
                       </div>
                     </div>
                   </div>
