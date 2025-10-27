@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { updateProfile, updatePassword } from 'firebase/auth'
+import { updateProfile } from 'firebase/auth'
 import { doc, updateDoc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import {
@@ -11,11 +11,7 @@ import {
   Mail,
   Building2,
   Save,
-  Eye,
-  EyeOff,
-  Shield,
   Bell,
-  Key,
   Camera,
   Calendar,
   CheckCircle
@@ -66,10 +62,7 @@ function ProfilePageContent() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
-  const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
   const [organization, setOrganization] = useState<Record<string, unknown> | null>(null)
 
   const [profileData, setProfileData] = useState<UserProfileData>({
@@ -93,12 +86,6 @@ function ProfilePageContent() {
       donations: true,
       marketing: false
     }
-  })
-
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
   })
 
   const fetchOrganization = useCallback(async () => {
@@ -197,30 +184,8 @@ function ProfilePageContent() {
     }
   }
 
-  const handleChangePassword = async () => {
-    if (!user || passwordData.newPassword !== passwordData.confirmPassword) {
-      return
-    }
-
-    setSaving(true)
-    try {
-      await updatePassword(user, passwordData.newPassword)
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      })
-      setShowPasswordForm(false)
-    } catch (error) {
-      console.error('Error updating password:', error)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const tabs = [
     { id: 'profile', name: 'Profile', icon: User },
-    { id: 'security', name: 'Security', icon: Shield },
     { id: 'notifications', name: 'Notifications', icon: Bell },
   ]
 
@@ -407,120 +372,6 @@ function ProfilePageContent() {
                           <span>{userProfile?.updatedAt?.toLocaleDateString()}</span>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'security' && (
-              <div className="bg-white rounded-lg shadow">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h2 className="text-xl font-semibold text-gray-900">Security Settings</h2>
-                </div>
-
-                <div className="p-6 space-y-6">
-                  {/* Password Section */}
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-medium text-gray-900">Password</h3>
-                        <p className="text-sm text-gray-600">Change your account password</p>
-                      </div>
-                      <button
-                        onClick={() => setShowPasswordForm(!showPasswordForm)}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
-                      >
-                        <Key className="w-4 h-4" />
-                        <span>Change Password</span>
-                      </button>
-                    </div>
-
-                    {showPasswordForm && (
-                      <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Current Password
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showCurrentPassword ? 'text' : 'password'}
-                              value={passwordData.currentPassword}
-                              onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                              className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            >
-                              {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            New Password
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showNewPassword ? 'text' : 'password'}
-                              value={passwordData.newPassword}
-                              onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                              className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowNewPassword(!showNewPassword)}
-                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            >
-                              {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Confirm New Password
-                          </label>
-                          <input
-                            type="password"
-                            value={passwordData.confirmPassword}
-                            onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-
-                        <div className="flex items-center space-x-4 pt-4">
-                          <button
-                            onClick={handleChangePassword}
-                            disabled={saving || passwordData.newPassword !== passwordData.confirmPassword}
-                            className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors duration-200"
-                          >
-                            {saving ? 'Updating...' : 'Update Password'}
-                          </button>
-                          <button
-                            onClick={() => setShowPasswordForm(false)}
-                            className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors duration-200"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Two-Factor Authentication */}
-                  <div className="pt-6 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-medium text-gray-900">Two-Factor Authentication</h3>
-                        <p className="text-sm text-gray-600">Add an extra layer of security to your account</p>
-                      </div>
-                      <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200">
-                        Enable 2FA
-                      </button>
                     </div>
                   </div>
                 </div>
