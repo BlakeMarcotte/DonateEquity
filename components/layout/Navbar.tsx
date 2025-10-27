@@ -50,13 +50,13 @@ const navigationItems: NavItem[] = [
     name: 'Calculator',
     href: '/calculator',
     icon: Calculator,
-    roles: ['nonprofit_admin']
+    roles: ['nonprofit_admin', 'donor']
   },
   {
     name: 'Resources',
     href: '/resources',
     icon: FileText,
-    roles: ['nonprofit_admin']
+    roles: ['nonprofit_admin', 'donor']
   },
   // Admin specific pages
   {
