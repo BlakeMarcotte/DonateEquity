@@ -10,14 +10,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Appraiser ID is required' }, { status: 400 })
     }
 
-    // Query campaign_participants where userId matches and role is appraiser
-    console.log('Querying for appraiser participants with userId:', appraiserId)
+    // Query campaign_participants where appraiserId matches
+    console.log('Querying for appraiser participants with appraiserId:', appraiserId)
     const participantsQuery = adminDb.collection('campaign_participants')
-      .where('userId', '==', appraiserId)
-      .where('role', '==', 'appraiser')
+      .where('appraiserId', '==', appraiserId)
 
     const participantsSnapshot = await participantsQuery.get()
-    console.log(`Found ${participantsSnapshot.docs.length} appraiser participant records for userId: ${appraiserId}`)
+    console.log(`Found ${participantsSnapshot.docs.length} appraiser participant records for appraiserId: ${appraiserId}`)
 
     const participants = participantsSnapshot.docs.map(doc => ({
       id: doc.id,

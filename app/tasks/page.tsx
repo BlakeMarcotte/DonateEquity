@@ -163,12 +163,29 @@ export default function NonprofitDashboardPage() {
     }
   }, [user, userProfile, customClaims, checkTaskCompletion])
 
+  const handleToggleComplete = async (taskId: string) => {
+    // Find current completion status
+    const currentTask = tasks.find(task => task.id === taskId)
+    const newStatus = !currentTask?.isComplete
+
+    // Update local state immediately for better UX
+    setTasks(prev => prev.map(task =>
+      task.id === taskId ? { ...task, isComplete: newStatus } : task
+    ))
+
+    // Store completion status in localStorage for persistence - user specific
+    const storageKey = `nonprofit-task-completions-${userProfile?.uid}`
+    const completions = JSON.parse(localStorage.getItem(storageKey) || '{}')
+    completions[taskId] = newStatus
+    localStorage.setItem(storageKey, JSON.stringify(completions))
+  }
+
   const handleMarkComplete = async (taskId: string) => {
     // Update local state immediately for better UX
-    setTasks(prev => prev.map(task => 
+    setTasks(prev => prev.map(task =>
       task.id === taskId ? { ...task, isComplete: true } : task
     ))
-    
+
     // Store completion status in localStorage for persistence - user specific
     const storageKey = `nonprofit-task-completions-${userProfile?.uid}`
     const completions = JSON.parse(localStorage.getItem(storageKey) || '{}')
@@ -386,16 +403,20 @@ export default function NonprofitDashboardPage() {
 
                       {/* Action Buttons */}
                       <div className="flex-shrink-0 flex items-center space-x-2">
-                        {!task.isComplete && (
-                          <button
-                            onClick={() => handleMarkComplete(task.id)}
-                            className="inline-flex items-center space-x-2 px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 font-medium rounded-lg transition-colors duration-200"
-                            title="Mark this task as complete"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span className="hidden sm:inline">Mark Complete</span>
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleToggleComplete(task.id)}
+                          className={`inline-flex items-center space-x-2 px-3 py-2 font-medium rounded-lg transition-colors duration-200 ${
+                            task.isComplete
+                              ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
+                              : 'bg-green-100 hover:bg-green-200 text-green-700'
+                          }`}
+                          title={task.isComplete ? 'Mark as incomplete' : 'Mark as complete'}
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">
+                            {task.isComplete ? 'Mark Incomplete' : 'Mark Complete'}
+                          </span>
+                        </button>
                         
                         <button
                           onClick={task.action}

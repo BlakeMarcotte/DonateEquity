@@ -17,7 +17,6 @@ import {
   Settings,
   LayoutDashboard,
 } from 'lucide-react'
-import NotificationBell from '@/components/notifications/NotificationBell'
 import { useDonorCampaign } from '@/hooks/useDonorCampaign'
 
 interface NavItem {
@@ -51,13 +50,13 @@ const navigationItems: NavItem[] = [
     name: 'Calculator',
     href: '/calculator',
     icon: Calculator,
-    roles: ['nonprofit_admin']
+    roles: ['nonprofit_admin', 'donor']
   },
   {
     name: 'Resources',
     href: '/resources',
     icon: FileText,
-    roles: ['nonprofit_admin']
+    roles: ['nonprofit_admin', 'donor']
   },
   // Admin specific pages
   {
@@ -208,9 +207,8 @@ export default function Navbar() {
                 {userRole?.replace('_', ' ')}
               </p>
             </div>
-            <NotificationBell />
           </div>
-          
+
           <button
             onClick={handleLogout}
             className="w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
@@ -232,20 +230,17 @@ export default function Navbar() {
               </div>
               <span className="font-bold text-lg text-gray-900">Donate Equity</span>
             </Link>
-            
-            <div className="flex items-center space-x-2">
-              <NotificationBell />
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200"
-              >
-                {isMobileMenuOpen ? (
-                  <X className="w-6 h-6" />
-                ) : (
-                  <Menu className="w-6 h-6" />
-                )}
-              </button>
-            </div>
+
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200"
+            >
+              {isMobileMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
+            </button>
           </div>
         </div>
 
