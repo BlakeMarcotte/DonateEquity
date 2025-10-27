@@ -9,6 +9,7 @@ interface DonorCampaign {
   id: string
   title: string
   organizationName: string
+  participantId?: string // For appraisers, store the participant ID
 }
 
 interface DonorDonation {
@@ -64,12 +65,14 @@ export function useDonorCampaign(forceRefresh = false) {
               if (campaignResponse.ok) {
                 const { campaign: campaignData } = await campaignResponse.json()
                 console.log('Campaign data found:', campaignData.title)
+                console.log('Using participant ID for appraiser:', firstParticipant.id)
                 setCampaign({
                   id: firstParticipant.campaignId,
                   title: campaignData.title,
-                  organizationName: campaignData.organizationName || ''
+                  organizationName: campaignData.organizationName || '',
+                  participantId: firstParticipant.id // Store the participant ID for fetching tasks
                 })
-                
+
                 // No donation for appraisers, just assignment
                 setDonation(null)
               } else {

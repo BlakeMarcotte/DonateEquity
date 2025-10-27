@@ -17,32 +17,11 @@ function MyCampaignPage() {
   const campaignIdFromUrl = searchParams.get('campaignId')
   const shouldRefresh = searchParams.get('refresh') === '1'
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign(shouldRefresh)
-  
+
   // Create participant ID for task querying
-  // For appraisers, we need to get the donor's participant ID since tasks are stored there
-  const [donorParticipantId, setDonorParticipantId] = useState<string | null>(null)
-  const baseParticipantId = campaign && user ? `${campaign.id}_${user.uid}` : null
-  const participantId = customClaims?.role === 'appraiser' ? donorParticipantId : baseParticipantId
-  
-  // Fetch the linked donor participant ID for appraisers
-  useEffect(() => {
-    if (customClaims?.role === 'appraiser' && baseParticipantId) {
-      const fetchLinkedDonorId = async () => {
-        try {
-          const response = await fetch(`/api/campaign-participants/${baseParticipantId}`)
-          if (response.ok) {
-            const { participant } = await response.json()
-            if (participant?.linkedDonorParticipantId) {
-              setDonorParticipantId(participant.linkedDonorParticipantId)
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching linked donor participant ID:', error)
-        }
-      }
-      fetchLinkedDonorId()
-    }
-  }, [baseParticipantId, customClaims?.role])
+  // For appraisers, use the participant ID from the campaign (which is the donor's participant ID)
+  // For donors, construct it from campaign ID and user ID
+  const participantId = campaign?.participantId || (campaign && user ? `${campaign.id}_${user.uid}` : null)
 
   const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
   
