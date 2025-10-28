@@ -39,7 +39,9 @@ import {
   Clock,
   UserPlus,
   X,
-  Send
+  Send,
+  RotateCcw,
+  CheckCircle2
 } from 'lucide-react'
 
 
@@ -59,6 +61,13 @@ interface CampaignParticipant {
   }
 }
 
+interface CampaignTask {
+  id: string
+  title: string
+  description: string
+  isComplete: boolean
+}
+
 export default function CampaignDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -72,6 +81,58 @@ export default function CampaignDetailPage() {
   const [activeTab, setActiveTab] = useState<'tasks' | 'donations' | 'marketing' | 'team' | 'pending'>('tasks')
   const [shareUrl, setShareUrl] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [campaignTasks, setCampaignTasks] = useState<CampaignTask[]>([])
+
+  // Load campaign tasks from localStorage
+  useEffect(() => {
+    if (!params.id || !userProfile?.uid) return
+
+    const storageKey = `campaign-task-completions-${userProfile.uid}`
+    const completions = JSON.parse(localStorage.getItem(storageKey) || '{}')
+    const campaignKey = params.id as string
+
+    const tasks: CampaignTask[] = [
+      {
+        id: `${campaignKey}-marketing`,
+        title: 'Create Marketing Materials',
+        description: 'Set up your campaign description, images, and story to attract donors. Visit the Marketing tab to add your campaign details.',
+        isComplete: completions[`${campaignKey}-marketing`] || false
+      },
+      {
+        id: `${campaignKey}-team`,
+        title: 'Invite Internal Team Members',
+        description: 'Add team members from your organization to help manage this campaign. Visit the Team tab to invite collaborators.',
+        isComplete: completions[`${campaignKey}-team`] || false
+      },
+      {
+        id: `${campaignKey}-donors`,
+        title: 'Invite Donors',
+        description: 'Start inviting potential donors to your campaign. They will receive an invitation to participate and contribute.',
+        isComplete: completions[`${campaignKey}-donors`] || false
+      }
+    ]
+
+    setCampaignTasks(tasks)
+  }, [params.id, userProfile?.uid])
+
+  const handleToggleCampaignTask = (taskId: string) => {
+    if (!userProfile?.uid) return
+
+    // Find current task
+    const task = campaignTasks.find(t => t.id === taskId)
+    const newStatus = !task?.isComplete
+
+    // Update state
+    setCampaignTasks(prev => prev.map(t =>
+      t.id === taskId ? { ...t, isComplete: newStatus } : t
+    ))
+
+    // Update localStorage
+    const storageKey = `campaign-task-completions-${userProfile.uid}`
+    const completions = JSON.parse(localStorage.getItem(storageKey) || '{}')
+    completions[taskId] = newStatus
+    localStorage.setItem(storageKey, JSON.stringify(completions))
+  }
 
   const fetchCampaignDetails = useCallback(async () => {
     if (!params.id) return
@@ -608,77 +669,100 @@ export default function CampaignDetailPage() {
                   </p>
 
                   <div className="space-y-4">
-                    {/* Task 1: Create Marketing Materials */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-semibold text-blue-600">1</span>
+                    {campaignTasks.map((task, index) => (
+                      <div
+                        key={task.id}
+                        className={`border rounded-lg p-6 transition-all duration-200 ${
+                          task.isComplete ? 'border-green-200 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-3 flex-1">
+                            {/* Number Badge */}
+                            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                              task.isComplete ? 'bg-green-600' : 'bg-blue-100'
+                            }`}>
+                              {task.isComplete ? (
+                                <CheckCircle2 className="w-5 h-5 text-white" />
+                              ) : (
+                                <span className="text-sm font-semibold text-blue-600">{index + 1}</span>
+                              )}
                             </div>
-                            <h4 className="text-lg font-semibold text-gray-900">Create Marketing Materials</h4>
-                          </div>
-                          <p className="text-gray-600 ml-11 mb-4">
-                            Set up your campaign description, images, and story to attract donors. Visit the Marketing tab to add your campaign details.
-                          </p>
-                          <button
-                            onClick={() => setActiveTab('marketing')}
-                            className="ml-11 inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
-                          >
-                            <Share2 className="w-4 h-4" />
-                            <span>Go to Marketing</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Task 2: Invite Internal Team Members */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-semibold text-blue-600">2</span>
-                            </div>
-                            <h4 className="text-lg font-semibold text-gray-900">Invite Internal Team Members</h4>
-                          </div>
-                          <p className="text-gray-600 ml-11 mb-4">
-                            Add team members from your organization to help manage this campaign. Visit the Team tab to invite collaborators.
-                          </p>
-                          <button
-                            onClick={() => setActiveTab('team')}
-                            className="ml-11 inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
-                          >
-                            <Heart className="w-4 h-4" />
-                            <span>Go to Team</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                            {/* Task Content */}
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`text-lg font-semibold mb-2 ${
+                                task.isComplete ? 'text-green-900 line-through' : 'text-gray-900'
+                              }`}>
+                                {task.title}
+                              </h4>
+                              <p className="text-gray-600 mb-4">
+                                {task.description}
+                              </p>
 
-                    {/* Task 3: Invite Donors */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-semibold text-blue-600">3</span>
+                              {/* Action Buttons */}
+                              <div className="flex items-center space-x-3">
+                                {!task.isComplete && (
+                                  <>
+                                    {index === 0 && (
+                                      <button
+                                        onClick={() => setActiveTab('marketing')}
+                                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                                      >
+                                        <Share2 className="w-4 h-4" />
+                                        <span>Go to Marketing</span>
+                                      </button>
+                                    )}
+                                    {index === 1 && (
+                                      <button
+                                        onClick={() => setActiveTab('team')}
+                                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                                      >
+                                        <Heart className="w-4 h-4" />
+                                        <span>Go to Team</span>
+                                      </button>
+                                    )}
+                                    {index === 2 && (
+                                      <button
+                                        onClick={() => setShowInviteModal(true)}
+                                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                                      >
+                                        <UserPlus className="w-4 h-4" />
+                                        <span>Invite Donors</span>
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            <h4 className="text-lg font-semibold text-gray-900">Invite Donors</h4>
                           </div>
-                          <p className="text-gray-600 ml-11 mb-4">
-                            Start inviting potential donors to your campaign. They&apos;ll receive an invitation to participate and contribute.
-                          </p>
-                          <button
-                            onClick={() => setShowInviteModal(true)}
-                            className="ml-11 inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
-                          >
-                            <UserPlus className="w-4 h-4" />
-                            <span>Invite Donors</span>
-                          </button>
+
+                          {/* Toggle Complete Button */}
+                          <div className="flex-shrink-0 ml-4">
+                            <button
+                              onClick={() => handleToggleCampaignTask(task.id)}
+                              className={`inline-flex items-center space-x-2 px-3 py-2 font-medium rounded-lg transition-colors duration-200 ${
+                                task.isComplete
+                                  ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
+                                  : 'bg-green-100 hover:bg-green-200 text-green-700'
+                              }`}
+                            >
+                              {task.isComplete ? (
+                                <>
+                                  <RotateCcw className="w-4 h-4" />
+                                  <span className="text-sm">Mark Incomplete</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span className="text-sm">Mark Complete</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               )}

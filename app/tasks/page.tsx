@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useRouter } from 'next/navigation'
 import { updateProfile } from 'firebase/auth'
-import { doc, updateDoc } from 'firebase/firestore'
+import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import CompleteProfileModal from '@/components/tasks/CompleteProfileModal'
 import CompleteOrganizationModal from '@/components/tasks/CompleteOrganizationModal'
@@ -24,7 +24,10 @@ import {
   PlusCircle,
   ArrowRight,
   FileText,
-  RotateCcw
+  RotateCcw,
+  Clock,
+  Eye,
+  MessageSquare
 } from 'lucide-react'
 
 interface NonprofitTask {
@@ -36,12 +39,38 @@ interface NonprofitTask {
   icon: React.ComponentType<{ className?: string }>
 }
 
+interface CampaignTaskSummary {
+  campaignId: string
+  campaignTitle: string
+  tasks: Array<{
+    id: string
+    title: string
+    description: string
+    isComplete: boolean
+  }>
+}
+
+interface BlockedDonationTask {
+  donationId: string
+  campaignTitle: string
+  donorName: string
+  donorEmail: string
+  blockedTaskCount: number
+  nextTask: string
+  status: string
+}
+
 export default function NonprofitDashboardPage() {
   const { user, userProfile, customClaims, refreshUserData } = useAuth()
   const router = useRouter()
   const [tasks, setTasks] = useState<NonprofitTask[]>([])
   const [loading, setLoading] = useState(true)
-  
+  const [activeTab, setActiveTab] = useState<'onboarding' | 'campaigns' | 'donations'>('onboarding')
+  const [hasSetInitialTab, setHasSetInitialTab] = useState(false)
+  const [campaignTasks, setCampaignTasks] = useState<CampaignTaskSummary[]>([])
+  const [loadingCampaignTasks, setLoadingCampaignTasks] = useState(false)
+  const [blockedDonationTasks, setBlockedDonationTasks] = useState<BlockedDonationTask[]>([])
+
   // Modal states
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [organizationModalOpen, setOrganizationModalOpen] = useState(false)
@@ -157,11 +186,175 @@ export default function NonprofitDashboardPage() {
     setLoading(false)
   }, [user, userProfile, customClaims])
 
+  // Fetch blocked donation tasks (tasks waiting on donors)
+  const fetchBlockedDonationTasks = useCallback(async () => {
+    if (!customClaims?.organizationId || !userProfile?.uid) return
+
+    try {
+      // Query campaign_participants for this organization's campaigns
+      const campaignsQuery = query(
+        collection(db, 'campaigns'),
+        where('organizationId', '==', customClaims.organizationId)
+      )
+      const campaignsSnapshot = await getDocs(campaignsQuery)
+      const campaignIds = campaignsSnapshot.docs.map(doc => doc.id)
+
+      if (campaignIds.length === 0) {
+        setBlockedDonationTasks([])
+        return
+      }
+
+      const blockedTasks: BlockedDonationTask[] = []
+
+      // For each campaign, get participants
+      for (const campaignDoc of campaignsSnapshot.docs) {
+        const campaignData = campaignDoc.data()
+        const campaignId = campaignDoc.id
+
+        const participantsQuery = query(
+          collection(db, 'campaign_participants'),
+          where('campaignId', '==', campaignId)
+        )
+        const participantsSnapshot = await getDocs(participantsQuery)
+
+        for (const participantDoc of participantsSnapshot.docs) {
+          const participant = participantDoc.data()
+
+          // Query tasks for this participant to check if there are incomplete tasks
+          try {
+            const tasksQuery = query(
+              collection(db, 'tasks'),
+              where('participantId', '==', participantDoc.id)
+            )
+
+            const tasksSnapshot = await getDocs(tasksQuery)
+            const tasks = tasksSnapshot.docs.map(doc => doc.data())
+
+            // Get all incomplete tasks assigned to the donor
+            const incompleteDonorTasks = tasks.filter(t =>
+              t.status !== 'completed' && t.assignedRole === 'donor'
+            )
+
+            // Get all incomplete tasks assigned to the nonprofit
+            const incompleteNonprofitTasks = tasks.filter(t =>
+              t.status !== 'completed' && t.assignedRole === 'nonprofit'
+            )
+
+            // Only include if there are incomplete donor tasks AND no incomplete nonprofit tasks
+            // This means the nonprofit is waiting on the donor
+            if (incompleteDonorTasks.length > 0 && incompleteNonprofitTasks.length === 0) {
+              // Find the next task (lowest order number)
+              const nextTask = incompleteDonorTasks.sort((a, b) =>
+                (a.order || 999) - (b.order || 999)
+              )[0]
+
+              blockedTasks.push({
+                donationId: participantDoc.id,
+                campaignTitle: campaignData.title || 'Unknown Campaign',
+                donorName: participant.donorName || participant.userEmail || 'Unknown Donor',
+                donorEmail: participant.donorEmail || participant.userEmail || '',
+                blockedTaskCount: incompleteDonorTasks.length,
+                nextTask: nextTask.title || 'Complete workflow',
+                status: participant.status || 'active'
+              })
+            }
+          } catch (taskError) {
+            secureLogger.error('Error fetching tasks for participant', taskError, {
+              participantId: participantDoc.id
+            })
+          }
+        }
+      }
+
+      setBlockedDonationTasks(blockedTasks)
+    } catch (error) {
+      secureLogger.error('Error fetching blocked donation tasks', error, {
+        organizationId: customClaims?.organizationId
+      })
+    }
+  }, [customClaims?.organizationId, userProfile?.uid])
+
+  // Fetch campaign and donation tasks
+  const fetchCampaignTasks = useCallback(async () => {
+    if (!customClaims?.organizationId || !userProfile?.uid) return
+
+    setLoadingCampaignTasks(true)
+    try {
+      // Fetch campaigns for the organization using Firestore directly
+      const campaignsQuery = query(
+        collection(db, 'campaigns'),
+        where('organizationId', '==', customClaims.organizationId)
+      )
+
+      const campaignsSnapshot = await getDocs(campaignsQuery)
+      const campaigns = campaignsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        title: doc.data().title
+      }))
+
+      // Get completion status from localStorage
+      const storageKey = `campaign-task-completions-${userProfile.uid}`
+      const completions = JSON.parse(localStorage.getItem(storageKey) || '{}')
+
+      // For each campaign, create the 3 setup tasks
+      const campaignSummaries: CampaignTaskSummary[] = campaigns.map((campaign) => {
+        const campaignKey = campaign.id
+
+        return {
+          campaignId: campaign.id,
+          campaignTitle: campaign.title,
+          tasks: [
+            {
+              id: `${campaignKey}-marketing`,
+              title: 'Create Marketing Materials',
+              description: 'Set up your campaign description, images, and story to attract donors.',
+              isComplete: completions[`${campaignKey}-marketing`] || false
+            },
+            {
+              id: `${campaignKey}-team`,
+              title: 'Invite Internal Team Members',
+              description: 'Add team members from your organization to help manage this campaign.',
+              isComplete: completions[`${campaignKey}-team`] || false
+            },
+            {
+              id: `${campaignKey}-donors`,
+              title: 'Invite Donors',
+              description: 'Start inviting potential donors to your campaign.',
+              isComplete: completions[`${campaignKey}-donors`] || false
+            }
+          ]
+        }
+      })
+
+      setCampaignTasks(campaignSummaries)
+    } catch (error) {
+      secureLogger.error('Error fetching campaign tasks', error, {
+        organizationId: customClaims?.organizationId
+      })
+    } finally {
+      setLoadingCampaignTasks(false)
+    }
+  }, [customClaims?.organizationId, userProfile?.uid])
+
   useEffect(() => {
     if (user && userProfile && customClaims?.organizationId) {
       checkTaskCompletion()
+      // Always fetch campaign tasks on load so we can show the badge count
+      fetchCampaignTasks()
+      fetchBlockedDonationTasks()
     }
-  }, [user, userProfile, customClaims, checkTaskCompletion])
+  }, [user, userProfile, customClaims, checkTaskCompletion, fetchCampaignTasks, fetchBlockedDonationTasks])
+
+  // Set initial tab based on onboarding completion
+  useEffect(() => {
+    if (!hasSetInitialTab && tasks.length > 0) {
+      const allComplete = tasks.every(task => task.isComplete)
+      if (allComplete) {
+        setActiveTab('campaigns')
+      }
+      setHasSetInitialTab(true)
+    }
+  }, [tasks, hasSetInitialTab])
 
   const handleToggleComplete = async (taskId: string) => {
     // Find current completion status
@@ -179,6 +372,7 @@ export default function NonprofitDashboardPage() {
     completions[taskId] = newStatus
     localStorage.setItem(storageKey, JSON.stringify(completions))
   }
+
 
   const handleMarkComplete = async (taskId: string) => {
     // Update local state immediately for better UX
@@ -308,17 +502,71 @@ export default function NonprofitDashboardPage() {
               <div className="flex items-center space-x-3">
                 <FileText className="h-8 w-8 text-blue-600" />
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900">Getting Started</h1>
+                  <h1 className="text-3xl font-bold text-gray-900">Tasks</h1>
                   <p className="mt-1 text-sm text-gray-600">
-                    Complete these tasks to set up your nonprofit account
+                    Manage your onboarding, campaign, and donation tasks
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="border-b border-gray-200">
+              <nav className="flex space-x-8 px-0">
+                <button
+                  onClick={() => setActiveTab('onboarding')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                    activeTab === 'onboarding'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Onboarding Tasks
+                </button>
+                <button
+                  onClick={() => setActiveTab('campaigns')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                    activeTab === 'campaigns'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Campaign Tasks
+                  {campaignTasks.length > 0 && (() => {
+                    const totalIncompleteTasks = campaignTasks.reduce((sum, c) => {
+                      return sum + c.tasks.filter(t => !t.isComplete).length
+                    }, 0)
+                    return totalIncompleteTasks > 0 ? (
+                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {totalIncompleteTasks}
+                      </span>
+                    ) : null
+                  })()}
+                </button>
+                <button
+                  onClick={() => setActiveTab('donations')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                    activeTab === 'donations'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Donation Tasks
+                  {blockedDonationTasks.length > 0 && (
+                    <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                      {blockedDonationTasks.length}
+                    </span>
+                  )}
+                </button>
+              </nav>
             </div>
           </div>
         </div>
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Onboarding Tasks Tab */}
+          {activeTab === 'onboarding' && (
+            <>
           {/* Progress Overview */}
           <div className="bg-white rounded-lg shadow p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -459,6 +707,174 @@ export default function NonprofitDashboardPage() {
               )
             })}
           </div>
+          </>
+          )}
+
+          {/* Campaign Tasks Tab */}
+          {activeTab === 'campaigns' && (
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Campaign Tasks</h2>
+              <p className="text-gray-600 mb-6">
+                View and manage tasks for setting up your campaigns.
+              </p>
+
+              {loadingCampaignTasks ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Loading campaign tasks...</p>
+                </div>
+              ) : campaignTasks.length === 0 ? (
+                <div className="bg-white rounded-lg shadow p-12 text-center">
+                  <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-4 text-lg font-medium text-gray-900">No campaign tasks yet</h3>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Campaign tasks will appear here once you have donors participating in your campaigns.
+                  </p>
+                  <button
+                    onClick={() => router.push('/campaigns')}
+                    className="mt-6 inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                  >
+                    <span>View Campaigns</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {campaignTasks.map((campaign) => {
+                    const incompleteTasks = campaign.tasks.filter(t => !t.isComplete)
+
+                    return (
+                      <div
+                        key={campaign.campaignId}
+                        className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 p-6"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                              {campaign.campaignTitle}
+                            </h3>
+                            <p className="text-gray-600 mb-4">
+                              You have <strong>{incompleteTasks.length} task{incompleteTasks.length !== 1 ? 's' : ''}</strong> to complete in this campaign.
+                            </p>
+
+                            {/* Show incomplete task titles */}
+                            {incompleteTasks.length > 0 && (
+                              <div className="mb-4 space-y-2">
+                                {incompleteTasks.map((task) => (
+                                  <div key={task.id} className="flex items-center space-x-2 text-sm text-gray-600">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                    <span>{task.title}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <button
+                              onClick={() => router.push(`/campaigns/${campaign.campaignId}`)}
+                              className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                            >
+                              <span>Go to Campaign Tasks</span>
+                              <ArrowRight className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="ml-4">
+                            <div className="bg-blue-100 rounded-full p-3">
+                              <FileText className="w-6 h-6 text-blue-600" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Donation Tasks Tab */}
+          {activeTab === 'donations' && (
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Donation Tasks</h2>
+              <p className="text-gray-600 mb-6">
+                Monitor donation workflows and track tasks that donors need to complete.
+              </p>
+
+              {blockedDonationTasks.length > 0 ? (
+                <>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    ⏳ Waiting on Donors ({blockedDonationTasks.length})
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    These donations have tasks that are currently waiting on the donor to complete their part.
+                  </p>
+
+                  <div className="space-y-3 mb-6">
+                    {blockedDonationTasks.map((blocked) => (
+                      <div
+                        key={blocked.donationId}
+                        className="bg-amber-50 border border-amber-200 rounded-lg p-4 hover:shadow-md transition-all duration-200"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Clock className="w-5 h-5 text-amber-600" />
+                              <h4 className="font-semibold text-gray-900">
+                                {blocked.campaignTitle}
+                              </h4>
+                            </div>
+
+                            <div className="ml-7 space-y-1">
+                              <p className="text-sm text-gray-700">
+                                <strong>Waiting on:</strong> {blocked.donorName}
+                                {blocked.donorEmail && (
+                                  <span className="text-gray-500"> ({blocked.donorEmail})</span>
+                                )}
+                              </p>
+                              <p className="text-sm text-gray-700">
+                                <strong>Next task:</strong> {blocked.nextTask}
+                              </p>
+                              <p className="text-sm text-amber-700">
+                                {blocked.blockedTaskCount} task{blocked.blockedTaskCount !== 1 ? 's' : ''} remaining for donor
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => router.push(`/donations/${blocked.donationId}/tasks`)}
+                            className="flex-shrink-0 inline-flex items-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors duration-200"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>View Tasks</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <MessageSquare className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">Why are these blocked?</p>
+                        <p className="text-sm text-blue-700 mt-1">
+                          These donations require the donor to complete certain steps (like providing equity information or signing documents) before you can proceed with your nonprofit tasks. You&apos;ll be notified when they complete their part.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="bg-white rounded-lg shadow p-12 text-center">
+                  <CheckCircle2 className="mx-auto h-12 w-12 text-green-400" />
+                  <h3 className="mt-4 text-lg font-medium text-gray-900">All caught up!</h3>
+                  <p className="mt-2 text-sm text-gray-500">
+                    You have no donations waiting on donor actions. All your donors are up to date with their tasks.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           </div>
 
