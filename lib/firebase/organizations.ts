@@ -4,7 +4,7 @@ import { db } from './config'
 export interface Organization {
   id: string
   name: string
-  type: 'nonprofit' | 'appraiser'
+  type: 'nonprofit' | 'appraiser' | 'appraiser_firm' | 'donor'
   description: string
   website?: string
   phone?: string

@@ -5,7 +5,7 @@ import { Copy, Check, RefreshCw, Key } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface InviteCodesSectionProps {
-  organizationType: 'nonprofit' | 'appraiser_firm' | 'donor'
+  organizationType: 'nonprofit' | 'appraiser' | 'appraiser_firm' | 'donor'
   inviteCodes: {
     admin?: string
     member?: string
@@ -183,7 +183,7 @@ export default function InviteCodesSection({
           </>
         )}
 
-        {organizationType === 'appraiser_firm' && renderCodeCard(
+        {(organizationType === 'appraiser_firm' || organizationType === 'appraiser') && renderCodeCard(
           'appraiser',
           'Appraiser Code',
           'Access to assigned appraisal tasks'

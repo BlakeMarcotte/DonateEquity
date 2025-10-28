@@ -80,10 +80,11 @@ const handleRegenerateCode = async (
     if (!isAdmin || !hasAdminRole) {
       secureLogger.security('Unauthorized code regeneration attempt by non-admin', {
         userId,
+        endpoint: '/api/organizations/regenerate-code'
+      }, {
         organizationId,
         userRole: customClaims.role,
-        userSubrole: customClaims.subrole,
-        endpoint: '/api/organizations/regenerate-code'
+        userSubrole: customClaims.subrole
       })
 
       return NextResponse.json(

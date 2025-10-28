@@ -184,8 +184,6 @@ export default function RegisterForm({
           displayName: formData.displayName,
           role: formData.role,
           subrole: formData.role === 'nonprofit_admin' ? formData.subrole : undefined,
-          inviteCode: formData.joinExistingOrg ? formData.inviteCode || undefined : undefined,
-          organizationName: formData.joinExistingOrg ? undefined : formData.organizationName,
           teamInviteToken: teamInviteToken || undefined,
           appraiserInvitationToken: appraiserInvitationToken || undefined,
         }),

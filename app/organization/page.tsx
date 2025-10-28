@@ -21,9 +21,6 @@ import {
   Phone,
   Users,
   Save,
-  FileText,
-  Calendar,
-  DollarSign,
   UserPlus,
   Settings
 } from 'lucide-react'
@@ -621,68 +618,6 @@ function OrganizationPageContent() {
                   isAdmin={customClaims?.subrole === 'admin' || customClaims?.role === 'admin'}
                   onRegenerateCode={handleRegenerateCode}
                 />
-
-                {/* Quick Stats */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h2>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Users className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">Members</span>
-                      </div>
-                      <span className="font-semibold text-gray-900">
-                        {organization.memberIds?.length || 0}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">Created</span>
-                      </div>
-                      <span className="text-sm text-gray-900">
-                        {organization.createdAt.toLocaleDateString()}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <FileText className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">Updated</span>
-                      </div>
-                      <span className="text-sm text-gray-900">
-                        {organization.updatedAt.toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                  
-                  <div className="space-y-3">
-                    <button 
-                      onClick={() => setActiveTab('team')}
-                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 font-medium rounded-lg transition-colors duration-200"
-                    >
-                      <Users className="w-4 h-4" />
-                      <span>Manage Team</span>
-                    </button>
-                    
-                    <button className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-green-50 hover:bg-green-100 text-green-600 font-medium rounded-lg transition-colors duration-200">
-                      <FileText className="w-4 h-4" />
-                      <span>Download Tax Documents</span>
-                    </button>
-                    
-                    <button className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-600 font-medium rounded-lg transition-colors duration-200">
-                      <DollarSign className="w-4 h-4" />
-                      <span>View Financial Reports</span>
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           )}

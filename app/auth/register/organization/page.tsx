@@ -67,7 +67,7 @@ export default function OrganizationSelectionPage() {
         setCodeError(data.error || 'Invalid invite code')
         setValidatedOrganization(null)
       }
-    } catch (error) {
+    } catch {
       setCodeError('Failed to validate invite code')
       setValidatedOrganization(null)
     } finally {
