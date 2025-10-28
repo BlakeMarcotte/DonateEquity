@@ -51,20 +51,20 @@ export async function uploadDonationBufferAdmin(
         }
       }
     })
-    
-    // Make the file publicly accessible
-    await file.makePublic()
-    
-    // Get the public URL
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`
-    
+
+    // Don't make file public - let Firebase Storage security rules handle access
+    // Frontend will use getDownloadURL() which respects security rules
+    // Return the storage path so frontend can construct proper URLs
+    const storageUrl = `gs://${bucket.name}/${filePath}`
+
     secureLogger.info('Admin storage upload completed successfully', {
       filePath,
-      fileName
+      fileName,
+      storageUrl
     })
-    
+
     return {
-      url: publicUrl,
+      url: storageUrl,
       path: filePath,
       name: fileName,
       size: buffer.length,
