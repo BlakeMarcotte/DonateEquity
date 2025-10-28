@@ -156,3 +156,111 @@ const showLoading = loading || waitingForInitialLoad
 The key insight is: **Don't trust loading flags alone - also check if you're waiting for the first successful data load using a persistent ref.**
 
 This pattern has eliminated flicker issues across the my-campaign page and can be applied anywhere you have async data loading.
+
+---
+
+## Alternative Approaches for Future Consideration
+
+### Why Not Use localStorage + Firestore Dual Storage?
+
+While dual storage (localStorage + Firestore) is sometimes suggested for reducing flicker, it's **not recommended** for task completion states because:
+
+**❌ Problems with dual storage for task completions:**
+- **Stale data conflicts** - localStorage can show "complete" while Firestore shows "not started"
+- **Multi-device sync issues** - Changes on laptop won't reflect on mobile
+- **Team visibility** - Other admins can't see completion status from localStorage
+- **Security concerns** - Sensitive state data shouldn't be in localStorage
+- **No audit trail** - Can't track who/when tasks were completed
+- **Cache invalidation complexity** - Hard to know when localStorage is stale
+
+**✅ Better alternatives to explore:**
+
+### 1. **Firebase Realtime Listeners** (Recommended for Firestore)
+Instead of manual API calls + state management, use Firebase's built-in realtime updates:
+
+```typescript
+// Real-time sync - no API calls, no manual refresh, no flicker
+useEffect(() => {
+  if (!user?.uid) return
+
+  const unsubscribe = onSnapshot(
+    doc(db, 'task_completions', user.uid),
+    (doc) => {
+      if (doc.exists()) {
+        setTaskCompletions(doc.data())
+      }
+    }
+  )
+
+  return () => unsubscribe()
+}, [user?.uid])
+```
+
+**Benefits:**
+- Eliminates most flickering (updates are instant)
+- Automatic multi-device sync
+- Firebase SDK handles caching
+- Real-time updates across team members
+- No additional dependencies
+
+### 2. **React Query / TanStack Query**
+Industry-standard data fetching with built-in caching and optimistic updates:
+
+```typescript
+const { data: taskCompletions } = useQuery({
+  queryKey: ['taskCompletions', user?.uid],
+  queryFn: fetchTaskCompletions,
+  staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
+  cacheTime: 10 * 60 * 1000, // Keep in memory cache
+})
+```
+
+**Benefits:**
+- Automatic request deduplication
+- Memory caching (faster than localStorage)
+- Background refetching
+- Optimistic updates built-in
+- No manual state management
+
+### 3. **Optimistic UI Updates**
+Update UI immediately, save to server in background (like Twitter/Discord):
+
+```typescript
+// Update local state immediately
+setTaskCompletions(prev => ({
+  ...prev,
+  onboarding: { ...prev.onboarding, team: 'complete' }
+}))
+
+// Close modal instantly
+handleClose()
+
+// Persist to Firestore in background
+fetch('/api/tasks/completion', { ... })
+  .catch(error => {
+    // Rollback on failure
+    setTaskCompletions(prev => ({ ...prev, onboarding: { ...prev.onboarding, team: 'not_started' }}))
+  })
+```
+
+**Benefits:**
+- Instant perceived performance
+- Works with existing architecture
+- Simple to implement
+- Graceful error handling
+
+### When Dual Storage IS Appropriate
+
+localStorage + Firestore makes sense for:
+- ✅ **Draft content** (campaign forms, post drafts) - Local autosave + cloud backup
+- ✅ **User preferences** (theme, language) - Fast load + cross-device sync
+- ✅ **Offline-first features** - Work offline, sync when online
+- ✅ **Form progress** - Don't lose data on refresh
+
+But NOT for:
+- ❌ Task completion states (multi-user visibility needed)
+- ❌ Authentication state (security risk)
+- ❌ Financial data (too sensitive)
+- ❌ Team/shared data (localStorage is user-specific)
+
+**Industry Standard:** Most modern apps use realtime listeners OR optimistic updates + memory caching (React Query), NOT localStorage for application state.

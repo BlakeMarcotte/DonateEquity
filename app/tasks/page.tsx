@@ -130,7 +130,10 @@ export default function NonprofitDashboardPage() {
 
       const result = await response.json()
       if (result.success) {
-        setTaskCompletions(result.completions)
+        setTaskCompletions({
+          onboarding: result.completions?.onboarding || {},
+          campaigns: result.completions?.campaigns || {}
+        })
       }
     } catch (error) {
       secureLogger.error('Error fetching task completions', error instanceof Error ? error : new Error(String(error)))
@@ -366,7 +369,7 @@ export default function NonprofitDashboardPage() {
       // For each campaign, create the 3 setup tasks
       const campaignSummaries: CampaignTaskSummary[] = campaigns.map((campaign) => {
         const campaignKey = campaign.id
-        const campaignCompletions = taskCompletions.campaigns[campaignKey] || {}
+        const campaignCompletions = (taskCompletions.campaigns && taskCompletions.campaigns[campaignKey]) || {}
 
         return {
           campaignId: campaign.id,

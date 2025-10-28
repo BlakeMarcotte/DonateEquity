@@ -8,7 +8,6 @@ import { useFormSubmission } from '@/hooks/useAsyncOperation'
 import { secureLogger } from '@/lib/logging/secure-logger'
 import { formatCurrencyInput, cleanCurrencyInput } from '@/lib/utils/formatters'
 import { useAuth } from '@/contexts/AuthContext'
-import confetti from 'canvas-confetti'
 
 interface CreateCampaignModalProps {
   isOpen: boolean
@@ -33,12 +32,11 @@ export default function CreateCampaignModal({
     status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   })
   
-  const { 
-    loading: saving, 
-    error, 
-    success,
-    execute, 
-    reset 
+  const {
+    loading: saving,
+    error,
+    execute,
+    reset
   } = useFormSubmission('Campaign Creation')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,41 +114,9 @@ export default function CreateCampaignModal({
     })
 
     if (result) {
-      // Trigger confetti celebration!
-      const duration = 1500
-      const animationEnd = Date.now() + duration
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }
-
-      function randomInRange(min: number, max: number) {
-        return Math.random() * (max - min) + min
-      }
-
-      const interval: ReturnType<typeof setInterval> = setInterval(function() {
-        const timeLeft = animationEnd - Date.now()
-
-        if (timeLeft <= 0) {
-          return clearInterval(interval)
-        }
-
-        const particleCount = 50 * (timeLeft / duration)
-        // Since particles fall down, start a bit higher than random
-        confetti({
-          ...defaults,
-          particleCount,
-          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
-        })
-        confetti({
-          ...defaults,
-          particleCount,
-          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
-        })
-      }, 250)
-
-      // Wait a moment to show success state and confetti, then navigate
-      setTimeout(() => {
-        handleClose()
-        onSuccess(result.campaignId)
-      }, duration)
+      // Navigate immediately without delay or celebration
+      handleClose()
+      onSuccess(result.campaignId)
     }
   }
 
@@ -171,11 +137,6 @@ export default function CreateCampaignModal({
     setFormData(prev => ({ ...prev, goal: formatted }))
   }
 
-  const handleSuccessClose = () => {
-    // Don't call onSuccess again as it was already called
-    handleClose()
-  }
-
   const isFormValid =
     formData.title.trim().length > 0 &&
     formData.description.trim().length > 0 &&
@@ -190,10 +151,6 @@ export default function CreateCampaignModal({
       onSubmit={handleSubmit}
       loading={saving}
       loadingText="Creating Campaign..."
-      success={success}
-      successTitle="Campaign Created!"
-      successMessage="Your campaign has been successfully created."
-      onSuccessClose={handleSuccessClose}
       error={error}
       submitDisabled={!isFormValid}
       submitText="Create Campaign"
