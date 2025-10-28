@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useDonorCampaign } from '@/hooks/useDonorCampaign'
 import { DonationTaskList } from '@/components/tasks/DonationTaskList'
 import { TaskTimeline } from '@/components/tasks/TaskTimeline'
@@ -31,6 +31,12 @@ function MyCampaignPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
+
+  // Track if we've ever successfully loaded campaign data
+  const hasEverHadCampaign = useRef(false)
+  if (campaign) {
+    hasEverHadCampaign.current = true
+  }
 
   // Handle redirect for campaign ID from URL
   useEffect(() => {
@@ -65,23 +71,33 @@ function MyCampaignPage() {
     }
   }
 
-  // Combined loading state - wait for everything to be ready
+  // Simpler approach: if ANY loading is happening, show loading spinner
+  // Don't try to be smart about it - just wait for ALL async operations to complete
   const isAuthFullyLoaded = !loading && (user ? customClaims !== null : true)
-  // Also wait if we have a participantId but no campaign yet (state update race condition)
-  const hasParticipantButNoCampaign = participantId && !campaign
-  // CRITICAL: If campaign loaded but tasks are empty, we're in the waterfall gap - keep loading
-  // This handles the render that happens BEFORE useParticipantTasks updates tasksLoading to true
-  const inTaskLoadingGap = campaign && participantId && tasks.length === 0
-  const isDataFullyLoaded = isAuthFullyLoaded && !campaignLoading && !tasksLoading && !hasParticipantButNoCampaign && !inTaskLoadingGap
+
+  // If auth is loaded and we have a user, check if data is still loading
+  const isLoadingData = campaignLoading || tasksLoading
+
+  // CRITICAL FIX: If we have a user but haven't loaded campaign data yet, keep showing loading
+  // This prevents the flash when campaignLoading=false but campaign state hasn't updated yet
+  const waitingForInitialCampaignLoad = isAuthFullyLoaded && user && !hasEverHadCampaign.current && !campaign
+
+  const showLoadingScreen = !isAuthFullyLoaded || isLoadingData || waitingForInitialCampaignLoad
 
   useEffect(() => {
-    console.log('MyCampaign auth check:', {
+    console.log('MyCampaign loading states:', {
       loading,
       user: !!user,
       userRole: customClaims?.role,
       userId: user?.uid,
       isAuthFullyLoaded,
-      isDataFullyLoaded
+      campaignLoading,
+      tasksLoading,
+      hasCampaign: !!campaign,
+      taskCount: tasks.length,
+      hasEverHadCampaign: hasEverHadCampaign.current,
+      waitingForInitialCampaignLoad,
+      showLoadingScreen
     })
 
     // Don't do anything until auth is fully loaded
@@ -97,10 +113,10 @@ function MyCampaignPage() {
     // For everyone else (donors, appraisers, anyone), just show the page
     // The page content will handle showing appropriate UI based on role
     console.log('MyCampaign: User authenticated, showing page regardless of role')
-  }, [user, loading, customClaims, router, isAuthFullyLoaded, isDataFullyLoaded])
+  }, [user, loading, customClaims, router, isAuthFullyLoaded, showLoadingScreen, campaign, tasks.length, campaignLoading, tasksLoading, waitingForInitialCampaignLoad])
 
-  // Show loading until auth AND data are fully loaded
-  if (!isDataFullyLoaded) {
+  // Show loading until everything is ready
+  if (showLoadingScreen) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
