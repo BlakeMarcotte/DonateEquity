@@ -346,12 +346,38 @@ export default function NonprofitDashboardPage() {
             </div>
             
             <p className="text-sm text-gray-600">
-              {completedTasks === totalTasks 
+              {completedTasks === totalTasks
                 ? "🎉 Great job! You've completed all setup tasks. You're ready to start fundraising!"
                 : `${totalTasks - completedTasks} task${totalTasks - completedTasks === 1 ? '' : 's'} remaining to complete your setup.`
               }
             </p>
           </div>
+
+          {/* Setup Complete - Show below progress bar when all tasks done */}
+          {completedTasks === totalTasks && (
+            <div className="mb-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow p-6 text-white">
+              <h3 className="text-xl font-semibold mb-2">🎉 Setup Complete!</h3>
+              <p className="mb-4">
+                Congratulations! You&apos;ve completed all the setup tasks. You&apos;re now ready to manage your campaigns and start fundraising.
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => router.push('/campaigns')}
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                >
+                  <span>View All Campaigns</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => router.push('/campaigns/create')}
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-blue-800 hover:bg-blue-900 text-white font-semibold rounded-lg transition-colors duration-200"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Create New Campaign</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Task List */}
           <div className="space-y-4">
@@ -437,31 +463,6 @@ export default function NonprofitDashboardPage() {
             })}
           </div>
 
-          {/* Next Steps */}
-          {completedTasks === totalTasks && (
-            <div className="mt-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow p-6 text-white">
-              <h3 className="text-xl font-semibold mb-2">🎉 Setup Complete!</h3>
-              <p className="mb-4">
-                Congratulations! You&apos;ve completed all the setup tasks. You&apos;re now ready to manage your campaigns and start fundraising.
-              </p>
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => router.push('/campaigns')}
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                >
-                  <span>View All Campaigns</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => router.push('/campaigns/create')}
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-blue-800 hover:bg-blue-900 text-white font-semibold rounded-lg transition-colors duration-200"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Create New Campaign</span>
-                </button>
-              </div>
-            </div>
-          )}
           </div>
 
           {/* Modals */}

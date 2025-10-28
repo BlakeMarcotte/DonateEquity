@@ -136,20 +136,15 @@ export default function CompleteOrganizationModal({
     setFormData(prev => ({ ...prev, taxId: formatted }))
   }
 
-  const isFormValid = 
-    formData.name.trim().length > 0 &&
-    formData.taxId.trim().length > 0 &&
-    formData.website.trim().length > 0 &&
-    formData.phone.trim().length > 0 &&
-    formData.city.trim().length > 0 &&
-    formData.state.trim().length > 0
+  // Allow saving with any fields filled - no validation required
+  const isFormValid = true
 
   return (
     <FormModal
       isOpen={isOpen}
       onClose={handleClose}
       title="Complete Organization Information"
-      description="Please provide your organization's details to complete your profile."
+      description="Add your organization's details. You can save your progress at any time and complete this later."
       onSubmit={handleSubmit}
       loading={loading}
       loadingText="Updating Organization..."
@@ -159,7 +154,7 @@ export default function CompleteOrganizationModal({
       onSuccessClose={handleSuccessClose}
       error={error}
       submitDisabled={!isFormValid}
-      submitText="Update Organization"
+      submitText="Save Progress"
       maxWidth="lg"
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -176,7 +171,6 @@ export default function CompleteOrganizationModal({
             placeholder="Enter organization name"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
-            required
           />
         </div>
 
@@ -194,7 +188,6 @@ export default function CompleteOrganizationModal({
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
             maxLength={10}
-            required
           />
         </div>
 
@@ -212,7 +205,6 @@ export default function CompleteOrganizationModal({
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
             maxLength={14}
-            required
           />
         </div>
 
@@ -229,7 +221,6 @@ export default function CompleteOrganizationModal({
             placeholder="www.example.org"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
-            required
           />
         </div>
 
@@ -246,7 +237,6 @@ export default function CompleteOrganizationModal({
             placeholder="Enter city"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
-            required
           />
         </div>
 
@@ -263,7 +253,6 @@ export default function CompleteOrganizationModal({
             placeholder="Enter state"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
-            required
           />
         </div>
       </div>

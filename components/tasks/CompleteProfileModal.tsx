@@ -125,7 +125,7 @@ export default function CompleteProfileModal({
       <div>
         <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-2">
           <User className="inline w-4 h-4 mr-1" />
-          Full Name
+          Full Name <span className="text-red-600 font-bold">*</span>
         </label>
         <input
           type="text"
@@ -133,16 +133,23 @@ export default function CompleteProfileModal({
           value={formData.displayName}
           onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
           placeholder="Enter your full name"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+            formData.displayName.trim().length === 0
+              ? 'border-red-300 bg-red-50'
+              : 'border-gray-300'
+          }`}
           disabled={loading}
           required
         />
+        {formData.displayName.trim().length === 0 && (
+          <p className="mt-1 text-sm text-red-600">This field is required</p>
+        )}
       </div>
 
       <div>
         <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
           <Phone className="inline w-4 h-4 mr-1" />
-          Phone Number
+          Phone Number <span className="text-red-600 font-bold">*</span>
         </label>
         <input
           type="tel"
@@ -150,11 +157,18 @@ export default function CompleteProfileModal({
           value={formData.phoneNumber}
           onChange={handlePhoneChange}
           placeholder="(555) 123-4567"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+            formData.phoneNumber.trim().length === 0
+              ? 'border-red-300 bg-red-50'
+              : 'border-gray-300'
+          }`}
           disabled={loading}
           maxLength={14}
           required
         />
+        {formData.phoneNumber.trim().length === 0 && (
+          <p className="mt-1 text-sm text-red-600">This field is required</p>
+        )}
       </div>
     </FormModal>
   )

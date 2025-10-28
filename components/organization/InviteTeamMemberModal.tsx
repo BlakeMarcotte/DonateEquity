@@ -17,7 +17,7 @@ const SUBROLE_OPTIONS = [
   {
     value: 'admin' as NonprofitSubrole,
     label: 'Admin',
-    description: 'Full organization management, campaign oversight, donation approvals'
+    description: 'Full organization management, campaign oversight, donation approvals, and signatory authority'
   },
   {
     value: 'member' as NonprofitSubrole,
@@ -88,6 +88,7 @@ export default function InviteTeamMemberModal({
       loading={loading}
       loadingText="Sending Invitation..."
       error={error}
+      inlineError={true}
       submitDisabled={!isFormValid}
       submitText="Send Invitation"
       maxWidth="sm"

@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase/config'
 import { FormModal } from '@/components/shared/FormModal'
 import { useFormSubmission } from '@/hooks/useAsyncOperation'
 import { secureLogger } from '@/lib/logging/secure-logger'
+import { formatCurrencyInput, cleanCurrencyInput } from '@/lib/utils/formatters'
 
 interface CreateCampaignModalProps {
   isOpen: boolean
@@ -26,7 +27,6 @@ export default function CreateCampaignModal({
     title: '',
     description: '',
     goal: '',
-    endDate: '',
     category: '',
     status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   })
@@ -63,10 +63,14 @@ export default function CreateCampaignModal({
         secureLogger.error('Error fetching organization for campaign', orgError, { organizationId })
       }
 
+      // Parse the cleaned currency value (remove $ and commas)
+      const cleanedGoal = cleanCurrencyInput(formData.goal)
+      const goalAmount = parseInt(cleanedGoal)
+
       const campaignData = {
         title: formData.title,
         description: formData.description,
-        goal: parseInt(formData.goal),
+        goal: goalAmount,
         currentAmount: 0,
         donorCount: 0,
         status: formData.status,
@@ -77,7 +81,7 @@ export default function CreateCampaignModal({
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
         startDate: Timestamp.now(),
-        endDate: formData.endDate ? Timestamp.fromDate(new Date(formData.endDate)) : null,
+        endDate: null,
         tags: [],
         images: {
           hero: '',
@@ -109,7 +113,6 @@ export default function CreateCampaignModal({
       title: '',
       description: '',
       goal: '',
-      endDate: '',
       category: '',
       status: 'draft',
     })
@@ -117,15 +120,20 @@ export default function CreateCampaignModal({
     onClose()
   }
 
+  const handleGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyInput(e.target.value)
+    setFormData(prev => ({ ...prev, goal: formatted }))
+  }
+
   const handleSuccessClose = () => {
     // Don't call onSuccess again as it was already called
     handleClose()
   }
 
-  const isFormValid = 
+  const isFormValid =
     formData.title.trim().length > 0 &&
     formData.description.trim().length > 0 &&
-    formData.goal.trim().length > 0 &&
+    cleanCurrencyInput(formData.goal).length > 0 &&
     formData.category.trim().length > 0
 
   return (
@@ -177,35 +185,19 @@ export default function CreateCampaignModal({
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Funding Goal ($)
-            </label>
-            <input
-              type="number"
-              required
-              min="1"
-              value={formData.goal}
-              onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="100000"
-              disabled={saving}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              End Date (Optional)
-            </label>
-            <input
-              type="date"
-              value={formData.endDate}
-              onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={saving}
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Funding Goal
+          </label>
+          <input
+            type="text"
+            required
+            value={formData.goal}
+            onChange={handleGoalChange}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="$100,000"
+            disabled={saving}
+          />
         </div>
 
         <div>
@@ -245,7 +237,6 @@ export default function CreateCampaignModal({
           >
             <option value="draft">Draft - Not visible to donors</option>
             <option value="active">Active - Live and accepting donations</option>
-            <option value="paused">Paused - Temporarily hidden</option>
             <option value="completed">Completed - Campaign has ended</option>
           </select>
           <p className="text-sm text-gray-500 mt-1">

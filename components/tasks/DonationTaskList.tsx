@@ -55,6 +55,7 @@ export function DonationTaskList({
   const [resettingTasks, setResettingTasks] = useState(false)
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
   const [currentCommitmentTask, setCurrentCommitmentTask] = useState<Task | null>(null)
+  const [showResetModal, setShowResetModal] = useState(false)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const { uploadFile } = useParticipantFiles(participantId || null, null)
@@ -131,14 +132,18 @@ export function DonationTaskList({
   }
 
   // Filter tasks based on user role if not showing all tasks
-  const filteredTasks = showAllTasks 
-    ? tasks 
+  const filteredTasks = showAllTasks
+    ? tasks
     : tasks.filter(task => {
         // For appraisers, show tasks assigned to their role (including null assignedTo)
         if ((customClaims?.role as string) === 'appraiser') {
-          return (task.assignedRole as string) === 'appraiser' || 
+          return (task.assignedRole as string) === 'appraiser' ||
                  task.assignedTo === user?.uid ||
                  (task.assignedTo?.startsWith?.('mock-') && (task.assignedRole as string) === 'appraiser')
+        }
+        // For donors, show all tasks so they can see the entire workflow (donor, appraiser, nonprofit)
+        if ((customClaims?.role as string) === 'donor') {
+          return true
         }
         // For other roles, check direct assignment or role match
         return task.assignedTo === user?.uid || task.assignedRole === customClaims?.role
@@ -381,18 +386,18 @@ export function DonationTaskList({
     }
   }
 
-  const handleResetTasks = async () => {
+  const handleResetTasks = () => {
     if (resettingTasks) return
-    
-    if (!confirm('Are you sure you want to reset all tasks? This will delete all current progress and start the workflow from the beginning.')) {
-      return
-    }
+    setShowResetModal(true)
+  }
 
+  const confirmResetTasks = async () => {
+    setShowResetModal(false)
     setResettingTasks(true)
-    
+
     try {
       const token = await user?.getIdToken()
-      
+
       let response
       if (participantId) {
         // Reset participant tasks
@@ -429,7 +434,7 @@ export function DonationTaskList({
       }
 
       await response.json()
-      
+
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to reset tasks')
     } finally {
@@ -882,7 +887,44 @@ export function DonationTaskList({
         donorName={donorName || 'Anonymous Donor'}
         organizationName={organizationName || 'Organization'}
       />
-      
+
+      {/* Reset Tasks Confirmation Modal */}
+      <Modal
+        isOpen={showResetModal}
+        onClose={() => setShowResetModal(false)}
+        title="Reset Task List"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Are you sure you want to reset the task list?
+          </p>
+          <div className="flex gap-3 justify-end pt-4">
+            <Button
+              onClick={() => setShowResetModal(false)}
+              variant="outline"
+              disabled={resettingTasks}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmResetTasks}
+              disabled={resettingTasks}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {resettingTasks ? (
+                <>
+                  <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  Resetting...
+                </>
+              ) : (
+                'Reset'
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   )
 }
