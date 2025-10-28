@@ -360,20 +360,17 @@ export default function NonprofitDashboardPage() {
               <p className="mb-4">
                 Congratulations! You&apos;ve completed all the setup tasks. You&apos;re now ready to manage your campaigns and start fundraising.
               </p>
-              <div className="flex space-x-4">
+              <div className="flex items-center space-x-4">
+                {/* Bouncing Arrow */}
+                <div className="animate-bounce">
+                  <ArrowRight className="w-6 h-6 text-white" />
+                </div>
                 <button
                   onClick={() => router.push('/campaigns')}
                   className="inline-flex items-center space-x-2 px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-50 transition-colors duration-200"
                 >
                   <span>View All Campaigns</span>
                   <ArrowRight className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => router.push('/campaigns/create')}
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-blue-800 hover:bg-blue-900 text-white font-semibold rounded-lg transition-colors duration-200"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Create New Campaign</span>
                 </button>
               </div>
             </div>

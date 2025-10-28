@@ -222,68 +222,29 @@ export default function CampaignsPage() {
             ) : (
               <div className="divide-y divide-gray-200">
                 {campaigns.map((campaign) => (
-                  <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors duration-200 cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div 
-                        className="flex-1"
-                        onClick={() => router.push(`/campaigns/${campaign.id}`)}
-                      >
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors duration-200">
-                            {campaign.title}
-                          </h3>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(campaign.status)}`}>
-                            {campaign.status}
-                          </span>
-                        </div>
-                        
-                        <p className="text-gray-600 mb-4 line-clamp-2">
-                          {campaign.description}
-                        </p>
+                  <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors duration-200">
+                    {/* Header with Title and Button */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {campaign.title}
+                        </h3>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(campaign.status)}`}>
+                          {campaign.status}
+                        </span>
 
-                        {/* Progress Bar */}
-                        <div className="mb-3">
-                          <div className="flex justify-between text-sm text-gray-600 mb-1">
-                            <span>Progress</span>
-                            <span>{Math.round(getProgressPercentage(campaign.currentAmount || 0, campaign.goal))}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${getProgressPercentage(campaign.currentAmount || 0, campaign.goal)}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-6 text-sm text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <DollarSign className="w-4 h-4" />
-                            <span>
-                              {formatCurrency(campaign.currentAmount || 0)} of {formatCurrency(campaign.goal)}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>Created {campaign.createdAt.toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div 
-                        className="flex items-center space-x-2 ml-6"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/campaigns/${campaign.id}`)
-                          }}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                          title="View Campaign Details"
+                        {/* Explore Campaign Button */}
+                        <button
+                          onClick={() => router.push(`/campaigns/${campaign.id}`)}
+                          className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200"
                         >
                           <Eye className="w-4 h-4" />
+                          <span>Explore Your Campaign</span>
                         </button>
-                        <button 
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <button
                           onClick={(e) => {
                             e.stopPropagation()
                             setSelectedCampaign(campaign)
@@ -294,13 +255,64 @@ export default function CampaignsPage() {
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => e.stopPropagation()}
                           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
                         >
                           <MoreVertical className="w-4 h-4" />
                         </button>
                       </div>
+                    </div>
+
+                    {/* Campaign Content */}
+                    <div>
+                      <p className="text-gray-600 mb-4 line-clamp-2">
+                        {campaign.description}
+                      </p>
+
+                      {/* Progress Bar */}
+                      <div className="mb-3">
+                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                          <span>Progress</span>
+                          <span>{Math.round(getProgressPercentage(campaign.currentAmount || 0, campaign.goal))}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${getProgressPercentage(campaign.currentAmount || 0, campaign.goal)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-6 text-sm text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <DollarSign className="w-4 h-4" />
+                          <span>
+                            {formatCurrency(campaign.currentAmount || 0)} of {formatCurrency(campaign.goal)}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>Created {campaign.createdAt.toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                      {/* Tasks Reminder Banner */}
+                      {campaign.status === 'draft' && (
+                        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                          <div className="flex items-start space-x-2">
+                            <div className="flex-shrink-0 mt-0.5">
+                              <svg className="w-5 h-5 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-amber-800">Campaign setup incomplete</p>
+                              <p className="text-sm text-amber-700 mt-0.5">Complete your campaign details to make it visible to donors</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

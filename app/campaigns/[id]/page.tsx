@@ -69,7 +69,7 @@ export default function CampaignDetailPage() {
   const [, setInvitations] = useState<unknown[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<CampaignInvitation[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'team' | 'pending'>('donations')
+  const [activeTab, setActiveTab] = useState<'tasks' | 'donations' | 'marketing' | 'team' | 'pending'>('tasks')
   const [shareUrl, setShareUrl] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
 
@@ -563,8 +563,9 @@ export default function CampaignDetailPage() {
             <div className="border-b border-gray-200">
               <nav className="flex space-x-8 px-6">
                 {[
+                  { id: 'tasks', name: 'Tasks', icon: CheckCircle },
                   { id: 'donations', name: 'Campaign Donors', icon: Users },
-                  { id: 'pending', name: 'Pending Invitations', icon: Clock },
+                  { id: 'pending', name: 'Pending Donor Invitations', icon: Clock },
                   { id: 'marketing', name: 'Marketing', icon: Share2 },
                   { id: 'team', name: 'Team', icon: Heart },
                 ].map((tab) => {
@@ -597,6 +598,91 @@ export default function CampaignDetailPage() {
             </div>
 
             <div className="p-6">
+              {activeTab === 'tasks' && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                    Campaign Setup Tasks
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Complete these tasks to get your campaign ready for donors.
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* Task 1: Create Marketing Materials */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-semibold text-blue-600">1</span>
+                            </div>
+                            <h4 className="text-lg font-semibold text-gray-900">Create Marketing Materials</h4>
+                          </div>
+                          <p className="text-gray-600 ml-11 mb-4">
+                            Set up your campaign description, images, and story to attract donors. Visit the Marketing tab to add your campaign details.
+                          </p>
+                          <button
+                            onClick={() => setActiveTab('marketing')}
+                            className="ml-11 inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                          >
+                            <Share2 className="w-4 h-4" />
+                            <span>Go to Marketing</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Task 2: Invite Internal Team Members */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-semibold text-blue-600">2</span>
+                            </div>
+                            <h4 className="text-lg font-semibold text-gray-900">Invite Internal Team Members</h4>
+                          </div>
+                          <p className="text-gray-600 ml-11 mb-4">
+                            Add team members from your organization to help manage this campaign. Visit the Team tab to invite collaborators.
+                          </p>
+                          <button
+                            onClick={() => setActiveTab('team')}
+                            className="ml-11 inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                          >
+                            <Heart className="w-4 h-4" />
+                            <span>Go to Team</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Task 3: Invite Donors */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-semibold text-blue-600">3</span>
+                            </div>
+                            <h4 className="text-lg font-semibold text-gray-900">Invite Donors</h4>
+                          </div>
+                          <p className="text-gray-600 ml-11 mb-4">
+                            Start inviting potential donors to your campaign. They&apos;ll receive an invitation to participate and contribute.
+                          </p>
+                          <button
+                            onClick={() => setShowInviteModal(true)}
+                            className="ml-11 inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                            <span>Invite Donors</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'donations' && (
                 <div>
                   <div className="flex items-center justify-between mb-6">
