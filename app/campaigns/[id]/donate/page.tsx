@@ -300,13 +300,6 @@ export default function DonateCampaignPage() {
                     <Target className="w-16 h-16 text-blue-400" />
                   </div>
                 )}
-                
-                {/* Category Badge */}
-                <div className="absolute top-4 left-4">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/90 text-gray-700 shadow-sm">
-                    {campaign.category}
-                  </span>
-                </div>
 
                 {/* Days Left Badge */}
                 {daysLeft !== null && (

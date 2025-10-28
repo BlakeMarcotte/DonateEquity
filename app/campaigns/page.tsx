@@ -386,7 +386,6 @@ function CreateCampaignModal({
     description: '',
     goal: '',
     endDate: '',
-    category: '',
     status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   })
   const [saving, setSaving] = useState(false)
@@ -415,7 +414,6 @@ function CreateCampaignModal({
         currentAmount: 0,
         donorCount: 0,
         status: formData.status,
-        category: formData.category,
         organizationId,
         organizationName,
         createdBy: userId,
@@ -512,33 +510,6 @@ function CreateCampaignModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
-              </label>
-              <select
-                required
-                value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select a category</option>
-                <option value="Technology">Technology</option>
-                <option value="Education">Education</option>
-                <option value="Healthcare">Healthcare</option>
-                <option value="Environment">Environment</option>
-                <option value="Arts & Culture">Arts & Culture</option>
-                <option value="Community">Community</option>
-                <option value="Social Impact">Social Impact</option>
-                <option value="Research">Research</option>
-                <option value="Emergency Relief">Emergency Relief</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Campaign Status
@@ -595,7 +566,6 @@ function EditCampaignModal({
     description: campaign.description,
     goal: campaign.goal.toString(),
     status: campaign.status,
-    category: campaign.category || '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -609,7 +579,6 @@ function EditCampaignModal({
         description: formData.description,
         goal: parseInt(formData.goal),
         status: formData.status,
-        category: formData.category,
         updatedAt: Timestamp.now(),
       })
       onSuccess()
@@ -689,33 +658,6 @@ function EditCampaignModal({
                 <option value="completed">Completed</option>
               </select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
-              </label>
-              <select
-                required
-                value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select a category</option>
-                <option value="Technology">Technology</option>
-                <option value="Education">Education</option>
-                <option value="Healthcare">Healthcare</option>
-                <option value="Environment">Environment</option>
-                <option value="Arts & Culture">Arts & Culture</option>
-                <option value="Community">Community</option>
-                <option value="Social Impact">Social Impact</option>
-                <option value="Research">Research</option>
-                <option value="Emergency Relief">Emergency Relief</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
           </div>
 
           <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">

@@ -27,7 +27,6 @@ export default function CreateCampaignModal({
     title: '',
     description: '',
     goal: '',
-    category: '',
     status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   })
   
@@ -74,7 +73,6 @@ export default function CreateCampaignModal({
         currentAmount: 0,
         donorCount: 0,
         status: formData.status,
-        category: formData.category,
         organizationId,
         organizationName,
         createdBy: userId,
@@ -113,7 +111,6 @@ export default function CreateCampaignModal({
       title: '',
       description: '',
       goal: '',
-      category: '',
       status: 'draft',
     })
     reset()
@@ -133,15 +130,14 @@ export default function CreateCampaignModal({
   const isFormValid =
     formData.title.trim().length > 0 &&
     formData.description.trim().length > 0 &&
-    cleanCurrencyInput(formData.goal).length > 0 &&
-    formData.category.trim().length > 0
+    cleanCurrencyInput(formData.goal).length > 0
 
   return (
     <FormModal
       isOpen={isOpen}
       onClose={handleClose}
       title="Create New Campaign"
-      description="Set up your fundraising campaign with basic information."
+      description="All fields are required to create a campaign."
       onSubmit={handleSubmit}
       loading={saving}
       loadingText="Creating Campaign..."
@@ -157,7 +153,7 @@ export default function CreateCampaignModal({
       <div className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Campaign Title
+            Campaign Title <span className="text-red-600">*</span>
           </label>
           <input
             type="text"
@@ -172,7 +168,7 @@ export default function CreateCampaignModal({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Description
+            Description <span className="text-red-600">*</span>
           </label>
           <textarea
             rows={2}
@@ -187,7 +183,7 @@ export default function CreateCampaignModal({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Funding Goal
+            Funding Goal <span className="text-red-600">*</span>
           </label>
           <input
             type="text"
@@ -198,31 +194,6 @@ export default function CreateCampaignModal({
             placeholder="$100,000"
             disabled={saving}
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Category
-          </label>
-          <select
-            required
-            value={formData.category}
-            onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={saving}
-          >
-            <option value="">Select a category</option>
-            <option value="Technology">Technology</option>
-            <option value="Education">Education</option>
-            <option value="Healthcare">Healthcare</option>
-            <option value="Environment">Environment</option>
-            <option value="Arts & Culture">Arts & Culture</option>
-            <option value="Community">Community</option>
-            <option value="Social Impact">Social Impact</option>
-            <option value="Research">Research</option>
-            <option value="Emergency Relief">Emergency Relief</option>
-            <option value="Other">Other</option>
-          </select>
         </div>
 
         <div>

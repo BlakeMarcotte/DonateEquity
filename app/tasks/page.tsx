@@ -16,6 +16,7 @@ import { secureLogger } from '@/lib/logging/secure-logger'
 import PageErrorBoundary from '@/components/error/PageErrorBoundary'
 import { PageLoading } from '@/components/shared/LoadingStates'
 import { Badge } from '@/components/ui/badge'
+import { getOrCreateOrganization } from '@/lib/firebase/organizations'
 import {
   CheckCircle2,
   User,
@@ -24,17 +25,18 @@ import {
   PlusCircle,
   ArrowRight,
   FileText,
-  RotateCcw,
   Clock,
   Eye,
-  MessageSquare
+  MessageSquare,
+  RotateCcw,
+  ChevronDown
 } from 'lucide-react'
 
 interface NonprofitTask {
   id: string
   title: string
   description: string
-  isComplete: boolean
+  status: 'not_started' | 'in_progress' | 'complete'
   action: () => void
   icon: React.ComponentType<{ className?: string }>
 }
@@ -46,7 +48,7 @@ interface CampaignTaskSummary {
     id: string
     title: string
     description: string
-    isComplete: boolean
+    status: 'not_started' | 'in_progress' | 'complete'
   }>
 }
 
@@ -70,6 +72,14 @@ export default function NonprofitDashboardPage() {
   const [campaignTasks, setCampaignTasks] = useState<CampaignTaskSummary[]>([])
   const [loadingCampaignTasks, setLoadingCampaignTasks] = useState(false)
   const [blockedDonationTasks, setBlockedDonationTasks] = useState<BlockedDonationTask[]>([])
+  const [taskCompletions, setTaskCompletions] = useState<{
+    onboarding: Record<string, string>
+    campaigns: Record<string, Record<string, string>>
+  }>({ onboarding: {}, campaigns: {} })
+  const [organizationInviteCodes, setOrganizationInviteCodes] = useState<{
+    admin?: string
+    member?: string
+  }>({})
 
   // Modal states
   const [profileModalOpen, setProfileModalOpen] = useState(false)
@@ -77,11 +87,69 @@ export default function NonprofitDashboardPage() {
   const [inviteTeamModalOpen, setInviteTeamModalOpen] = useState(false)
   const [createCampaignModalOpen, setCreateCampaignModalOpen] = useState(false)
 
+  // Fetch organization invite codes
+  const fetchOrganizationInviteCodes = useCallback(async () => {
+    if (!customClaims?.organizationId || !userProfile) return
+
+    try {
+      const org = await getOrCreateOrganization(
+        customClaims.organizationId,
+        userProfile.email,
+        userProfile.uid,
+        userProfile.displayName ? `${userProfile.displayName}'s Organization` : undefined
+      )
+
+      if (org?.inviteCodes) {
+        setOrganizationInviteCodes({
+          admin: org.inviteCodes.admin,
+          member: org.inviteCodes.member
+        })
+      }
+    } catch (error) {
+      secureLogger.error('Error fetching organization invite codes', error instanceof Error ? error : new Error(String(error)))
+    }
+  }, [customClaims?.organizationId, userProfile])
+
+  // Fetch task completions from Firestore
+  const fetchTaskCompletions = useCallback(async () => {
+    if (!user) return
+
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/tasks/completion', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setTaskCompletions(result.completions)
+      }
+    } catch (error) {
+      secureLogger.error('Error fetching task completions', error instanceof Error ? error : new Error(String(error)))
+    }
+  }, [user])
+
+  // Helper function to determine status
+  const getTaskStatus = useCallback((taskId: string, isAutomaticallyComplete: boolean): 'not_started' | 'in_progress' | 'complete' => {
+    // If manually set in Firestore, use that status
+    if (taskCompletions.onboarding[taskId]) {
+      return taskCompletions.onboarding[taskId] as 'not_started' | 'in_progress' | 'complete'
+    }
+    // If automatically detected as complete, mark complete
+    if (isAutomaticallyComplete) {
+      return 'complete'
+    }
+    // Otherwise not started
+    return 'not_started'
+  }, [taskCompletions])
+
   // Check completion status for each task
   const checkTaskCompletion = useCallback(async () => {
     if (!userProfile || !customClaims?.organizationId) return
 
-    const taskCompletions = {
+    const automaticTaskCompletions = {
       profile: false,
       organization: false,
       team: false,
@@ -90,13 +158,13 @@ export default function NonprofitDashboardPage() {
 
     // Check profile completion
     if (userProfile.displayName && userProfile.phoneNumber) {
-      taskCompletions.profile = true
+      automaticTaskCompletions.profile = true
     }
 
     // Check organization completion - simplified check
     // We'll mark it as complete if it's been manually marked complete
     // This avoids the 403 error from the organizations/status endpoint
-    taskCompletions.organization = false
+    automaticTaskCompletions.organization = false
 
     // Check team completion - for now, we'll mark as complete if there's at least one member
     try {
@@ -107,11 +175,11 @@ export default function NonprofitDashboardPage() {
           'Content-Type': 'application/json',
         }
       })
-      
+
       if (teamResponse.ok) {
         const teamData = await teamResponse.json()
         if (teamData.members && teamData.members.length > 1) { // More than just the current user
-          taskCompletions.team = true
+          automaticTaskCompletions.team = true
         }
       }
     } catch (error) {
@@ -129,11 +197,11 @@ export default function NonprofitDashboardPage() {
           'Content-Type': 'application/json',
         }
       })
-      
+
       if (campaignResponse.ok) {
         const campaignData = await campaignResponse.json()
         if (campaignData.campaigns && campaignData.campaigns.length > 0) {
-          taskCompletions.campaign = true
+          automaticTaskCompletions.campaign = true
         }
       }
     } catch (error) {
@@ -142,9 +210,6 @@ export default function NonprofitDashboardPage() {
       })
     }
 
-    // Get manual completions from localStorage - user specific
-    const storageKey = `nonprofit-task-completions-${userProfile.uid}`
-    const manualCompletions = JSON.parse(localStorage.getItem(storageKey) || '{}')
 
     // Create tasks array
     const newTasks: NonprofitTask[] = [
@@ -152,7 +217,7 @@ export default function NonprofitDashboardPage() {
         id: 'profile',
         title: 'Complete User Profile',
         description: 'Fill out your personal information including name and phone number',
-        isComplete: taskCompletions.profile || manualCompletions.profile || false,
+        status: getTaskStatus('profile', automaticTaskCompletions.profile),
         action: () => setProfileModalOpen(true),
         icon: User
       },
@@ -160,7 +225,7 @@ export default function NonprofitDashboardPage() {
         id: 'organization',
         title: 'Complete Organization Information',
         description: 'Add organization name, EIN, website, city, state, and phone number',
-        isComplete: taskCompletions.organization || manualCompletions.organization || false,
+        status: getTaskStatus('organization', automaticTaskCompletions.organization),
         action: () => setOrganizationModalOpen(true),
         icon: Building2
       },
@@ -168,7 +233,7 @@ export default function NonprofitDashboardPage() {
         id: 'team',
         title: 'Invite Internal Team Members',
         description: 'Invite team members to collaborate on your campaigns',
-        isComplete: taskCompletions.team || manualCompletions.team || false,
+        status: getTaskStatus('team', automaticTaskCompletions.team),
         action: () => setInviteTeamModalOpen(true),
         icon: Users
       },
@@ -176,7 +241,7 @@ export default function NonprofitDashboardPage() {
         id: 'campaign',
         title: 'Create a Campaign',
         description: 'Set up your first fundraising campaign',
-        isComplete: taskCompletions.campaign || manualCompletions.campaign || false,
+        status: getTaskStatus('campaign', automaticTaskCompletions.campaign),
         action: () => setCreateCampaignModalOpen(true),
         icon: PlusCircle
       }
@@ -184,7 +249,7 @@ export default function NonprofitDashboardPage() {
 
     setTasks(newTasks)
     setLoading(false)
-  }, [user, userProfile, customClaims])
+  }, [user, userProfile, customClaims, getTaskStatus])
 
   // Fetch blocked donation tasks (tasks waiting on donors)
   const fetchBlockedDonationTasks = useCallback(async () => {
@@ -292,35 +357,32 @@ export default function NonprofitDashboardPage() {
         title: doc.data().title
       }))
 
-      // Get completion status from localStorage
-      const storageKey = `campaign-task-completions-${userProfile.uid}`
-      const completions = JSON.parse(localStorage.getItem(storageKey) || '{}')
-
       // For each campaign, create the 3 setup tasks
       const campaignSummaries: CampaignTaskSummary[] = campaigns.map((campaign) => {
         const campaignKey = campaign.id
+        const campaignCompletions = taskCompletions.campaigns[campaignKey] || {}
 
         return {
           campaignId: campaign.id,
           campaignTitle: campaign.title,
           tasks: [
             {
-              id: `${campaignKey}-marketing`,
+              id: 'marketing',
               title: 'Create Marketing Materials',
               description: 'Set up your campaign description, images, and story to attract donors.',
-              isComplete: completions[`${campaignKey}-marketing`] || false
+              status: (campaignCompletions['marketing'] as 'not_started' | 'in_progress' | 'complete') || 'not_started'
             },
             {
-              id: `${campaignKey}-team`,
+              id: 'team',
               title: 'Invite Internal Team Members',
               description: 'Add team members from your organization to help manage this campaign.',
-              isComplete: completions[`${campaignKey}-team`] || false
+              status: (campaignCompletions['team'] as 'not_started' | 'in_progress' | 'complete') || 'not_started'
             },
             {
-              id: `${campaignKey}-donors`,
+              id: 'donors',
               title: 'Invite Donors',
               description: 'Start inviting potential donors to your campaign.',
-              isComplete: completions[`${campaignKey}-donors`] || false
+              status: (campaignCompletions['donors'] as 'not_started' | 'in_progress' | 'complete') || 'not_started'
             }
           ]
         }
@@ -334,7 +396,14 @@ export default function NonprofitDashboardPage() {
     } finally {
       setLoadingCampaignTasks(false)
     }
-  }, [customClaims?.organizationId, userProfile?.uid])
+  }, [customClaims?.organizationId, userProfile?.uid, taskCompletions])
+
+  // First fetch task completions, then load tasks
+  useEffect(() => {
+    if (user) {
+      fetchTaskCompletions()
+    }
+  }, [user, fetchTaskCompletions])
 
   useEffect(() => {
     if (user && userProfile && customClaims?.organizationId) {
@@ -342,50 +411,60 @@ export default function NonprofitDashboardPage() {
       // Always fetch campaign tasks on load so we can show the badge count
       fetchCampaignTasks()
       fetchBlockedDonationTasks()
+      // Fetch organization invite codes
+      fetchOrganizationInviteCodes()
     }
-  }, [user, userProfile, customClaims, checkTaskCompletion, fetchCampaignTasks, fetchBlockedDonationTasks])
+  }, [user, userProfile, customClaims, checkTaskCompletion, fetchCampaignTasks, fetchBlockedDonationTasks, fetchOrganizationInviteCodes])
 
   // Set initial tab based on onboarding completion
   useEffect(() => {
     if (!hasSetInitialTab && tasks.length > 0) {
-      const allComplete = tasks.every(task => task.isComplete)
-      if (allComplete) {
+      const allComplete = tasks.every(task => task.status === 'complete')
+      if (allComplete && campaignTasks.length > 0) {
         setActiveTab('campaigns')
       }
       setHasSetInitialTab(true)
     }
-  }, [tasks, hasSetInitialTab])
+  }, [tasks, hasSetInitialTab, campaignTasks.length])
 
-  const handleToggleComplete = async (taskId: string) => {
-    // Find current completion status
-    const currentTask = tasks.find(task => task.id === taskId)
-    const newStatus = !currentTask?.isComplete
+  const handleSetTaskStatus = async (taskId: string, newStatus: 'not_started' | 'in_progress' | 'complete') => {
+    if (!user) return
 
     // Update local state immediately for better UX
     setTasks(prev => prev.map(task =>
-      task.id === taskId ? { ...task, isComplete: newStatus } : task
+      task.id === taskId ? { ...task, status: newStatus } : task
     ))
 
-    // Store completion status in localStorage for persistence - user specific
-    const storageKey = `nonprofit-task-completions-${userProfile?.uid}`
-    const completions = JSON.parse(localStorage.getItem(storageKey) || '{}')
-    completions[taskId] = newStatus
-    localStorage.setItem(storageKey, JSON.stringify(completions))
+    // Update task completions state
+    setTaskCompletions(prev => ({
+      ...prev,
+      onboarding: {
+        ...prev.onboarding,
+        [taskId]: newStatus
+      }
+    }))
+
+    // Save to Firestore
+    try {
+      const token = await user.getIdToken()
+      await fetch('/api/tasks/completion', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          taskType: 'onboarding',
+          taskId,
+          status: newStatus
+        })
+      })
+    } catch (error) {
+      secureLogger.error('Error updating task status', error instanceof Error ? error : new Error(String(error)))
+    }
   }
 
 
-  const handleMarkComplete = async (taskId: string) => {
-    // Update local state immediately for better UX
-    setTasks(prev => prev.map(task =>
-      task.id === taskId ? { ...task, isComplete: true } : task
-    ))
-
-    // Store completion status in localStorage for persistence - user specific
-    const storageKey = `nonprofit-task-completions-${userProfile?.uid}`
-    const completions = JSON.parse(localStorage.getItem(storageKey) || '{}')
-    completions[taskId] = true
-    localStorage.setItem(storageKey, JSON.stringify(completions))
-  }
 
   // Handle team member invitation
   const handleInviteTeamMember = async (email: string, subrole: NonprofitSubrole, personalMessage?: string) => {
@@ -411,8 +490,8 @@ export default function NonprofitDashboardPage() {
         throw new Error(errorData.error || 'Failed to send invitation')
       }
 
-      // Mark team task as complete and refresh task completion status
-      handleMarkComplete('team')
+      // Refresh task completion status
+      await fetchTaskCompletions()
       checkTaskCompletion()
     } catch (error) {
       throw error // Re-throw to let the modal handle it
@@ -420,18 +499,16 @@ export default function NonprofitDashboardPage() {
   }
 
   const handleModalComplete = async (taskId: string) => {
-    // Mark complete first to prevent modal re-opening
-    handleMarkComplete(taskId)
-    
     // Close the modal immediately
     if (taskId === 'profile') setProfileModalOpen(false)
     if (taskId === 'organization') setOrganizationModalOpen(false)
     if (taskId === 'team') setInviteTeamModalOpen(false)
     if (taskId === 'campaign') setCreateCampaignModalOpen(false)
-    
+
     // Wait for user data to refresh before checking completion
     try {
       await refreshUserData()
+      await fetchTaskCompletions()
       // Small delay to ensure state updates are processed
       setTimeout(() => {
         checkTaskCompletion()
@@ -446,11 +523,34 @@ export default function NonprofitDashboardPage() {
 
   const handleResetTasks = async () => {
     if (!userProfile || !user) return
-    
-    // Clear localStorage completions for this user
-    const storageKey = `nonprofit-task-completions-${userProfile.uid}`
-    localStorage.removeItem(storageKey)
-    
+
+    // Reset task completions in Firestore by setting all to not_started
+    try {
+      const token = await user.getIdToken()
+
+      // Reset onboarding tasks
+      for (const taskId of ['profile', 'organization', 'team', 'campaign']) {
+        await fetch('/api/tasks/completion', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskType: 'onboarding',
+            taskId,
+            status: 'not_started'
+          })
+        })
+      }
+
+      // Refresh task completions
+      await fetchTaskCompletions()
+      checkTaskCompletion()
+    } catch (error) {
+      secureLogger.error('Error resetting task completions', error instanceof Error ? error : new Error(String(error)))
+    }
+
     // For testing purposes, also clear actual profile data
     try {
       // Clear profile displayName and phoneNumber in Firebase
@@ -478,7 +578,7 @@ export default function NonprofitDashboardPage() {
     }
   }
 
-  const completedTasks = tasks.filter(task => task.isComplete).length
+  const completedTasks = tasks.filter(task => task.status === 'complete').length
   const totalTasks = tasks.length
   const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
 
@@ -524,17 +624,30 @@ export default function NonprofitDashboardPage() {
                   Onboarding Tasks
                 </button>
                 <button
-                  onClick={() => setActiveTab('campaigns')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  onClick={() => {
+                    if (campaignTasks.length > 0) {
+                      setActiveTab('campaigns')
+                    }
+                  }}
+                  disabled={campaignTasks.length === 0}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 inline-flex items-center gap-2 ${
                     activeTab === 'campaigns'
                       ? 'border-blue-500 text-blue-600'
+                      : campaignTasks.length === 0
+                      ? 'border-transparent text-gray-400 cursor-not-allowed opacity-50'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
+                  title={campaignTasks.length === 0 ? 'Create a campaign first to unlock this tab' : ''}
                 >
+                  {campaignTasks.length === 0 && (
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   Campaign Tasks
                   {campaignTasks.length > 0 && (() => {
                     const totalIncompleteTasks = campaignTasks.reduce((sum, c) => {
-                      return sum + c.tasks.filter(t => !t.isComplete).length
+                      return sum + c.tasks.filter(t => t.status !== 'complete').length
                     }, 0)
                     return totalIncompleteTasks > 0 ? (
                       <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -544,13 +657,26 @@ export default function NonprofitDashboardPage() {
                   })()}
                 </button>
                 <button
-                  onClick={() => setActiveTab('donations')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  onClick={() => {
+                    if (blockedDonationTasks.length > 0) {
+                      setActiveTab('donations')
+                    }
+                  }}
+                  disabled={blockedDonationTasks.length === 0}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 inline-flex items-center gap-2 ${
                     activeTab === 'donations'
                       ? 'border-blue-500 text-blue-600'
+                      : blockedDonationTasks.length === 0
+                      ? 'border-transparent text-gray-400 cursor-not-allowed opacity-50'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
+                  title={blockedDonationTasks.length === 0 ? 'Start accepting donations to unlock this tab' : ''}
                 >
+                  {blockedDonationTasks.length === 0 && (
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   Donation Tasks
                   {blockedDonationTasks.length > 0 && (
                     <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
@@ -632,19 +758,25 @@ export default function NonprofitDashboardPage() {
                 <div
                   key={task.id}
                   className={`bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md ${
-                    task.isComplete ? 'border-green-200 bg-green-50' : 'border-gray-200 hover:border-blue-300'
+                    task.status === 'complete' ? 'border-green-200 bg-green-50' :
+                    task.status === 'in_progress' ? 'border-blue-200 bg-blue-50' :
+                    'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div className="p-6">
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-start space-x-4">
                       {/* Step Number & Status */}
                       <div className="flex-shrink-0">
-                        {task.isComplete ? (
+                        {task.status === 'complete' ? (
                           <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                             <CheckCircle2 className="w-5 h-5 text-white" />
                           </div>
+                        ) : task.status === 'in_progress' ? (
+                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                            <Clock className="w-5 h-5 text-white" />
+                          </div>
                         ) : (
-                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                             <span className="text-sm font-semibold text-gray-600">{index + 1}</span>
                           </div>
                         )}
@@ -652,54 +784,72 @@ export default function NonprofitDashboardPage() {
 
                       {/* Task Icon */}
                       <div className={`p-3 rounded-lg ${
-                        task.isComplete ? 'bg-green-100' : 'bg-blue-100'
+                        task.status === 'complete' ? 'bg-green-100' :
+                        task.status === 'in_progress' ? 'bg-blue-100' :
+                        'bg-gray-100'
                       }`}>
                         <TaskIcon className={`w-6 h-6 ${
-                          task.isComplete ? 'text-green-600' : 'text-blue-600'
+                          task.status === 'complete' ? 'text-green-600' :
+                          task.status === 'in_progress' ? 'text-blue-600' :
+                          'text-gray-600'
                         }`} />
                       </div>
 
                       {/* Task Content */}
                       <div className="flex-grow">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className={`text-lg font-semibold ${
+                            task.status === 'complete' ? 'text-green-900 line-through' : 'text-gray-900'
+                          }`}>
                             {task.title}
                           </h3>
-                          {task.isComplete && (
+                          {task.status === 'in_progress' && (
+                            <Badge variant="info" size="sm">In Progress</Badge>
+                          )}
+                          {task.status === 'complete' && (
                             <Badge variant="success" size="sm">Complete</Badge>
                           )}
                         </div>
                         <p className="text-gray-600">{task.description}</p>
+
+                        <div className="mt-4">
+                          <button
+                            onClick={task.action}
+                            className={`inline-flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-colors duration-200 ${
+                              task.status === 'complete'
+                                ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }`}
+                          >
+                            <span>{task.status === 'complete' ? 'View' : 'Start'}</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex-shrink-0 flex items-center space-x-2">
-                        <button
-                          onClick={() => handleToggleComplete(task.id)}
-                          className={`inline-flex items-center space-x-2 px-3 py-2 font-medium rounded-lg transition-colors duration-200 ${
-                            task.isComplete
-                              ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
-                              : 'bg-green-100 hover:bg-green-200 text-green-700'
-                          }`}
-                          title={task.isComplete ? 'Mark as incomplete' : 'Mark as complete'}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span className="hidden sm:inline">
-                            {task.isComplete ? 'Mark Incomplete' : 'Mark Complete'}
-                          </span>
-                        </button>
-                        
-                        <button
-                          onClick={task.action}
-                          className={`inline-flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-colors duration-200 ${
-                            task.isComplete 
-                              ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                              : 'bg-blue-600 hover:bg-blue-700 text-white'
-                          }`}
-                        >
-                          <span>{task.isComplete ? 'View' : 'Start'}</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
+                      {/* Status Dropdown */}
+                      <div className="flex-shrink-0">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Status
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={task.status}
+                            onChange={(e) => handleSetTaskStatus(task.id, e.target.value as 'not_started' | 'in_progress' | 'complete')}
+                            className={`appearance-none w-full px-3 py-2 pr-8 text-sm font-medium rounded-lg border transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              task.status === 'complete'
+                                ? 'bg-green-50 text-green-700 border-green-300'
+                                : task.status === 'in_progress'
+                                ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                : 'bg-gray-50 text-gray-700 border-gray-300'
+                            }`}
+                          >
+                            <option value="not_started">Not Started</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="complete">Complete</option>
+                          </select>
+                          <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -741,7 +891,7 @@ export default function NonprofitDashboardPage() {
               ) : (
                 <div className="space-y-4">
                   {campaignTasks.map((campaign) => {
-                    const incompleteTasks = campaign.tasks.filter(t => !t.isComplete)
+                    const incompleteTasks = campaign.tasks.filter(t => t.status !== 'complete')
 
                     return (
                       <div
@@ -762,8 +912,13 @@ export default function NonprofitDashboardPage() {
                               <div className="mb-4 space-y-2">
                                 {incompleteTasks.map((task) => (
                                   <div key={task.id} className="flex items-center space-x-2 text-sm text-gray-600">
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                    <div className={`w-2 h-2 rounded-full ${
+                                      task.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-400'
+                                    }`}></div>
                                     <span>{task.title}</span>
+                                    {task.status === 'in_progress' && (
+                                      <span className="text-xs text-blue-600">(in progress)</span>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -895,6 +1050,7 @@ export default function NonprofitDashboardPage() {
           isOpen={inviteTeamModalOpen}
           onClose={() => setInviteTeamModalOpen(false)}
           onInvite={handleInviteTeamMember}
+          inviteCodes={organizationInviteCodes}
         />
         
         <CreateCampaignModal

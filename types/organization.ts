@@ -14,6 +14,18 @@ export interface Organization {
   }
   verificationDocuments: VerificationDocument[]
   settings: OrganizationSettings
+  inviteCodes: {
+    admin?: string           // For nonprofit admins with admin subrole
+    member?: string          // For nonprofit admins with member subrole
+    appraiser?: string       // For appraiser role
+    donor?: string           // For donor role
+  }
+  inviteCodesGeneratedAt: {
+    admin?: Date
+    member?: Date
+    appraiser?: Date
+    donor?: Date
+  }
   createdAt: Date
   updatedAt: Date
   verifiedAt?: Date

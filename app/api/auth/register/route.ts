@@ -3,6 +3,7 @@ import { adminAuth, adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import { UserRole, NonprofitSubrole } from '@/types/auth'
 import { secureLogger } from '@/lib/logging/secure-logger'
+import { generateInviteCode, validateInviteCodeFormat, getRoleFromInviteCode } from '@/lib/utils/inviteCode'
 
 interface RegisterRequest {
   email: string
@@ -12,6 +13,7 @@ interface RegisterRequest {
   subrole?: NonprofitSubrole
   organizationId?: string
   organizationName?: string
+  inviteCode?: string
   phoneNumber?: string
   teamInviteToken?: string
   appraiserInvitationToken?: string
@@ -55,10 +57,10 @@ const SUBROLE_PERMISSIONS: Record<NonprofitSubrole, string[]> = {
 export async function POST(request: NextRequest) {
   try {
     const body: RegisterRequest = await request.json()
-    
+
     // Validate required fields
-    const { email, password, displayName, role, subrole, organizationId, organizationName, phoneNumber, teamInviteToken, appraiserInvitationToken } = body
-    
+    const { email, password, displayName, role, subrole, organizationId, organizationName, inviteCode, phoneNumber, teamInviteToken, appraiserInvitationToken } = body
+
     if (!email || !password || !displayName || !role) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -89,8 +91,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // All roles now require organizationId or organizationName (except team invitations)
-    if (!teamInviteToken && !organizationId && !organizationName) {
+    // All roles now require inviteCode or organizationName (except team invitations)
+    if (!teamInviteToken && !inviteCode && !organizationName) {
       return NextResponse.json(
         { error: 'Organization information is required for all users' },
         { status: 400 }
@@ -106,8 +108,96 @@ export async function POST(request: NextRequest) {
       emailVerified: false,
     })
 
-    // Handle organization creation/linking
+    // Handle invite code validation and organization lookup
     let finalOrganizationId = organizationId
+    let grantedRole: UserRole | undefined
+    let grantedSubrole: NonprofitSubrole | undefined
+
+    if (inviteCode && !finalOrganizationId) {
+      // Validate invite code format
+      const normalizedCode = inviteCode.toUpperCase().trim()
+
+      if (!validateInviteCodeFormat(normalizedCode)) {
+        await adminAuth.deleteUser(userRecord.uid)
+        return NextResponse.json(
+          { error: 'Invalid invite code format' },
+          { status: 400 }
+        )
+      }
+
+      // Search for organization with this invite code
+      const orgsSnapshot = await adminDb
+        .collection('organizations')
+        .where('isActive', '==', true)
+        .get()
+
+      let matchedOrg: {
+        id: string
+        inviteCodes: {
+          admin?: string
+          member?: string
+          appraiser?: string
+          donor?: string
+        }
+      } | null = null
+
+      // Check each organization for matching invite code
+      for (const doc of orgsSnapshot.docs) {
+        const data = doc.data()
+        const orgInviteCodes = data.inviteCodes || {}
+
+        // Check if any of the invite codes match
+        if (
+          orgInviteCodes.admin === normalizedCode ||
+          orgInviteCodes.member === normalizedCode ||
+          orgInviteCodes.appraiser === normalizedCode ||
+          orgInviteCodes.donor === normalizedCode
+        ) {
+          matchedOrg = {
+            id: doc.id,
+            inviteCodes: orgInviteCodes
+          }
+          break
+        }
+      }
+
+      if (!matchedOrg) {
+        await adminAuth.deleteUser(userRecord.uid)
+        return NextResponse.json(
+          { error: 'Invalid invite code' },
+          { status: 404 }
+        )
+      }
+
+      // Determine which role/subrole this code grants
+      const grantedRoleInfo = getRoleFromInviteCode(matchedOrg.inviteCodes, normalizedCode)
+
+      if (!grantedRoleInfo) {
+        await adminAuth.deleteUser(userRecord.uid)
+        return NextResponse.json(
+          { error: 'Invalid invite code configuration' },
+          { status: 500 }
+        )
+      }
+
+      grantedRole = grantedRoleInfo.role
+      grantedSubrole = grantedRoleInfo.subrole
+
+      // Verify that the granted role matches the user's selected role
+      if (grantedRole !== role || grantedSubrole !== subrole) {
+        await adminAuth.deleteUser(userRecord.uid)
+        return NextResponse.json(
+          {
+            error: `This invite code is for ${grantedSubrole ? `${grantedRole} (${grantedSubrole})` : grantedRole} role, but you selected ${subrole ? `${role} (${subrole})` : role}`
+          },
+          { status: 400 }
+        )
+      }
+
+      finalOrganizationId = matchedOrg.id
+    }
+
+    // Handle organization creation/linking
 
     // For team invitations, we need to get the organizationId from the invitation
     if (teamInviteToken && !finalOrganizationId) {
@@ -134,22 +224,45 @@ export async function POST(request: NextRequest) {
       let orgType = 'donor' // Default for donors
       if (role === 'nonprofit_admin') orgType = 'nonprofit'
       if (role === 'appraiser') orgType = 'appraiser'
-      
+
+      // Generate invite codes based on organization type
+      const now = new Date()
+      const inviteCodes: Record<string, string> = {}
+      const inviteCodesGeneratedAt: Record<string, Date> = {}
+
+      if (orgType === 'nonprofit') {
+        // Nonprofits get admin and member codes
+        inviteCodes.admin = generateInviteCode()
+        inviteCodes.member = generateInviteCode()
+        inviteCodesGeneratedAt.admin = now
+        inviteCodesGeneratedAt.member = now
+      } else if (orgType === 'appraiser') {
+        // Appraisers get appraiser code
+        inviteCodes.appraiser = generateInviteCode()
+        inviteCodesGeneratedAt.appraiser = now
+      } else if (orgType === 'donor') {
+        // Donors get donor code
+        inviteCodes.donor = generateInviteCode()
+        inviteCodesGeneratedAt.donor = now
+      }
+
       await orgRef.set({
         name: organizationName,
         type: orgType,
         createdBy: userRecord.uid,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
         adminIds: [userRecord.uid],
         isActive: true,
+        inviteCodes,
+        inviteCodesGeneratedAt,
       })
       finalOrganizationId = orgRef.id
     } else if (finalOrganizationId) {
       // Add user to existing organization
       const orgRef = adminDb.collection('organizations').doc(finalOrganizationId)
       const orgDoc = await orgRef.get()
-      
+
       if (!orgDoc.exists) {
         await adminAuth.deleteUser(userRecord.uid)
         return NextResponse.json(
@@ -159,8 +272,11 @@ export async function POST(request: NextRequest) {
       }
 
       // Add user to organization's member list
+      // Only add to adminIds if user has admin subrole or is not a nonprofit_admin
       const currentAdminIds = orgDoc.data()?.adminIds || []
-      if (!currentAdminIds.includes(userRecord.uid)) {
+      const shouldBeAdmin = role !== 'nonprofit_admin' || subrole === 'admin'
+
+      if (!currentAdminIds.includes(userRecord.uid) && shouldBeAdmin) {
         await orgRef.update({
           adminIds: [...currentAdminIds, userRecord.uid],
           updatedAt: new Date(),

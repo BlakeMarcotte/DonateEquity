@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail } from 'lucide-react'
+import { Mail, Copy, Check, Key } from 'lucide-react'
 import { FormModal } from '@/components/shared/FormModal'
 import { useFormSubmission } from '@/hooks/useAsyncOperation'
 import { NonprofitSubrole } from '@/types/auth'
@@ -11,6 +11,10 @@ interface InviteTeamMemberModalProps {
   isOpen: boolean
   onClose: () => void
   onInvite: (email: string, subrole: NonprofitSubrole, personalMessage?: string) => Promise<void>
+  inviteCodes?: {
+    admin?: string
+    member?: string
+  }
 }
 
 const SUBROLE_OPTIONS = [
@@ -26,25 +30,37 @@ const SUBROLE_OPTIONS = [
   }
 ]
 
-export default function InviteTeamMemberModal({ 
-  isOpen, 
-  onClose, 
-  onInvite
+export default function InviteTeamMemberModal({
+  isOpen,
+  onClose,
+  onInvite,
+  inviteCodes
 }: InviteTeamMemberModalProps) {
   const [email, setEmail] = useState('')
   const [subrole, setSubrole] = useState<NonprofitSubrole>('member')
   const [personalMessage, setPersonalMessage] = useState('')
-  
-  const { 
-    loading, 
-    error, 
-    execute, 
-    reset 
+  const [copiedCode, setCopiedCode] = useState(false)
+
+  const {
+    loading,
+    error,
+    execute,
+    reset
   } = useFormSubmission('Team Invitation')
+
+  const copyToClipboard = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopiedCode(true)
+      setTimeout(() => setCopiedCode(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy code:', error)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     secureLogger.info('Team invitation form submission', { email, subrole })
 
     // Basic email validation
@@ -72,11 +88,13 @@ export default function InviteTeamMemberModal({
     setEmail('')
     setSubrole('member')
     setPersonalMessage('')
+    setCopiedCode(false)
     reset()
     onClose()
   }
 
   const isFormValid = email.trim().length > 0 && subrole
+  const currentCode = subrole === 'admin' ? inviteCodes?.admin : inviteCodes?.member
 
   return (
     <FormModal
@@ -91,7 +109,7 @@ export default function InviteTeamMemberModal({
       inlineError={true}
       submitDisabled={!isFormValid}
       submitText="Send Invitation"
-      maxWidth="sm"
+      maxWidth="lg"
     >
       <div className="space-y-6">
 
@@ -154,6 +172,68 @@ export default function InviteTeamMemberModal({
               disabled={loading}
             />
           </div>
+
+          {/* Invite Code Alternative */}
+          {currentCode && (
+            <div className="border-t pt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm mb-6">
+                  <span className="px-4 bg-white text-gray-500 font-medium">OR</span>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 shadow-sm">
+                <div className="flex items-start space-x-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                      <Key className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      Share an invite code
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Anyone with this code can join your organization as a <span className="font-semibold">{subrole}</span>. Perfect for sharing with multiple people or posting in a team channel.
+                    </p>
+                    <div className="bg-white rounded-lg p-4 border-2 border-blue-300 shadow-inner">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">
+                            {subrole} Invite Code
+                          </label>
+                          <code className="text-2xl font-mono font-bold text-blue-600 tracking-widest">
+                            {currentCode}
+                          </code>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(currentCode)}
+                          className="ml-4 flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm"
+                          disabled={loading}
+                        >
+                          {copiedCode ? (
+                            <>
+                              <Check className="h-4 w-4" />
+                              <span>Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-4 w-4" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
       </div>
     </FormModal>

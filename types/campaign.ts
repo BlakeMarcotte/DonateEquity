@@ -8,7 +8,6 @@ export interface Campaign {
   currentAmount: number
   donorCount: number
   status: 'draft' | 'active' | 'paused' | 'completed' | 'archived'
-  category: string
   images: {
     hero: string
     gallery: string[]

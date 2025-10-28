@@ -40,8 +40,8 @@ import {
   UserPlus,
   X,
   Send,
-  RotateCcw,
-  CheckCircle2
+  CheckCircle2,
+  ChevronDown
 } from 'lucide-react'
 
 
@@ -65,7 +65,7 @@ interface CampaignTask {
   id: string
   title: string
   description: string
-  isComplete: boolean
+  status: 'not_started' | 'in_progress' | 'complete'
 }
 
 export default function CampaignDetailPage() {
@@ -83,55 +83,82 @@ export default function CampaignDetailPage() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [campaignTasks, setCampaignTasks] = useState<CampaignTask[]>([])
 
-  // Load campaign tasks from localStorage
+  // Load campaign tasks from Firestore
   useEffect(() => {
-    if (!params.id || !userProfile?.uid) return
+    if (!params.id || !userProfile?.uid || !user) return
 
-    const storageKey = `campaign-task-completions-${userProfile.uid}`
-    const completions = JSON.parse(localStorage.getItem(storageKey) || '{}')
-    const campaignKey = params.id as string
+    const fetchCampaignTasks = async () => {
+      try {
+        const token = await user.getIdToken()
+        const response = await fetch('/api/tasks/completion', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
 
-    const tasks: CampaignTask[] = [
-      {
-        id: `${campaignKey}-marketing`,
-        title: 'Create Marketing Materials',
-        description: 'Set up your campaign description, images, and story to attract donors. Visit the Marketing tab to add your campaign details.',
-        isComplete: completions[`${campaignKey}-marketing`] || false
-      },
-      {
-        id: `${campaignKey}-team`,
-        title: 'Invite Internal Team Members',
-        description: 'Add team members from your organization to help manage this campaign. Visit the Team tab to invite collaborators.',
-        isComplete: completions[`${campaignKey}-team`] || false
-      },
-      {
-        id: `${campaignKey}-donors`,
-        title: 'Invite Donors',
-        description: 'Start inviting potential donors to your campaign. They will receive an invitation to participate and contribute.',
-        isComplete: completions[`${campaignKey}-donors`] || false
+        const result = await response.json()
+        if (result.success) {
+          const campaignKey = params.id as string
+          const campaignCompletions = result.completions.campaigns?.[campaignKey] || {}
+
+          const tasks: CampaignTask[] = [
+            {
+              id: 'marketing',
+              title: 'Create Marketing Materials',
+              description: 'Set up your campaign description, images, and story to attract donors. Visit the Marketing tab to add your campaign details.',
+              status: (campaignCompletions['marketing'] as 'not_started' | 'in_progress' | 'complete') || 'not_started'
+            },
+            {
+              id: 'team',
+              title: 'Invite Internal Team Members',
+              description: 'Add team members from your organization to help manage this campaign. Visit the Team tab to invite collaborators.',
+              status: (campaignCompletions['team'] as 'not_started' | 'in_progress' | 'complete') || 'not_started'
+            },
+            {
+              id: 'donors',
+              title: 'Invite Donors',
+              description: 'Start inviting potential donors to your campaign. They will receive an invitation to participate and contribute.',
+              status: (campaignCompletions['donors'] as 'not_started' | 'in_progress' | 'complete') || 'not_started'
+            }
+          ]
+
+          setCampaignTasks(tasks)
+        }
+      } catch (error) {
+        console.error('Error fetching campaign tasks:', error)
       }
-    ]
+    }
 
-    setCampaignTasks(tasks)
-  }, [params.id, userProfile?.uid])
+    fetchCampaignTasks()
+  }, [params.id, userProfile?.uid, user])
 
-  const handleToggleCampaignTask = (taskId: string) => {
-    if (!userProfile?.uid) return
+  const handleSetCampaignTaskStatus = async (taskId: string, newStatus: 'not_started' | 'in_progress' | 'complete') => {
+    if (!userProfile?.uid || !user) return
 
-    // Find current task
-    const task = campaignTasks.find(t => t.id === taskId)
-    const newStatus = !task?.isComplete
-
-    // Update state
+    // Update state immediately
     setCampaignTasks(prev => prev.map(t =>
-      t.id === taskId ? { ...t, isComplete: newStatus } : t
+      t.id === taskId ? { ...t, status: newStatus } : t
     ))
 
-    // Update localStorage
-    const storageKey = `campaign-task-completions-${userProfile.uid}`
-    const completions = JSON.parse(localStorage.getItem(storageKey) || '{}')
-    completions[taskId] = newStatus
-    localStorage.setItem(storageKey, JSON.stringify(completions))
+    // Save to Firestore
+    try {
+      const token = await user.getIdToken()
+      await fetch('/api/tasks/completion', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          taskType: 'campaign',
+          campaignId: params.id,
+          taskId,
+          status: newStatus
+        })
+      })
+    } catch (error) {
+      console.error('Error updating task status:', error)
+    }
   }
 
   const fetchCampaignDetails = useCallback(async () => {
@@ -160,7 +187,6 @@ export default function CampaignDetailPage() {
           currentAmount: data.raised || data.currentAmount || 0,
           donorCount: data.donorCount || 0,
           status: data.status,
-          category: data.category || 'General',
           organizationId: data.organizationId,
           organizationName: data.organizationName || '',
           createdBy: data.createdBy,
@@ -673,36 +699,50 @@ export default function CampaignDetailPage() {
                       <div
                         key={task.id}
                         className={`border rounded-lg p-6 transition-all duration-200 ${
-                          task.isComplete ? 'border-green-200 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+                          task.status === 'complete' ? 'border-green-200 bg-green-50' :
+                          task.status === 'in_progress' ? 'border-blue-200 bg-blue-50' :
+                          'border-gray-200 hover:border-gray-300'
                         }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex items-start space-x-3 flex-1">
                             {/* Number Badge */}
                             <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                              task.isComplete ? 'bg-green-600' : 'bg-blue-100'
+                              task.status === 'complete' ? 'bg-green-600' :
+                              task.status === 'in_progress' ? 'bg-blue-600' :
+                              'bg-gray-300'
                             }`}>
-                              {task.isComplete ? (
+                              {task.status === 'complete' ? (
                                 <CheckCircle2 className="w-5 h-5 text-white" />
+                              ) : task.status === 'in_progress' ? (
+                                <Clock className="w-5 h-5 text-white" />
                               ) : (
-                                <span className="text-sm font-semibold text-blue-600">{index + 1}</span>
+                                <span className="text-sm font-semibold text-gray-600">{index + 1}</span>
                               )}
                             </div>
 
                             {/* Task Content */}
                             <div className="flex-1 min-w-0">
-                              <h4 className={`text-lg font-semibold mb-2 ${
-                                task.isComplete ? 'text-green-900 line-through' : 'text-gray-900'
-                              }`}>
-                                {task.title}
-                              </h4>
+                              <div className="flex items-center gap-2 mb-2">
+                                <h4 className={`text-lg font-semibold ${
+                                  task.status === 'complete' ? 'text-green-900 line-through' : 'text-gray-900'
+                                }`}>
+                                  {task.title}
+                                </h4>
+                                {task.status === 'in_progress' && (
+                                  <Badge variant="info" size="sm">In Progress</Badge>
+                                )}
+                                {task.status === 'complete' && (
+                                  <Badge variant="success" size="sm">Complete</Badge>
+                                )}
+                              </div>
                               <p className="text-gray-600 mb-4">
                                 {task.description}
                               </p>
 
                               {/* Action Buttons */}
                               <div className="flex items-center space-x-3">
-                                {!task.isComplete && (
+                                {task.status !== 'complete' && (
                                   <>
                                     {index === 0 && (
                                       <button
@@ -737,28 +777,29 @@ export default function CampaignDetailPage() {
                             </div>
                           </div>
 
-                          {/* Toggle Complete Button */}
+                          {/* Status Dropdown */}
                           <div className="flex-shrink-0 ml-4">
-                            <button
-                              onClick={() => handleToggleCampaignTask(task.id)}
-                              className={`inline-flex items-center space-x-2 px-3 py-2 font-medium rounded-lg transition-colors duration-200 ${
-                                task.isComplete
-                                  ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
-                                  : 'bg-green-100 hover:bg-green-200 text-green-700'
-                              }`}
-                            >
-                              {task.isComplete ? (
-                                <>
-                                  <RotateCcw className="w-4 h-4" />
-                                  <span className="text-sm">Mark Incomplete</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  <span className="text-sm">Mark Complete</span>
-                                </>
-                              )}
-                            </button>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Status
+                            </label>
+                            <div className="relative">
+                              <select
+                                value={task.status}
+                                onChange={(e) => handleSetCampaignTaskStatus(task.id, e.target.value as 'not_started' | 'in_progress' | 'complete')}
+                                className={`appearance-none w-full px-3 py-2 pr-8 text-sm font-medium rounded-lg border transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                  task.status === 'complete'
+                                    ? 'bg-green-50 text-green-700 border-green-300'
+                                    : task.status === 'in_progress'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                    : 'bg-gray-50 text-gray-700 border-gray-300'
+                                }`}
+                              >
+                                <option value="not_started">Not Started</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="complete">Complete</option>
+                              </select>
+                              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -156,7 +156,6 @@ export function getPreviewCampaigns(): Campaign[] {
       organizationId: 'preview-org-1',
       organizationName: 'Future Builders Foundation',
       status: 'active',
-      category: 'Education',
       images: {
         hero: '',
         gallery: [],
@@ -181,7 +180,6 @@ export function getPreviewCampaigns(): Campaign[] {
       organizationId: 'preview-org-2',
       organizationName: 'Green Tomorrow',
       status: 'active',
-      category: 'Environment',
       images: {
         hero: '',
         gallery: [],
@@ -206,7 +204,6 @@ export function getPreviewCampaigns(): Campaign[] {
       organizationId: 'preview-org-3',
       organizationName: 'Health First Alliance',
       status: 'active',
-      category: 'Healthcare',
       images: {
         hero: '',
         gallery: [],

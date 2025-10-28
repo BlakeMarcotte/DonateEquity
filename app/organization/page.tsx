@@ -11,6 +11,7 @@ import { getOrCreateOrganization, type Organization, updateOrganization } from '
 import InviteTeamMemberModal from '@/components/organization/InviteTeamMemberModal'
 import TeamMemberList from '@/components/organization/TeamMemberList'
 import PendingInvitations from '@/components/organization/PendingInvitations'
+import InviteCodesSection from '@/components/organization/InviteCodesSection'
 import { NonprofitSubrole } from '@/types/auth'
 import { isPreviewMode } from '@/lib/preview-mode/preview-data'
 import { usePreviewMode } from '@/contexts/PreviewModeContext'
@@ -178,6 +179,48 @@ function OrganizationPageContent() {
         ...prev,
         [field]: value
       }))
+    }
+  }
+
+  const handleRegenerateCode = async (codeType: 'admin' | 'member' | 'appraiser' | 'donor') => {
+    if (!user || !organization) throw new Error('Not authenticated or no organization')
+
+    try {
+      const token = await user.getIdToken()
+
+      const response = await fetch('/api/organizations/regenerate-code', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ codeType })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+
+        // Update local organization state with new code
+        setOrganization(prev => prev ? {
+          ...prev,
+          inviteCodes: {
+            ...prev.inviteCodes,
+            [codeType]: data.newCode
+          },
+          inviteCodesGeneratedAt: {
+            ...prev.inviteCodesGeneratedAt,
+            [codeType]: new Date(data.generatedAt)
+          }
+        } : null)
+
+        secureLogger.info('Invite code regenerated successfully', { codeType })
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to regenerate code')
+      }
+    } catch (error) {
+      secureLogger.error('Error regenerating invite code', error, { codeType })
+      throw error
     }
   }
 
@@ -570,10 +613,19 @@ function OrganizationPageContent() {
 
               {/* Sidebar */}
               <div className="space-y-6">
+                {/* Invite Codes */}
+                <InviteCodesSection
+                  organizationType={organization.type}
+                  inviteCodes={organization.inviteCodes || {}}
+                  inviteCodesGeneratedAt={organization.inviteCodesGeneratedAt || {}}
+                  isAdmin={customClaims?.subrole === 'admin' || customClaims?.role === 'admin'}
+                  onRegenerateCode={handleRegenerateCode}
+                />
+
                 {/* Quick Stats */}
                 <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h2>
-                  
+
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
@@ -661,6 +713,7 @@ function OrganizationPageContent() {
           isOpen={inviteModalOpen}
           onClose={() => setInviteModalOpen(false)}
           onInvite={handleInviteTeamMember}
+          inviteCodes={organization?.inviteCodes}
         />
       </div>
     </ProtectedRoute>

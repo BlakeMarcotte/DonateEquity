@@ -20,6 +20,18 @@ export interface Organization {
   establishedYear?: number
   adminIds: string[]
   memberIds: string[]
+  inviteCodes?: {
+    admin?: string
+    member?: string
+    appraiser?: string
+    donor?: string
+  }
+  inviteCodesGeneratedAt?: {
+    admin?: Date
+    member?: Date
+    appraiser?: Date
+    donor?: Date
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -55,6 +67,13 @@ export async function getOrCreateOrganization(
         establishedYear: data.establishedYear,
         adminIds: data.adminIds || [userId],
         memberIds: data.memberIds || [userId],
+        inviteCodes: data.inviteCodes,
+        inviteCodesGeneratedAt: data.inviteCodesGeneratedAt ? {
+          admin: data.inviteCodesGeneratedAt.admin?.toDate?.(),
+          member: data.inviteCodesGeneratedAt.member?.toDate?.(),
+          appraiser: data.inviteCodesGeneratedAt.appraiser?.toDate?.(),
+          donor: data.inviteCodesGeneratedAt.donor?.toDate?.(),
+        } : undefined,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
       }
