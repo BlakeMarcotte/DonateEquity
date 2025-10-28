@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useRouter } from 'next/navigation'
@@ -87,6 +87,12 @@ export default function NonprofitDashboardPage() {
   const [inviteTeamModalOpen, setInviteTeamModalOpen] = useState(false)
   const [createCampaignModalOpen, setCreateCampaignModalOpen] = useState(false)
 
+  // FLICKER FIX: Track if we've ever successfully loaded task completion data
+  const hasEverLoadedTaskCompletions = useRef(false)
+  if (taskCompletions.onboarding && Object.keys(taskCompletions.onboarding).length > 0) {
+    hasEverLoadedTaskCompletions.current = true
+  }
+
   // Fetch organization invite codes
   const fetchOrganizationInviteCodes = useCallback(async () => {
     if (!customClaims?.organizationId || !userProfile) return
@@ -133,8 +139,8 @@ export default function NonprofitDashboardPage() {
 
   // Helper function to determine status
   const getTaskStatus = useCallback((taskId: string, isAutomaticallyComplete: boolean): 'not_started' | 'in_progress' | 'complete' => {
-    // If manually set in Firestore, use that status
-    if (taskCompletions.onboarding[taskId]) {
+    // If manually set in Firestore, use that status (check if key exists, not if value is truthy)
+    if (taskId in taskCompletions.onboarding) {
       return taskCompletions.onboarding[taskId] as 'not_started' | 'in_progress' | 'complete'
     }
     // If automatically detected as complete, mark complete
@@ -505,19 +511,17 @@ export default function NonprofitDashboardPage() {
     if (taskId === 'team') setInviteTeamModalOpen(false)
     if (taskId === 'campaign') setCreateCampaignModalOpen(false)
 
-    // Wait for user data to refresh before checking completion
+    // Refresh data and fetch task completions from Firestore
+    // Don't call checkTaskCompletion() as it would override the manually saved status
     try {
       await refreshUserData()
+      // Add a delay before fetching to allow Firestore write to propagate
+      await new Promise(resolve => setTimeout(resolve, 300))
       await fetchTaskCompletions()
-      // Small delay to ensure state updates are processed
-      setTimeout(() => {
-        checkTaskCompletion()
-      }, 200)
-    } catch {
-      // If refresh fails, still check completion after delay
-      setTimeout(() => {
-        checkTaskCompletion()
-      }, 500)
+    } catch (error) {
+      secureLogger.error('Error refreshing after task completion', error instanceof Error ? error : new Error(String(error)))
+      // Still try to fetch completions even if refresh fails
+      await fetchTaskCompletions()
     }
   }
 
@@ -582,11 +586,20 @@ export default function NonprofitDashboardPage() {
   const totalTasks = tasks.length
   const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
 
-  if (loading) {
+  // FLICKER FIX: Detect race condition gap
+  // Wait for initial task completion data to load before showing content
+  const waitingForInitialLoad = user && userProfile && customClaims?.organizationId &&
+    !hasEverLoadedTaskCompletions.current &&
+    Object.keys(taskCompletions.onboarding).length === 0
+
+  // Combine all loading conditions
+  const showLoadingScreen = loading || waitingForInitialLoad
+
+  if (showLoadingScreen) {
     return (
-      <PageLoading 
-        title="Loading Dashboard" 
-        description="Setting up your nonprofit dashboard..." 
+      <PageLoading
+        title="Loading Dashboard"
+        description="Setting up your nonprofit dashboard..."
       />
     )
   }
@@ -753,7 +766,6 @@ export default function NonprofitDashboardPage() {
           {/* Task List */}
           <div className="space-y-4">
             {tasks.map((task, index) => {
-              const TaskIcon = task.icon
               return (
                 <div
                   key={task.id}
@@ -782,19 +794,6 @@ export default function NonprofitDashboardPage() {
                         )}
                       </div>
 
-                      {/* Task Icon */}
-                      <div className={`p-3 rounded-lg ${
-                        task.status === 'complete' ? 'bg-green-100' :
-                        task.status === 'in_progress' ? 'bg-blue-100' :
-                        'bg-gray-100'
-                      }`}>
-                        <TaskIcon className={`w-6 h-6 ${
-                          task.status === 'complete' ? 'text-green-600' :
-                          task.status === 'in_progress' ? 'text-blue-600' :
-                          'text-gray-600'
-                        }`} />
-                      </div>
-
                       {/* Task Content */}
                       <div className="flex-grow">
                         <div className="flex items-center gap-2 mb-1">
@@ -817,7 +816,7 @@ export default function NonprofitDashboardPage() {
                             onClick={task.action}
                             className={`inline-flex items-center space-x-2 px-4 py-2 font-medium rounded-lg transition-colors duration-200 ${
                               task.status === 'complete'
-                                ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                ? 'bg-green-600 hover:bg-green-700 text-white'
                                 : 'bg-blue-600 hover:bg-blue-700 text-white'
                             }`}
                           >
@@ -1050,15 +1049,18 @@ export default function NonprofitDashboardPage() {
           isOpen={inviteTeamModalOpen}
           onClose={() => setInviteTeamModalOpen(false)}
           onInvite={handleInviteTeamMember}
+          onComplete={() => handleModalComplete('team')}
           inviteCodes={organizationInviteCodes}
         />
         
         <CreateCampaignModal
           isOpen={createCampaignModalOpen}
           onClose={() => setCreateCampaignModalOpen(false)}
-          onSuccess={() => {
+          onSuccess={(campaignId: string) => {
             handleModalComplete('campaign')
             setCreateCampaignModalOpen(false)
+            // Navigate to the newly created campaign
+            router.push(`/campaigns/${campaignId}`)
           }}
           organizationId={customClaims?.organizationId || ''}
           userId={userProfile?.uid || ''}

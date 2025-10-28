@@ -6,11 +6,13 @@ import { FormModal } from '@/components/shared/FormModal'
 import { useFormSubmission } from '@/hooks/useAsyncOperation'
 import { NonprofitSubrole } from '@/types/auth'
 import { secureLogger } from '@/lib/logging/secure-logger'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface InviteTeamMemberModalProps {
   isOpen: boolean
   onClose: () => void
   onInvite: (email: string, subrole: NonprofitSubrole, personalMessage?: string) => Promise<void>
+  onComplete?: () => void
   inviteCodes?: {
     admin?: string
     member?: string
@@ -34,8 +36,10 @@ export default function InviteTeamMemberModal({
   isOpen,
   onClose,
   onInvite,
+  onComplete,
   inviteCodes
 }: InviteTeamMemberModalProps) {
+  const { user } = useAuth()
   const [email, setEmail] = useState('')
   const [subrole, setSubrole] = useState<NonprofitSubrole>('member')
   const [personalMessage, setPersonalMessage] = useState('')
@@ -61,13 +65,47 @@ export default function InviteTeamMemberModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // If no email entered, mark task as complete and close
+    if (!email.trim()) {
+      secureLogger.info('Team invitation code shared', { subrole })
+
+      try {
+        // Mark task as complete in Firestore
+        if (user) {
+          const token = await user.getIdToken()
+          const response = await fetch('/api/tasks/completion', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              taskType: 'onboarding',
+              taskId: 'team',
+              status: 'complete'
+            })
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to mark task as complete')
+          }
+        }
+
+        // Notify parent component to refresh task completions
+        onComplete?.()
+        handleClose()
+      } catch (error) {
+        secureLogger.error('Error marking team task as complete', error instanceof Error ? error : new Error(String(error)))
+        // Still close the modal even if marking complete fails
+        handleClose()
+      }
+      return
+    }
+
     secureLogger.info('Team invitation form submission', { email, subrole })
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!email.trim() || !subrole) {
-      throw new Error('Email and role are required')
-    }
     if (!emailRegex.test(email)) {
       throw new Error('Please enter a valid email address')
     }
@@ -93,8 +131,12 @@ export default function InviteTeamMemberModal({
     onClose()
   }
 
-  const isFormValid = email.trim().length > 0 && subrole
   const currentCode = subrole === 'admin' ? inviteCodes?.admin : inviteCodes?.member
+
+  // Button is always enabled, text changes based on whether email is filled
+  const submitButtonText = !email.trim()
+    ? 'Mark as Shared'
+    : 'Send Invitation'
 
   return (
     <FormModal
@@ -107,8 +149,8 @@ export default function InviteTeamMemberModal({
       loadingText="Sending Invitation..."
       error={error}
       inlineError={true}
-      submitDisabled={!isFormValid}
-      submitText="Send Invitation"
+      submitDisabled={false}
+      submitText={submitButtonText}
       maxWidth="2xl"
     >
       <div className="space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2">
@@ -117,7 +159,7 @@ export default function InviteTeamMemberModal({
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               <Mail className="inline w-4 h-4 mr-1" />
-              Email Address
+              Email Address (Optional)
             </label>
             <input
               type="email"
@@ -127,7 +169,6 @@ export default function InviteTeamMemberModal({
               placeholder="colleague@example.com"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={loading}
-              required
             />
           </div>
 

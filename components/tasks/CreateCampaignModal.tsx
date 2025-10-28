@@ -7,22 +7,25 @@ import { FormModal } from '@/components/shared/FormModal'
 import { useFormSubmission } from '@/hooks/useAsyncOperation'
 import { secureLogger } from '@/lib/logging/secure-logger'
 import { formatCurrencyInput, cleanCurrencyInput } from '@/lib/utils/formatters'
+import { useAuth } from '@/contexts/AuthContext'
+import confetti from 'canvas-confetti'
 
 interface CreateCampaignModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (campaignId: string) => void
   organizationId: string
   userId: string
 }
 
-export default function CreateCampaignModal({ 
+export default function CreateCampaignModal({
   isOpen,
-  onClose, 
-  onSuccess, 
-  organizationId, 
-  userId 
+  onClose,
+  onSuccess,
+  organizationId,
+  userId
 }: CreateCampaignModalProps) {
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -90,18 +93,64 @@ export default function CreateCampaignModal({
         }
       }
 
-      await addDoc(collection(db, 'campaigns'), campaignData)
-      return { campaignTitle: formData.title, goal: formData.goal }
+      const campaignRef = await addDoc(collection(db, 'campaigns'), campaignData)
+
+      // Mark task as complete since campaign was created
+      if (user) {
+        const token = await user.getIdToken()
+        await fetch('/api/tasks/completion', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskType: 'onboarding',
+            taskId: 'campaign',
+            status: 'complete'
+          })
+        })
+      }
+
+      return { campaignId: campaignRef.id, campaignTitle: formData.title, goal: formData.goal }
     })
 
     if (result) {
-      // Mark completion immediately to prevent re-opening
-      onSuccess()
-      
-      // Wait a moment to show success state then close
+      // Trigger confetti celebration!
+      const duration = 1500
+      const animationEnd = Date.now() + duration
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }
+
+      function randomInRange(min: number, max: number) {
+        return Math.random() * (max - min) + min
+      }
+
+      const interval: ReturnType<typeof setInterval> = setInterval(function() {
+        const timeLeft = animationEnd - Date.now()
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval)
+        }
+
+        const particleCount = 50 * (timeLeft / duration)
+        // Since particles fall down, start a bit higher than random
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+        })
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+        })
+      }, 250)
+
+      // Wait a moment to show success state and confetti, then navigate
       setTimeout(() => {
         handleClose()
-      }, 1500)
+        onSuccess(result.campaignId)
+      }, duration)
     }
   }
 

@@ -15,12 +15,14 @@ interface CompleteOrganizationModalProps {
   onComplete?: () => void
 }
 
-export default function CompleteOrganizationModal({ 
-  isOpen, 
-  onClose, 
-  onComplete 
+export default function CompleteOrganizationModal({
+  isOpen,
+  onClose,
+  onComplete
 }: CompleteOrganizationModalProps) {
-  const { customClaims, userProfile } = useAuth()
+  const { customClaims, userProfile, user } = useAuth()
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  const [hasLoadedData, setHasLoadedData] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     taxId: '',
@@ -30,17 +32,17 @@ export default function CompleteOrganizationModal({
     state: ''
   })
 
-  const { 
-    loading, 
-    error, 
+  const {
+    loading,
+    error,
     success,
-    execute, 
-    reset 
+    execute,
+    reset
   } = useFormSubmission('Organization Update')
 
-  // Initialize form data when modal opens
+  // Initialize form data when modal opens - only load once
   useEffect(() => {
-    if (isOpen && customClaims?.organizationId && userProfile) {
+    if (isOpen && customClaims?.organizationId && userProfile && !hasLoadedData) {
       loadOrganizationData()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -49,6 +51,7 @@ export default function CompleteOrganizationModal({
   const loadOrganizationData = async () => {
     if (!customClaims?.organizationId || !userProfile) return
 
+    setIsLoadingData(true)
     try {
       const org = await getOrCreateOrganization(
         customClaims.organizationId,
@@ -64,16 +67,19 @@ export default function CompleteOrganizationModal({
           city: org.address?.city || '',
           state: org.address?.state || ''
         })
+        setHasLoadedData(true)
       }
       reset()
     } catch (error) {
       secureLogger.error('Error loading organization', error, { organizationId: customClaims?.organizationId })
+    } finally {
+      setIsLoadingData(false)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!customClaims?.organizationId) return
+    if (!customClaims?.organizationId || !userProfile) return
 
     const organizationId = customClaims.organizationId
     const result = await execute(async () => {
@@ -93,13 +99,41 @@ export default function CompleteOrganizationModal({
       }
 
       await updateOrganization(organizationId, cleanedData)
+
+      // Check if organization data is sufficiently complete to mark task as done
+      const isComplete = !!(
+        cleanedData.name &&
+        cleanedData.taxId &&
+        cleanedData.website &&
+        cleanedData.phone &&
+        cleanedData.address?.city &&
+        cleanedData.address?.state
+      )
+
+      // Mark task as complete if all required fields are filled
+      if (isComplete && user) {
+        const token = await user.getIdToken()
+        await fetch('/api/tasks/completion', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskType: 'onboarding',
+            taskId: 'organization',
+            status: 'complete'
+          })
+        })
+      }
+
       return { success: true }
     })
 
     if (result) {
       // Mark completion immediately to prevent re-opening
       onComplete?.()
-      
+
       // Wait a moment to show success state then close
       setTimeout(() => {
         handleClose()
@@ -109,14 +143,8 @@ export default function CompleteOrganizationModal({
 
   const handleClose = () => {
     if (loading) return
-    setFormData({
-      name: '',
-      taxId: '',
-      website: '',
-      phone: '',
-      city: '',
-      state: ''
-    })
+    // Don't reset form data - keep the last loaded values to prevent flicker on reopen
+    // The useEffect will update it when the modal reopens
     reset()
     onClose()
   }
@@ -139,6 +167,9 @@ export default function CompleteOrganizationModal({
   // Allow saving with any fields filled - no validation required
   const isFormValid = true
 
+  // Don't render modal content until data is loaded
+  if (!isOpen) return null
+
   return (
     <FormModal
       isOpen={isOpen}
@@ -157,7 +188,13 @@ export default function CompleteOrganizationModal({
       submitText="Save Progress"
       maxWidth="lg"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {isLoadingData ? (
+        <div className="py-12 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading organization data...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
             <Building2 className="inline w-4 h-4 mr-1" />
@@ -256,6 +293,7 @@ export default function CompleteOrganizationModal({
           />
         </div>
       </div>
+      )}
     </FormModal>
   )
 }

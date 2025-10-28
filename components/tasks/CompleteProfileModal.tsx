@@ -17,23 +17,25 @@ interface CompleteProfileModalProps {
 }
 
 
-export default function CompleteProfileModal({ 
-  isOpen, 
-  onClose, 
-  onComplete 
+export default function CompleteProfileModal({
+  isOpen,
+  onClose,
+  onComplete
 }: CompleteProfileModalProps) {
   const { user, userProfile, refreshUserData } = useAuth()
-  const [formData, setFormData] = useState({
-    displayName: '',
-    phoneNumber: ''
-  })
-  
-  const { 
-    loading, 
-    error, 
-    success, 
-    execute, 
-    reset 
+
+  // Initialize form data immediately from userProfile to prevent flash
+  const [formData, setFormData] = useState(() => ({
+    displayName: userProfile?.displayName || '',
+    phoneNumber: formatPhoneNumber(userProfile?.phoneNumber || '')
+  }))
+
+  const {
+    loading,
+    error,
+    success,
+    execute,
+    reset
   } = useFormSubmission('Profile Update')
 
   // Initialize form data when modal opens
@@ -66,6 +68,23 @@ export default function CompleteProfileModal({
         updatedAt: new Date()
       })
 
+      // Mark task as complete if both required fields are filled
+      if (formData.displayName.trim() && formData.phoneNumber.trim()) {
+        const token = await user.getIdToken()
+        await fetch('/api/tasks/completion', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskType: 'onboarding',
+            taskId: 'profile',
+            status: 'complete'
+          })
+        })
+      }
+
       // Refresh user data
       await refreshUserData()
       return { success: true }
@@ -74,7 +93,7 @@ export default function CompleteProfileModal({
     if (result) {
       // Mark completion immediately to prevent re-opening
       onComplete?.()
-      
+
       // Wait a moment to show success state then close
       setTimeout(() => {
         handleClose()
@@ -84,10 +103,8 @@ export default function CompleteProfileModal({
 
   const handleClose = () => {
     if (loading) return
-    setFormData({
-      displayName: '',
-      phoneNumber: ''
-    })
+    // Don't reset form data - keep the last loaded values to prevent flicker on reopen
+    // The useEffect will update it when the modal reopens
     reset()
     onClose()
   }
