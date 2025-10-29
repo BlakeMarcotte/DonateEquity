@@ -72,19 +72,15 @@ export async function POST(request: NextRequest) {
     const docRef = adminDb.collection('task_completions').doc(userId)
 
     if (taskType === 'onboarding') {
+      // Use field path notation to update nested field without replacing entire object
       await docRef.set({
-        onboarding: {
-          [taskId]: status
-        },
+        [`onboarding.${taskId}`]: status,
         updatedAt: new Date()
       }, { merge: true })
     } else if (taskType === 'campaign') {
+      // Use field path notation to update nested field without replacing entire object
       await docRef.set({
-        campaigns: {
-          [campaignId]: {
-            [taskId]: status
-          }
-        },
+        [`campaigns.${campaignId}.${taskId}`]: status,
         updatedAt: new Date()
       }, { merge: true })
     }
