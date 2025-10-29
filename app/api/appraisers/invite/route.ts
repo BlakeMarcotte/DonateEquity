@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     let ctaUrl: string
 
     if (isExistingUser) {
-      // Existing user - go directly to invitation page which handles authentication
+      // Existing user - go directly to invitation accept page
       emailSubject = `${userProfile?.displayName || 'A donor'} has invited you to appraise an equity donation`
       ctaUrl = `${baseUrl}/appraiser/invitations/${invitationToken}`
       
@@ -172,9 +172,9 @@ export async function POST(request: NextRequest) {
         </div>
       `
     } else {
-      // New user - sign up and view donation
+      // New user - go directly to registration with invitation token
       emailSubject = `${userProfile?.displayName || 'A donor'} has invited you to join Donate Equity as an appraiser`
-      ctaUrl = `${baseUrl}/appraiser/invitations/${invitationToken}`
+      ctaUrl = `${baseUrl}/auth/register?appraiserInvitation=${invitationToken}&email=${encodeURIComponent(appraiserEmail)}`
       
       emailHtml = `
         <div style="font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">

@@ -210,6 +210,8 @@ export default function OrganizationSelectionPage() {
                 } else {
                   const error = await response.json()
                   console.error('Failed to accept appraiser invitation:', error)
+                  console.error('Response status:', response.status)
+                  console.error('Error details:', JSON.stringify(error))
                 }
               }
             } catch (appraiserInvitationError) {
