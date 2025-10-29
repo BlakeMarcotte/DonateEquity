@@ -9,7 +9,6 @@ import { TaskTimeline } from '@/components/tasks/TaskTimeline'
 import { DonationFiles } from '@/components/files/DonationFiles'
 import { EquityCommitmentModal } from '@/components/tasks/EquityCommitmentModal'
 import { useParticipantTasks } from '@/hooks/useParticipantTasks'
-import { useDonationTasks } from '@/hooks/useDonationTasks'
 import { Heart, CheckSquare, FileText } from 'lucide-react'
 
 function MyCampaignPage() {
@@ -19,23 +18,13 @@ function MyCampaignPage() {
   const shouldRefresh = searchParams.get('refresh') === '1'
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign(shouldRefresh)
 
-  // Create participant ID for task querying (for appraisers)
-  // For appraisers, use the participant ID from the campaign (which is the donor's participant ID)
+  // PARTICIPANT-BASED ARCHITECTURE FOR EVERYONE (donors and appraisers)
+  // For appraisers, use the participant ID from the campaign
   // For donors, construct it from campaign ID and user ID
   const participantId = campaign?.participantId || (campaign && user ? `${campaign.id}_${user.uid}` : null)
 
-  // Donors use donation-based tasks, appraisers use participant-based tasks
-  const isDonor = customClaims?.role === 'donor'
-  const donationId = donation?.id || null
-
-  // Conditionally fetch tasks based on role
-  const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision: participantHandleCommitmentDecision } = useParticipantTasks(isDonor ? null : participantId)
-  const { tasks: donationTasks, loading: donationTasksLoading, handleCommitmentDecision: donationHandleCommitmentDecision } = useDonationTasks(isDonor ? donationId : null)
-
-  // Use the appropriate tasks based on role
-  const tasks = isDonor ? donationTasks : participantTasks
-  const tasksLoading = isDonor ? donationTasksLoading : participantTasksLoading
-  const handleCommitmentDecision = isDonor ? donationHandleCommitmentDecision : participantHandleCommitmentDecision
+  // EVERYONE uses participant-based tasks now - no more donation-based legacy system
+  const { tasks, loading: tasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
@@ -311,8 +300,7 @@ function MyCampaignPage() {
             <div className="p-6">
               {activeTab === 'tasks' && (
                 <DonationTaskList
-                  participantId={isDonor ? undefined : (participantId || undefined)}
-                  donationId={isDonor ? (donationId || undefined) : undefined}
+                  participantId={participantId || undefined}
                   campaignId={campaign?.id}
                   showAllTasks={true}
                   // Pass required props for EquityCommitmentModal
@@ -328,9 +316,9 @@ function MyCampaignPage() {
               
               {activeTab === 'files' && (
                 <>
-                  {(isDonor && donationId) || (!isDonor && participantId) ? (
+                  {participantId ? (
                     <DonationFiles
-                      donationId={isDonor ? (donationId || '') : `participants/${participantId}`}
+                      donationId={`participants/${participantId}`}
                       title="Shared Documents"
                       showUpload={false}
                       className="border-0 shadow-none p-0"

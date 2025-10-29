@@ -75,99 +75,66 @@ export async function POST(
       acceptedBy: decodedToken.uid
     })
 
-    // Find and update appraiser tasks for this donation
-    const donationId = invitationData.donationId
-    console.log('Processing invitation for donationId:', donationId)
+    // PARTICIPANT-BASED SYSTEM ONLY - donationId is actually participantId
+    const participantId = invitationData.donationId
+    console.log('Processing invitation for participantId:', participantId)
     const batch = adminDb.batch()
-    
-    // Handle both participant-based (new) and donation-based (legacy) tasks
-    let isParticipantBased = false
-    let participantId = null
-    
-    if (donationId.includes('_')) {
-      // This is a participantId (new system)
-      isParticipantBased = true
-      participantId = donationId
-      console.log('Detected participant-based system, participantId:', participantId)
-      
-      // Update participant-based appraiser tasks
-      const participantTasksQuery = adminDb.collection('tasks')
-        .where('participantId', '==', participantId)
-        .where('assignedRole', '==', 'appraiser')
 
-      const participantTasksSnapshot = await participantTasksQuery.get()
-      console.log(`Found ${participantTasksSnapshot.docs.length} appraiser tasks for participant:`, participantId)
-      
-      participantTasksSnapshot.docs.forEach(taskDoc => {
-        console.log('Updating task:', taskDoc.id)
-        batch.update(taskDoc.ref, {
-          assignedTo: decodedToken.uid,
-          updatedAt: FieldValue.serverTimestamp()
-        })
-      })
-      
-      // Update the donor participant record
-      const donorParticipantRef = adminDb.collection('campaign_participants').doc(participantId)
-      console.log('Updating donor participant record:', participantId)
-      batch.update(donorParticipantRef, {
-        appraiserId: decodedToken.uid,
-        appraiserEmail: decodedToken.email,
-        appraisalStatus: 'appraiser_assigned',
-        updatedAt: FieldValue.serverTimestamp()
-      })
-      
-      // Create a separate appraiser participant record linked to this specific donation
-      // IMPORTANT: Use the donor's participantId as a base to create a unique appraiser record for this donation
-      const [campaignId, donorUserId] = participantId.split('_')
-      const appraiserParticipantId = `${participantId}_appraiser_${decodedToken.uid}`
-      console.log('Creating appraiser participant record:', appraiserParticipantId)
-      console.log('Campaign ID:', campaignId, 'Donor User ID:', donorUserId, 'Appraiser ID:', decodedToken.uid)
-      console.log('Linked to donor participant:', participantId)
-
-      const appraiserParticipantRef = adminDb.collection('campaign_participants').doc(appraiserParticipantId)
-      batch.set(appraiserParticipantRef, {
-        campaignId: campaignId,
-        userId: decodedToken.uid,
-        userEmail: decodedToken.email,
-        role: 'appraiser',
-        appraiserId: decodedToken.uid, // CRITICAL: Add appraiserId so the by-appraiser query can find this record
-        status: 'active',
-        joinedAt: FieldValue.serverTimestamp(),
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        // Link to the donor they're appraising for
-        linkedDonorParticipantId: participantId,
-        linkedDonorId: donorUserId
-      })
-    } else {
-      // Legacy donation-based system
-      // Update all appraiser tasks to assign to this user
-      const appraiserTasksQuery = adminDb.collection('tasks')
-        .where('donationId', '==', donationId)
-        .where('assignedRole', '==', 'appraiser')
-
-      const appraiserTasksSnapshot = await appraiserTasksQuery.get()
-      
-      appraiserTasksSnapshot.docs.forEach(taskDoc => {
-        batch.update(taskDoc.ref, {
-          assignedTo: decodedToken.uid,
-          updatedAt: FieldValue.serverTimestamp()
-        })
-      })
-
-      // Update the donation record to include appraiser info
-      const donationRef = adminDb.collection('donations').doc(donationId)
-      console.log('Updating donation record:', donationId)
-      console.log('Setting appraiserId:', decodedToken.uid)
-      console.log('Setting appraiserEmail:', decodedToken.email)
-
-      batch.update(donationRef, {
-        appraiserId: decodedToken.uid,
-        appraiserEmail: decodedToken.email,
-        appraisalStatus: 'appraiser_assigned',
-        updatedAt: FieldValue.serverTimestamp()
-      })
+    // Validate participantId format (should be campaignId_userId)
+    if (!participantId.includes('_')) {
+      console.error('Invalid participantId format:', participantId)
+      return NextResponse.json({ error: 'Invalid invitation format' }, { status: 400 })
     }
+
+    // Update participant-based appraiser tasks
+    const participantTasksQuery = adminDb.collection('tasks')
+      .where('participantId', '==', participantId)
+      .where('assignedRole', '==', 'appraiser')
+
+    const participantTasksSnapshot = await participantTasksQuery.get()
+    console.log(`Found ${participantTasksSnapshot.docs.length} appraiser tasks for participant:`, participantId)
+
+    participantTasksSnapshot.docs.forEach(taskDoc => {
+      console.log('Updating task:', taskDoc.id)
+      batch.update(taskDoc.ref, {
+        assignedTo: decodedToken.uid,
+        updatedAt: FieldValue.serverTimestamp()
+      })
+    })
+
+    // Update the donor participant record
+    const donorParticipantRef = adminDb.collection('campaign_participants').doc(participantId)
+    console.log('Updating donor participant record:', participantId)
+    batch.update(donorParticipantRef, {
+      appraiserId: decodedToken.uid,
+      appraiserEmail: decodedToken.email,
+      appraisalStatus: 'appraiser_assigned',
+      updatedAt: FieldValue.serverTimestamp()
+    })
+
+    // Create a separate appraiser participant record linked to this specific donation
+    // IMPORTANT: Use the donor's participantId as a base to create a unique appraiser record for this donation
+    const [campaignId, donorUserId] = participantId.split('_')
+    const appraiserParticipantId = `${participantId}_appraiser_${decodedToken.uid}`
+    console.log('Creating appraiser participant record:', appraiserParticipantId)
+    console.log('Campaign ID:', campaignId, 'Donor User ID:', donorUserId, 'Appraiser ID:', decodedToken.uid)
+    console.log('Linked to donor participant:', participantId)
+
+    const appraiserParticipantRef = adminDb.collection('campaign_participants').doc(appraiserParticipantId)
+    batch.set(appraiserParticipantRef, {
+      campaignId: campaignId,
+      userId: decodedToken.uid,
+      userEmail: decodedToken.email,
+      role: 'appraiser',
+      appraiserId: decodedToken.uid, // CRITICAL: Add appraiserId so the by-appraiser query can find this record
+      status: 'active',
+      joinedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      // Link to the donor they're appraising for
+      linkedDonorParticipantId: participantId,
+      linkedDonorId: donorUserId
+    })
 
     console.log('Committing batch operations...')
     try {
@@ -208,10 +175,8 @@ export async function POST(
     return NextResponse.json({
       success: true,
       message: 'Invitation accepted successfully! You have been assigned as the appraiser for this donation.',
-      donationId: donationId,
-      participantId: isParticipantBased ? participantId : null,
+      participantId: participantId,
       redirectUrl: redirectUrl,
-      isParticipantBased: isParticipantBased,
       roleUpdated: roleUpdated
     })
 
