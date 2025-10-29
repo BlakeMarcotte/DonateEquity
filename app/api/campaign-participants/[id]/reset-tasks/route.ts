@@ -85,6 +85,31 @@ export async function POST(
       batch.delete(doc.ref)
     })
 
+    // Clean up appraiser-related data if an appraiser was assigned
+    if (participantData.appraiserId) {
+      // Delete the appraiser participant record linked to this donation
+      // New format: {donorParticipantId}_appraiser_{appraiserId}
+      const appraiserParticipantId = `${participantId}_appraiser_${participantData.appraiserId}`
+      const appraiserParticipantRef = adminDb.collection('campaign_participants').doc(appraiserParticipantId)
+
+      // Check if it exists before deleting
+      const appraiserParticipantDoc = await appraiserParticipantRef.get()
+      if (appraiserParticipantDoc.exists) {
+        console.log('Deleting appraiser participant record:', appraiserParticipantId)
+        batch.delete(appraiserParticipantRef)
+      }
+    }
+
+    // Delete any pending appraiser invitations for this participant
+    const invitationsSnapshot = await adminDb.collection('appraiser_invitations')
+      .where('donationId', '==', participantId)
+      .get()
+
+    invitationsSnapshot.docs.forEach(doc => {
+      console.log('Deleting appraiser invitation:', doc.id)
+      batch.delete(doc.ref)
+    })
+
     // Recreate initial tasks matching the new step structure
     // Task 1: Donor - Choose Appraisal Method (Invite Appraiser or AI Appraisal)
     const inviteAppraiserTaskId = `${participantId}_invite_appraiser`
@@ -367,11 +392,14 @@ export async function POST(
     batch.set(nonprofitApproveTaskRef, nonprofitApproveTask)
     batch.set(nonprofitUploadTaskRef, nonprofitUploadTask)
 
-    // Reset participant status
+    // Reset participant status and clear appraiser info
     batch.update(participantDoc.ref, {
       status: 'interested',
       updatedAt: new Date(),
-      'metadata.commitmentTiming': null
+      'metadata.commitmentTiming': null,
+      appraiserId: null, // Clear appraiser assignment
+      appraiserEmail: null,
+      appraisalStatus: null
     })
 
     // Execute all operations

@@ -116,12 +116,14 @@ export async function POST(
         updatedAt: FieldValue.serverTimestamp()
       })
       
-      // Create a separate appraiser participant record so they can access the campaign
+      // Create a separate appraiser participant record linked to this specific donation
+      // IMPORTANT: Use the donor's participantId as a base to create a unique appraiser record for this donation
       const [campaignId, donorUserId] = participantId.split('_')
-      const appraiserParticipantId = `${campaignId}_${decodedToken.uid}`
+      const appraiserParticipantId = `${participantId}_appraiser_${decodedToken.uid}`
       console.log('Creating appraiser participant record:', appraiserParticipantId)
       console.log('Campaign ID:', campaignId, 'Donor User ID:', donorUserId, 'Appraiser ID:', decodedToken.uid)
-      
+      console.log('Linked to donor participant:', participantId)
+
       const appraiserParticipantRef = adminDb.collection('campaign_participants').doc(appraiserParticipantId)
       batch.set(appraiserParticipantRef, {
         campaignId: campaignId,
