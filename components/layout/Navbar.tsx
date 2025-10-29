@@ -16,6 +16,7 @@ import {
   Users,
   Settings,
   LayoutDashboard,
+  Folder,
 } from 'lucide-react'
 import { useDonorCampaign } from '@/hooks/useDonorCampaign'
 
@@ -57,6 +58,12 @@ const navigationItems: NavItem[] = [
     href: '/resources',
     icon: FileText,
     roles: ['nonprofit_admin', 'donor']
+  },
+  {
+    name: 'Files',
+    href: '/files',
+    icon: Folder,
+    roles: ['nonprofit_admin', 'donor', 'appraiser']
   },
   // Admin specific pages
   {

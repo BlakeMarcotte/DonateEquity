@@ -59,7 +59,7 @@ export function DonationTaskList({
   const [showResetModal, setShowResetModal] = useState(false)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const { uploadFile } = useParticipantFiles(participantId || null, null)
+  const { uploadFile } = useParticipantFiles(participantId || donationId || null, null)
   const fileUploadRef = useRef<{ triggerUpload: () => Promise<void>; hasFiles: () => boolean } | null>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
@@ -279,7 +279,7 @@ export function DonationTaskList({
         body: JSON.stringify({
           signerEmail: user?.email,
           signerName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          donationId: participantId, // Use participantId as donationId for backward compatibility
+          donationId: participantId || donationId, // Use participantId or donationId (whichever is available)
           documentName: 'General NDA',
           emailSubject: 'Please sign the General NDA for your donation'
         })
@@ -302,7 +302,7 @@ export function DonationTaskList({
           envelopeId: envelopeResult.envelopeId,
           recipientEmail: user?.email,
           recipientName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          donationId: participantId // Use participantId as donationId for backward compatibility
+          donationId: participantId || donationId // Use participantId or donationId (whichever is available)
         })
       })
       
@@ -355,20 +355,21 @@ export function DonationTaskList({
   
 
   const handleRefreshTasks = async () => {
-    if (refreshing || !participantId) return
-    
+    const effectiveId = participantId || donationId
+    if (refreshing || !effectiveId) return
+
     setRefreshing(true)
-    
+
     try {
       const token = await user?.getIdToken()
-      
+
       const response = await fetch('/api/tasks/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ participantId })
+        body: JSON.stringify({ participantId: effectiveId })
       })
 
       if (!response.ok) {
@@ -400,9 +401,11 @@ export function DonationTaskList({
       const token = await user?.getIdToken()
 
       let response
+      const effectiveId = participantId || donationId
+
       // Try donationId first (for donors), then participantId (for appraisers)
-      if (donationId) {
-        // Reset donation tasks (for donors)
+      if (donationId && !participantId) {
+        // Reset donation tasks (for donors) - only if we have donationId and NOT participantId
         response = await fetch(`/api/donations/${donationId}/reset-tasks`, {
           method: 'POST',
           headers: {
@@ -410,9 +413,9 @@ export function DonationTaskList({
             'Authorization': `Bearer ${token}`
           }
         })
-      } else if (participantId) {
-        // Reset participant tasks (for appraisers)
-        response = await fetch(`/api/campaign-participants/${participantId}/reset-tasks`, {
+      } else if (effectiveId) {
+        // Reset participant tasks (for appraisers and new donation structure)
+        response = await fetch(`/api/campaign-participants/${effectiveId}/reset-tasks`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -850,8 +853,8 @@ export function DonationTaskList({
         size="md"
       >
         <AppraiserInvitationForm
-          participantId={participantId}
-          donationId={participantId} // For backward compatibility
+          participantId={participantId || donationId}
+          donationId={participantId || donationId} // For backward compatibility
           onSuccess={handleInvitationSuccess}
         />
       </Modal>
