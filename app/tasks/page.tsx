@@ -433,8 +433,9 @@ export default function NonprofitDashboardPage() {
 
   // Run checkTaskCompletion once after initial taskCompletions load
   useEffect(() => {
-    const hasData = taskCompletions.onboarding && Object.keys(taskCompletions.onboarding).length > 0
-    if (hasData && user && userProfile && customClaims?.organizationId && !hasRunInitialTaskCheck.current) {
+    // Check if we've loaded task completions (even if empty)
+    // The hasEverLoadedTaskCompletions ref will be set to true after fetchTaskCompletions runs
+    if (hasEverLoadedTaskCompletions.current && user && userProfile && customClaims?.organizationId && !hasRunInitialTaskCheck.current) {
       hasRunInitialTaskCheck.current = true
       checkTaskCompletion()
     }
