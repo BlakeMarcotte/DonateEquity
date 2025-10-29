@@ -119,7 +119,7 @@ export default function OrganizationSelectionPage() {
           await signIn(basicData.email, basicData.password)
           await refreshUserData()
 
-          // Check if there's a pending invitation to accept
+          // Check if there's a pending campaign invitation to accept
           const pendingInvitation = sessionStorage.getItem('pendingInvitation')
           let redirectPath = ''
 
@@ -128,7 +128,7 @@ export default function OrganizationSelectionPage() {
               const invitation = JSON.parse(pendingInvitation)
               sessionStorage.removeItem('pendingInvitation')
 
-              console.log('Accepting pending invitation after registration:', invitation)
+              console.log('Accepting pending campaign invitation after registration:', invitation)
 
               // Wait a bit for Firebase to process the registration
               await new Promise(resolve => setTimeout(resolve, 1000))
@@ -139,7 +139,7 @@ export default function OrganizationSelectionPage() {
               if (currentUser) {
                 const idToken = await currentUser.getIdToken(true)
 
-                // Accept the invitation
+                // Accept the campaign invitation
                 const response = await fetch('/api/invitations/accept', {
                   method: 'POST',
                   headers: {
@@ -154,7 +154,7 @@ export default function OrganizationSelectionPage() {
 
                 if (response.ok) {
                   const result = await response.json()
-                  console.log('Invitation accepted:', result)
+                  console.log('Campaign invitation accepted:', result)
 
                   // Redirect to donation tasks if we have the data
                   if (result.data?.donationId) {
@@ -163,11 +163,57 @@ export default function OrganizationSelectionPage() {
                     redirectPath = `/my-campaign?campaignId=${result.data.campaignId}&refresh=1`
                   }
                 } else {
-                  console.error('Failed to accept invitation:', await response.json())
+                  console.error('Failed to accept campaign invitation:', await response.json())
                 }
               }
             } catch (invitationError) {
-              console.error('Error accepting invitation:', invitationError)
+              console.error('Error accepting campaign invitation:', invitationError)
+            }
+          }
+
+          // Check if there's a pending appraiser invitation to accept
+          if (basicData.appraiserInvitationToken) {
+            try {
+              console.log('Accepting pending appraiser invitation after registration')
+
+              // Wait a bit for Firebase to process the registration
+              await new Promise(resolve => setTimeout(resolve, 1000))
+
+              // Get auth token
+              const { auth } = await import('@/lib/firebase/config')
+              const currentUser = auth.currentUser
+              if (currentUser) {
+                const idToken = await currentUser.getIdToken()
+
+                // Accept the appraiser invitation
+                const response = await fetch(`/api/appraiser/invitations/${basicData.appraiserInvitationToken}/accept`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                  }
+                })
+
+                if (response.ok) {
+                  const result = await response.json()
+                  console.log('Appraiser invitation accepted:', result)
+
+                  // Refresh token if role was just set
+                  if (result.roleUpdated) {
+                    await currentUser.getIdToken(true)
+                  }
+
+                  // Set redirect path to my-campaign
+                  if (!redirectPath) {
+                    redirectPath = result.redirectUrl || '/my-campaign'
+                  }
+                } else {
+                  const error = await response.json()
+                  console.error('Failed to accept appraiser invitation:', error)
+                }
+              }
+            } catch (appraiserInvitationError) {
+              console.error('Error accepting appraiser invitation:', appraiserInvitationError)
             }
           }
 
