@@ -80,7 +80,8 @@ function MyCampaignPage() {
 
   // CRITICAL FIX: If we have a user but haven't loaded campaign data yet, keep showing loading
   // This prevents the flash when campaignLoading=false but campaign state hasn't updated yet
-  const waitingForInitialCampaignLoad = isAuthFullyLoaded && user && !hasEverHadCampaign.current && !campaign
+  // BUT: Also check campaignLoading - if it's false and no campaign, stop waiting (user has no campaigns)
+  const waitingForInitialCampaignLoad = isAuthFullyLoaded && user && !hasEverHadCampaign.current && !campaign && campaignLoading
 
   const showLoadingScreen = !isAuthFullyLoaded || isLoadingData || waitingForInitialCampaignLoad
 
@@ -143,6 +144,19 @@ function MyCampaignPage() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading your campaign...</p>
+          </div>
+        </div>
+      )
+    }
+
+    // If user is an appraiser without campaigns, redirect to onboarding
+    if (customClaims?.role === 'appraiser') {
+      router.push('/appraiser/onboarding')
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Redirecting to onboarding...</p>
           </div>
         </div>
       )

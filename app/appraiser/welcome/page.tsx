@@ -21,12 +21,12 @@ export default function AppraiserWelcomePage() {
 
     // Check if user has appraiser role
     if ((customClaims?.role as string) === 'appraiser') {
-      // Start countdown and redirect
+      // Start countdown and redirect to onboarding
       const timer = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer)
-            router.push('/my-campaign')
+            router.push('/appraiser/onboarding')
             return 0
           }
           return prev - 1
@@ -73,12 +73,12 @@ export default function AppraiserWelcomePage() {
           Welcome, Appraiser!
         </h1>
         <p className="text-gray-600 mb-6">
-          Your invitation has been accepted successfully. You can now access your appraisal assignments.
+          Your invitation has been accepted successfully. Let&apos;s get you set up with our onboarding process.
         </p>
-        
+
         <div className="mb-6">
           <p className="text-sm text-gray-500 mb-2">
-            Redirecting to your dashboard in:
+            Redirecting to onboarding in:
           </p>
           <div className="text-3xl font-bold text-blue-600">
             {countdown}
@@ -86,11 +86,11 @@ export default function AppraiserWelcomePage() {
         </div>
 
         <button
-          onClick={() => router.push('/my-campaign')}
+          onClick={() => router.push('/appraiser/onboarding')}
           className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center"
         >
           <ArrowRight className="h-4 w-4 mr-2" />
-          Go to Dashboard Now
+          Start Onboarding
         </button>
       </div>
     </div>

@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    console.log('Querying campaign_participants for user:', userId)
+
     // Query campaign_participants for this user
     const participantsSnapshot = await adminDb
       .collection('campaign_participants')
@@ -20,17 +22,25 @@ export async function GET(request: NextRequest) {
       .where('userRole', '==', 'donor')
       .get()
 
-    const participants = participantsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      joinedAt: doc.data().joinedAt?.toDate?.() || doc.data().joinedAt,
-      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
-      updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
-    }))
+    console.log('Query returned', participantsSnapshot.docs.length, 'documents')
 
-    return NextResponse.json({ 
+    const participants = participantsSnapshot.docs.map(doc => {
+      const data = doc.data()
+      console.log('Participant document:', { id: doc.id, ...data })
+      return {
+        id: doc.id,
+        ...data,
+        joinedAt: data.joinedAt?.toDate?.() || data.joinedAt,
+        createdAt: data.createdAt?.toDate?.() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
+      }
+    })
+
+    console.log('Returning participants:', participants.length)
+
+    return NextResponse.json({
       participants,
-      count: participants.length 
+      count: participants.length
     })
   } catch (error) {
     console.error('Error fetching campaign participants:', error)

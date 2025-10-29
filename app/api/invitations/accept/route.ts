@@ -96,9 +96,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Set user role to donor if they don't have a role yet
+    const currentRole = decodedToken.role
+    if (!currentRole || currentRole === 'donor') {
+      try {
+        // Update custom claims
+        await adminAuth.setCustomUserClaims(decodedToken.uid, {
+          ...decodedToken,
+          role: 'donor'
+        })
+
+        // Update user profile document
+        await adminDb.collection('users').doc(decodedToken.uid).update({
+          role: 'donor',
+          updatedAt: new Date()
+        })
+
+        console.log('Set user role to donor:', decodedToken.uid)
+      } catch (roleError) {
+        console.error('Error setting user role to donor:', roleError)
+        // Don't fail the invitation if role setting fails
+      }
+    }
+
     // Update the invitation and create campaign participant record
     const batch = adminDb.batch()
-    
+
     try {
       // Update the invitation
       batch.update(invitationDoc.ref, {
@@ -109,8 +132,9 @@ export async function POST(request: NextRequest) {
       })
 
       // Create campaign participant record to track donor interest
-      const participantRef = adminDb.collection('campaign_participants').doc(`${invitationData.campaignId}_${decodedToken.uid}`)
-      batch.set(participantRef, {
+      const participantId = `${invitationData.campaignId}_${decodedToken.uid}`
+      const participantRef = adminDb.collection('campaign_participants').doc(participantId)
+      const participantData = {
         campaignId: invitationData.campaignId,
         userId: decodedToken.uid,
         userRole: 'donor',
@@ -125,16 +149,35 @@ export async function POST(request: NextRequest) {
         },
         createdAt: new Date(),
         updatedAt: new Date()
+      }
+
+      console.log('Creating participant record:', {
+        participantId,
+        campaignId: invitationData.campaignId,
+        userId: decodedToken.uid,
+        userRole: 'donor'
       })
+
+      batch.set(participantRef, participantData)
 
       // Execute batch
       await batch.commit()
-      console.log('Successfully updated invitation and created participant record:', invitationDoc.id)
+      console.log('Successfully updated invitation and created participant record:', {
+        invitationId: invitationDoc.id,
+        participantId,
+        userId: decodedToken.uid
+      })
+
+      // Verify participant was created
+      const verifyParticipant = await participantRef.get()
+      if (verifyParticipant.exists) {
+        console.log('Verified participant record exists:', verifyParticipant.data())
+      } else {
+        console.error('WARNING: Participant record was not created!')
+      }
 
       // Create the full 9-step task workflow for the participant
       try {
-        const participantId = `${invitationData.campaignId}_${decodedToken.uid}`
-        
         // Use the task creation API endpoint to create the full workflow
         const createTasksUrl = `${request.url.split('/api/')[0]}/api/campaign-participants/create-tasks`
         const taskCreationResponse = await fetch(createTasksUrl, {

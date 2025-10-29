@@ -91,6 +91,8 @@ export default function NonprofitDashboardPage() {
   const hasEverLoadedTaskCompletions = useRef(false)
   const hasRunInitialFetch = useRef(false)
   const hasRunInitialTaskCheck = useRef(false)
+  // Note: hasEverLoadedTaskCompletions is now set in fetchTaskCompletions
+  // This fallback check is kept for backwards compatibility
   if (taskCompletions.onboarding && Object.keys(taskCompletions.onboarding).length > 0) {
     hasEverLoadedTaskCompletions.current = true
   }
@@ -136,9 +138,13 @@ export default function NonprofitDashboardPage() {
           onboarding: result.completions?.onboarding || {},
           campaigns: result.completions?.campaigns || {}
         })
+        // Mark that we've loaded task completions (even if empty)
+        hasEverLoadedTaskCompletions.current = true
       }
     } catch (error) {
       secureLogger.error('Error fetching task completions', error instanceof Error ? error : new Error(String(error)))
+      // Even on error, mark as loaded to prevent infinite loading
+      hasEverLoadedTaskCompletions.current = true
     }
   }, [user])
 
