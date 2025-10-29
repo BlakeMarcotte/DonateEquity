@@ -38,7 +38,6 @@ export default function AppraiserOnboardingPage() {
     onboarding: Record<string, string>
   }>({ onboarding: {} })
   const [hasCampaigns, setHasCampaigns] = useState(false)
-  const [checkingCampaigns, setCheckingCampaigns] = useState(true)
 
   // Modal states
   const [profileModalOpen, setProfileModalOpen] = useState(false)
@@ -171,10 +170,7 @@ export default function AppraiserOnboardingPage() {
 
   // Check if appraiser has campaign assignments
   const checkForCampaigns = useCallback(async () => {
-    if (!user) {
-      setCheckingCampaigns(false)
-      return
-    }
+    if (!user) return
 
     try {
       const response = await fetch(`/api/campaign-participants/by-appraiser?appraiserId=${user.uid}`)
@@ -184,8 +180,6 @@ export default function AppraiserOnboardingPage() {
       }
     } catch (error) {
       secureLogger.error('Error checking for campaigns', error instanceof Error ? error : new Error(String(error)))
-    } finally {
-      setCheckingCampaigns(false)
     }
   }, [user])
 
