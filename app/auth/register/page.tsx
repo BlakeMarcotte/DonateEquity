@@ -214,7 +214,7 @@ function RegisterPage() {
               : appraiserInvitation
                 ? '/my-campaign'
                 : invitationToken
-                  ? `/invite/${invitationToken}`
+                  ? undefined // Don't set redirect for invitation - let RegisterForm handle it after accepting
                   : campaignId
                     ? `/campaigns/${campaignId}/donate`
                     : undefined

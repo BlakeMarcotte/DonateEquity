@@ -4,7 +4,9 @@ import { adminAuth, adminDb } from '@/lib/firebase/admin'
 export async function POST(request: NextRequest) {
   try {
     console.log('=== Invitation Accept API Called ===')
-    
+    console.log('Request URL:', request.url)
+    console.log('Request method:', request.method)
+
     // Verify authentication
     const authHeader = request.headers.get('authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

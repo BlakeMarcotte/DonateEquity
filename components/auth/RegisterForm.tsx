@@ -198,13 +198,17 @@ export default function RegisterForm({
           await refreshUserData()
 
           // If user registered via invitation, accept the invitation
+          let invitationAccepted = false
+          let acceptedCampaignId = null
+          let acceptedDonationId = null
+
           if (invitation) {
             try {
               // Get the user's auth token
               const currentUser = auth.currentUser
               if (currentUser) {
                 const idToken = await currentUser.getIdToken()
-                
+
                 // Call the API to accept the invitation
                 const response = await fetch('/api/invitations/accept', {
                   method: 'POST',
@@ -217,8 +221,23 @@ export default function RegisterForm({
                     invitationToken: invitation.invitationToken
                   })
                 })
-                
-                if (!response.ok) {
+
+                if (response.ok) {
+                  const result = await response.json()
+                  invitationAccepted = true
+                  acceptedCampaignId = result.data?.campaignId
+                  acceptedDonationId = result.data?.donationId
+
+                  // Refresh token if role was just set
+                  if (result.requiresTokenRefresh) {
+                    await currentUser.getIdToken(true)
+                  }
+
+                  console.log('Invitation accepted successfully', {
+                    campaignId: acceptedCampaignId,
+                    donationId: acceptedDonationId
+                  })
+                } else {
                   const error = await response.json()
                   console.error('Error accepting invitation:', error)
                 }
@@ -228,7 +247,7 @@ export default function RegisterForm({
               // Continue with registration flow even if invitation acceptance fails
             }
           }
-          
+
           if (onSuccess) {
             onSuccess()
           } else {
@@ -238,19 +257,29 @@ export default function RegisterForm({
             } else if (redirectTo) {
               router.push(redirectTo)
             } else {
-              // Default role-based redirects
-              switch (formData.role) {
-                case 'donor':
-                  router.push('/my-campaign')
-                  break
-                case 'appraiser':
-                  router.push('/my-campaign')
-                  break
-                case 'nonprofit_admin':
-                  router.push('/tasks')
-                  break
-                default:
-                  router.push('/dashboard')
+              // If invitation was accepted, redirect to the campaign/donation page
+              // Add a small delay to ensure Firestore write has propagated
+              if (invitationAccepted && acceptedDonationId) {
+                await new Promise(resolve => setTimeout(resolve, 500))
+                router.push(`/donations/${acceptedDonationId}/tasks?refresh=1`)
+              } else if (invitationAccepted && acceptedCampaignId) {
+                await new Promise(resolve => setTimeout(resolve, 500))
+                router.push(`/my-campaign?campaignId=${acceptedCampaignId}&refresh=1`)
+              } else {
+                // Default role-based redirects
+                switch (formData.role) {
+                  case 'donor':
+                    router.push('/my-campaign?refresh=1')
+                    break
+                  case 'appraiser':
+                    router.push('/my-campaign')
+                    break
+                  case 'nonprofit_admin':
+                    router.push('/tasks')
+                    break
+                  default:
+                    router.push('/dashboard')
+                }
               }
             }
           }

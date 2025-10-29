@@ -135,7 +135,9 @@ export default function InvitationPage() {
       if (response === 'accepted') {
         // Use the API endpoint for accepting
         const idToken = await user.getIdToken()
-        
+
+        console.log('Calling invitation accept API with token:', params.token)
+
         const apiResponse = await fetch('/api/invitations/accept', {
           method: 'POST',
           headers: {
@@ -146,7 +148,10 @@ export default function InvitationPage() {
             invitationToken: params.token
           })
         })
-        
+
+        console.log('API response status:', apiResponse.status)
+        console.log('API response ok:', apiResponse.ok)
+
         if (apiResponse.ok) {
           const acceptanceResult = await apiResponse.json()
           setInvitation(prev => prev ? { ...prev, status: response } : null)
