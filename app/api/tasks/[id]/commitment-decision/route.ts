@@ -88,7 +88,11 @@ export async function POST(
     batch.update(taskRef, updateData as { [key: string]: FieldValue | Partial<unknown> | undefined })
 
     if (decision === 'commit_now') {
-      // Create donation record with commitment data
+      // Update or create donation record with the SAME ID as effectiveId
+      // This ensures tasks remain associated with the same ID
+      const donationRef = adminDb.collection('donations').doc(effectiveId)
+      const donationDoc = await donationRef.get()
+
       const donationData = {
         campaignId: taskData.campaignId,
         donorId: taskData.donorId,
@@ -99,15 +103,23 @@ export async function POST(
         status: 'committed',
         requiresAppraisal: true,
         participantId: effectiveId,
-        createdAt: new Date(),
+        updatedAt: new Date(),
         metadata: {
           commitmentData,
           source: 'commitment_decision_task'
         }
       }
 
-      const donationRef = adminDb.collection('donations').doc()
-      batch.set(donationRef, donationData)
+      if (donationDoc.exists()) {
+        // Update existing donation
+        batch.update(donationRef, donationData)
+      } else {
+        // Create new donation with the same ID
+        batch.set(donationRef, {
+          ...donationData,
+          createdAt: new Date()
+        })
+      }
 
       // When committing now, unblock the next task in the workflow (Invite Appraiser)
       // Query by the same field type as the current task
@@ -118,12 +130,11 @@ export async function POST(
         .where('dependencies', 'array-contains', taskId)
         .get()
 
-      // Unblock dependent tasks and add donation ID
+      // Unblock dependent tasks (no need to update ID since we're using the same one)
       tasksSnapshot.docs.forEach((taskDoc) => {
         const nextTaskRef = adminDb.collection('tasks').doc(taskDoc.id)
         batch.update(nextTaskRef, {
           status: 'pending',
-          donationId: donationRef.id,
           updatedAt: new Date()
         })
       })
@@ -136,7 +147,7 @@ export async function POST(
           batch.update(participantRef, {
             status: 'committed',
             'metadata.commitmentTiming': 'now',
-            'metadata.donationId': donationRef.id,
+            'metadata.donationId': effectiveId, // Same ID
             updatedAt: new Date()
           })
         }

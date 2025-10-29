@@ -127,7 +127,7 @@ export default function Navbar() {
       <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg border-r border-gray-200 hidden lg:flex lg:flex-col">
         {/* Logo */}
         <div className="flex items-center px-6 py-4 border-b border-gray-200">
-          <Link href={userRole === 'donor' ? '/my-campaign' : userRole === 'appraiser' ? '/appraiser' : '/tasks'} className="flex items-center space-x-3">
+          <Link href={userRole === 'donor' ? '/my-donations' : userRole === 'appraiser' ? '/appraiser' : '/tasks'} className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Heart className="w-5 h-5 text-white" />
             </div>
@@ -139,24 +139,24 @@ export default function Navbar() {
         {(userRole === 'donor' || userRole === 'appraiser') && campaign && (
           <div className="px-4 py-4 border-b border-gray-200">
             <Link
-              href="/my-campaign"
+              href={userRole === 'donor' ? '/my-donations' : '/my-campaign'}
               className={`flex flex-col space-y-1 px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                pathname === '/my-campaign'
+                (userRole === 'donor' ? pathname === '/my-donations' : pathname === '/my-campaign')
                   ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               <div className="text-xs font-medium text-blue-600 uppercase tracking-wide">
-                Your Campaign
+                {userRole === 'donor' ? 'Your Donation' : 'Your Campaign'}
               </div>
               <div className={`font-semibold truncate ${
-                pathname === '/my-campaign' ? 'text-blue-600' : 'text-gray-900'
+                (userRole === 'donor' ? pathname === '/my-donations' : pathname === '/my-campaign') ? 'text-blue-600' : 'text-gray-900'
               }`}>
                 {campaign.title}
               </div>
               {campaign.organizationName && (
                 <div className={`text-xs truncate ${
-                  pathname === '/my-campaign' ? 'text-blue-500' : 'text-gray-500'
+                  (userRole === 'donor' ? pathname === '/my-donations' : pathname === '/my-campaign') ? 'text-blue-500' : 'text-gray-500'
                 }`}>
                   {campaign.organizationName}
                 </div>
@@ -231,7 +231,7 @@ export default function Navbar() {
         {/* Mobile Header */}
         <div className="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
           <div className="flex items-center justify-between">
-            <Link href={userRole === 'donor' ? '/my-campaign' : userRole === 'appraiser' ? '/appraiser' : '/tasks'} className="flex items-center space-x-2">
+            <Link href={userRole === 'donor' ? '/my-donations' : userRole === 'appraiser' ? '/appraiser' : '/tasks'} className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Heart className="w-5 h-5 text-white" />
               </div>
@@ -257,7 +257,7 @@ export default function Navbar() {
             <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setIsMobileMenuOpen(false)} />
             <div className="fixed inset-y-0 left-0 max-w-xs w-full bg-white shadow-xl">
               <div className="flex items-center px-4 py-4 border-b border-gray-200">
-                <Link href={userRole === 'donor' ? '/my-campaign' : userRole === 'appraiser' ? '/appraiser' : '/tasks'} className="flex items-center space-x-3">
+                <Link href={userRole === 'donor' ? '/my-donations' : userRole === 'appraiser' ? '/appraiser' : '/tasks'} className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                     <Heart className="w-5 h-5 text-white" />
                   </div>
@@ -269,25 +269,25 @@ export default function Navbar() {
               {(userRole === 'donor' || userRole === 'appraiser') && campaign && (
                 <div className="px-4 py-4 border-b border-gray-200">
                   <Link
-                    href="/my-campaign"
+                    href={userRole === 'donor' ? '/my-donations' : '/my-campaign'}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`flex flex-col space-y-1 px-4 py-3 rounded-lg text-base font-medium transition-colors duration-200 ${
-                      pathname === '/my-campaign'
+                      (userRole === 'donor' ? pathname === '/my-donations' : pathname === '/my-campaign')
                         ? 'bg-blue-50 text-blue-600'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                   >
                     <div className="text-xs font-medium text-blue-600 uppercase tracking-wide">
-                      Your Campaign
+                      {userRole === 'donor' ? 'Your Donation' : 'Your Campaign'}
                     </div>
                     <div className={`font-semibold truncate ${
-                      pathname === '/my-campaign' ? 'text-blue-600' : 'text-gray-900'
+                      (userRole === 'donor' ? pathname === '/my-donations' : pathname === '/my-campaign') ? 'text-blue-600' : 'text-gray-900'
                     }`}>
                       {campaign.title}
                     </div>
                     {campaign.organizationName && (
                       <div className={`text-xs truncate ${
-                        pathname === '/my-campaign' ? 'text-blue-500' : 'text-gray-500'
+                        (userRole === 'donor' ? pathname === '/my-donations' : pathname === '/my-campaign') ? 'text-blue-500' : 'text-gray-500'
                       }`}>
                         {campaign.organizationName}
                       </div>
