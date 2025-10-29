@@ -22,14 +22,14 @@ function DonationTasksPage() {
     campaignId?: string
     donorName?: string
     organizationName?: string
+    participantId?: string
   } | null>(null)
   const [donationLoading, setDonationLoading] = useState(true)
 
   const { tasks, loading: tasksLoading, handleCommitmentDecision } = useDonationTasks(donationId)
 
-  // Extract participantId from tasks if available, otherwise ALWAYS fall back to donationId
-  // Make sure donationId is always used as a fallback even if tasks is empty
-  const effectiveId = (tasks.length > 0 && tasks[0].participantId) || donationId
+  // Use participantId from donation document if available, otherwise fall back to donationId
+  const effectiveId = donationData?.participantId || donationId
 
   // Fetch donation data for display
   useEffect(() => {
@@ -47,7 +47,8 @@ function DonationTasksPage() {
             campaignTitle: data.campaignTitle,
             campaignId: data.campaignId,
             donorName: data.donorName,
-            organizationName: data.commitmentDetails?.donorOrganizationName
+            organizationName: data.commitmentDetails?.donorOrganizationName,
+            participantId: data.participantId // Get participantId from donation doc
           })
         }
       } catch (error) {
