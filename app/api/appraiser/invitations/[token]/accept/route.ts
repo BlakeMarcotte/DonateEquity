@@ -157,6 +157,10 @@ export async function POST(
 
       // Update the donation record to include appraiser info
       const donationRef = adminDb.collection('donations').doc(donationId)
+      console.log('Updating donation record:', donationId)
+      console.log('Setting appraiserId:', decodedToken.uid)
+      console.log('Setting appraiserEmail:', decodedToken.email)
+
       batch.update(donationRef, {
         appraiserId: decodedToken.uid,
         appraiserEmail: decodedToken.email,
@@ -166,8 +170,13 @@ export async function POST(
     }
 
     console.log('Committing batch operations...')
-    await batch.commit()
-    console.log('Batch committed successfully')
+    try {
+      await batch.commit()
+      console.log('Batch committed successfully')
+    } catch (batchError) {
+      console.error('ERROR: Batch commit failed:', batchError)
+      throw batchError
+    }
 
     // Track if we need to update the user's role
     let roleUpdated = false
