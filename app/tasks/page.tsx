@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useRouter } from 'next/navigation'
@@ -89,6 +89,8 @@ export default function NonprofitDashboardPage() {
 
   // FLICKER FIX: Track if we've ever successfully loaded task completion data
   const hasEverLoadedTaskCompletions = useRef(false)
+  const hasRunInitialFetch = useRef(false)
+  const hasRunInitialTaskCheck = useRef(false)
   if (taskCompletions.onboarding && Object.keys(taskCompletions.onboarding).length > 0) {
     hasEverLoadedTaskCompletions.current = true
   }
@@ -407,27 +409,36 @@ export default function NonprofitDashboardPage() {
     }
   }, [customClaims?.organizationId, userProfile?.uid, taskCompletions])
 
-  // First fetch task completions, then load tasks
+  // Fetch initial data once on mount
   useEffect(() => {
-    if (user) {
-      fetchTaskCompletions()
-    }
-  }, [user, fetchTaskCompletions])
+    if (user && userProfile && customClaims?.organizationId && !hasRunInitialFetch.current) {
+      hasRunInitialFetch.current = true
 
-  useEffect(() => {
-    if (user && userProfile && customClaims?.organizationId) {
-      checkTaskCompletion()
-      // Always fetch campaign tasks on load so we can show the badge count
+      // Fetch task completions, then check automatic completions
+      fetchTaskCompletions()
+
+      // Fetch other data in parallel
       fetchCampaignTasks()
       fetchBlockedDonationTasks()
-      // Fetch organization invite codes
       fetchOrganizationInviteCodes()
     }
-  }, [user, userProfile, customClaims, checkTaskCompletion, fetchCampaignTasks, fetchBlockedDonationTasks, fetchOrganizationInviteCodes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, userProfile, customClaims?.organizationId])
 
-  // Set initial tab based on onboarding completion
+  // Run checkTaskCompletion once after initial taskCompletions load
   useEffect(() => {
-    if (!hasSetInitialTab && tasks.length > 0) {
+    const hasData = taskCompletions.onboarding && Object.keys(taskCompletions.onboarding).length > 0
+    if (hasData && user && userProfile && customClaims?.organizationId && !hasRunInitialTaskCheck.current) {
+      hasRunInitialTaskCheck.current = true
+      checkTaskCompletion()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskCompletions, user, userProfile, customClaims?.organizationId])
+
+  // Set initial tab based on onboarding completion - BEFORE first paint to prevent flicker
+  // Use useLayoutEffect to run synchronously before browser paints
+  useLayoutEffect(() => {
+    if (!hasSetInitialTab && tasks.length > 0 && hasEverLoadedTaskCompletions.current) {
       const allComplete = tasks.every(task => task.status === 'complete')
       if (allComplete && campaignTasks.length > 0) {
         setActiveTab('campaigns')
@@ -595,8 +606,12 @@ export default function NonprofitDashboardPage() {
     !hasEverLoadedTaskCompletions.current &&
     Object.keys(taskCompletions.onboarding).length === 0
 
+  // Wait for initial tab to be set to prevent flickering between tabs
+  // Don't show content until we've determined the correct initial tab
+  const waitingForInitialTab = !hasSetInitialTab && tasks.length > 0
+
   // Combine all loading conditions
-  const showLoadingScreen = loading || waitingForInitialLoad
+  const showLoadingScreen = loading || waitingForInitialLoad || waitingForInitialTab
 
   if (showLoadingScreen) {
     return (

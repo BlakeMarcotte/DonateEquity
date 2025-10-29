@@ -264,3 +264,157 @@ But NOT for:
 - ❌ Team/shared data (localStorage is user-specific)
 
 **Industry Standard:** Most modern apps use realtime listeners OR optimistic updates + memory caching (React Query), NOT localStorage for application state.
+
+---
+
+## Advanced: Preventing Tab Switching Flicker with `useLayoutEffect`
+
+### The Problem
+Even with proper loading states, users may see a "lightning fast flash" when the page switches tabs automatically. This happens because:
+
+1. Component renders with default state (e.g., 'onboarding' tab)
+2. Browser paints that frame
+3. `useEffect` runs and updates state (e.g., 'campaigns' tab)
+4. Browser paints again with new tab
+
+This creates a 1-frame flash that's extremely fast but still visible to users.
+
+### Why `useEffect` Causes Flicker
+
+```typescript
+// ❌ This causes flicker
+useEffect(() => {
+  if (shouldSwitchTab) {
+    setActiveTab('campaigns')  // Runs AFTER browser paints
+  }
+}, [shouldSwitchTab])
+```
+
+**Timeline:**
+1. React renders component with default state
+2. Browser paints screen (user sees default tab)
+3. `useEffect` runs and changes state
+4. Browser paints again (user sees correct tab)
+5. **Result:** Visible flash between frames
+
+### The Solution: `useLayoutEffect`
+
+```typescript
+// ✅ This prevents flicker
+useLayoutEffect(() => {
+  if (shouldSwitchTab) {
+    setActiveTab('campaigns')  // Runs BEFORE browser paints
+  }
+}, [shouldSwitchTab])
+```
+
+**Timeline:**
+1. React renders component with default state
+2. `useLayoutEffect` runs **synchronously** and changes state
+3. React re-renders with new state
+4. Browser paints screen once (user sees correct tab only)
+5. **Result:** No visible flash
+
+### Key Differences
+
+| Hook | Timing | Browser Paint | Use Case |
+|------|--------|---------------|----------|
+| `useEffect` | **Async** - runs after paint | Happens before effect | Data fetching, subscriptions, most side effects |
+| `useLayoutEffect` | **Sync** - runs before paint | Happens after effect | DOM measurements, preventing visual flicker |
+
+### Implementation Example
+
+```typescript
+import { useLayoutEffect, useState, useRef } from 'react'
+
+export default function TasksPage() {
+  const [activeTab, setActiveTab] = useState('onboarding')
+  const [hasSetInitialTab, setHasSetInitialTab] = useState(false)
+  const [tasks, setTasks] = useState([])
+
+  // Use useLayoutEffect to prevent tab switching flicker
+  useLayoutEffect(() => {
+    if (!hasSetInitialTab && tasks.length > 0) {
+      const allComplete = tasks.every(task => task.status === 'complete')
+      if (allComplete && hasCampaigns) {
+        setActiveTab('campaigns')  // Sets tab before browser paints
+      }
+      setHasSetInitialTab(true)
+    }
+  }, [tasks, hasSetInitialTab])
+
+  // Wait for initial tab determination before showing content
+  const waitingForInitialTab = !hasSetInitialTab && tasks.length > 0
+
+  if (waitingForInitialTab) {
+    return <LoadingScreen />
+  }
+
+  return <TabContent activeTab={activeTab} />
+}
+```
+
+### Combined with Loading Gates
+
+For maximum flicker prevention, combine `useLayoutEffect` with loading gates:
+
+```typescript
+// 1. Track if we've loaded data
+const hasEverLoadedData = useRef(false)
+if (data) {
+  hasEverLoadedData.current = true
+}
+
+// 2. Wait for data before showing content
+const waitingForInitialLoad = !hasEverLoadedData.current && !data
+
+// 3. Wait for tab determination (only when data is loaded)
+const waitingForInitialTab = !hasSetInitialTab && data.length > 0
+
+// 4. Show loading until BOTH conditions are met
+const showLoadingScreen = loading || waitingForInitialLoad || waitingForInitialTab
+
+// 5. Use useLayoutEffect to set tab synchronously
+useLayoutEffect(() => {
+  if (!hasSetInitialTab && data.length > 0) {
+    const correctTab = determineCorrectTab(data)
+    setActiveTab(correctTab)
+    setHasSetInitialTab(true)
+  }
+}, [data, hasSetInitialTab])
+```
+
+### Important Notes
+
+**When to use `useLayoutEffect`:**
+- ✅ Preventing visual flickers before first paint
+- ✅ Measuring DOM elements (getBoundingClientRect, etc.)
+- ✅ Setting initial state based on computed values
+- ✅ Synchronizing with external systems before render
+
+**When NOT to use `useLayoutEffect`:**
+- ❌ Data fetching (use `useEffect`)
+- ❌ Event subscriptions (use `useEffect`)
+- ❌ Server-side rendering without `'use client'` (causes warnings)
+- ❌ Any operation that doesn't need to block browser paint
+
+**SSR Considerations:**
+- `useLayoutEffect` does nothing on the server (same as `useEffect`)
+- Use `'use client'` directive in Next.js to ensure client-only rendering
+- For SSR components, use conditional rendering or dynamic imports with `ssr: false`
+
+### Research Sources (2025)
+
+Based on latest React best practices:
+- **"Say no to 'flickering' UI: useLayoutEffect, painting and browsers story"** - Comprehensive guide on browser painting and useLayoutEffect
+- **Stack Overflow discussions** - Confirmed this is the standard solution for tab switching flicker
+- **React documentation** - useLayoutEffect runs synchronously after DOM mutations but before browser paint
+- **Next.js patterns** - Client components (`'use client'`) work perfectly with useLayoutEffect
+
+### Real-World Example
+
+See `/app/tasks/page.tsx` (lines 440-448) for production implementation that:
+- Uses `useLayoutEffect` to set initial tab
+- Combines with loading gates to prevent any flicker
+- Handles automatic tab switching based on task completion status
+- Provides smooth UX with zero visible flashes

@@ -2,8 +2,8 @@
 
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   collection, 
   query, 
@@ -23,7 +23,6 @@ import {
   Plus,
   Eye,
   Edit3,
-  MoreVertical,
   Target,
   Calendar,
   TrendingUp,
@@ -32,8 +31,23 @@ import {
 } from 'lucide-react'
 
 
+// Main component wrapper with Suspense
 export default function CampaignsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <CampaignsContent />
+    </Suspense>
+  )
+}
+
+// Content component that uses useSearchParams
+function CampaignsContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { userProfile, customClaims } = useAuth()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,6 +94,20 @@ export default function CampaignsPage() {
     }
   }, [customClaims?.organizationId, fetchCampaigns])
 
+  // Handle edit query parameter to auto-open edit modal
+  useEffect(() => {
+    const editCampaignId = searchParams.get('edit')
+    if (editCampaignId && campaigns.length > 0) {
+      const campaignToEdit = campaigns.find(c => c.id === editCampaignId)
+      if (campaignToEdit) {
+        setSelectedCampaign(campaignToEdit)
+        setShowEditModal(true)
+        // Clear the query parameter after opening the modal
+        router.replace('/campaigns', { scroll: false })
+      }
+    }
+  }, [searchParams, campaigns, router])
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -124,14 +152,11 @@ export default function CampaignsPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="py-6">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Heart className="h-8 w-8 text-blue-600" />
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Campaigns</h1>
-                    <p className="mt-1 text-sm text-gray-600">
-                      Create and manage your fundraising campaigns
-                    </p>
-                  </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">Campaigns</h1>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Create and manage your fundraising campaigns
+                  </p>
                 </div>
                 
                 <button
@@ -222,8 +247,12 @@ export default function CampaignsPage() {
             ) : (
               <div className="divide-y divide-gray-200">
                 {campaigns.map((campaign) => (
-                  <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors duration-200">
-                    {/* Header with Title and Button */}
+                  <div
+                    key={campaign.id}
+                    onClick={() => router.push(`/campaigns/${campaign.id}`)}
+                    className="p-6 hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
+                  >
+                    {/* Header with Title, Status, and Button */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center space-x-4">
                         <h3 className="text-lg font-semibold text-gray-900">
@@ -235,11 +264,14 @@ export default function CampaignsPage() {
 
                         {/* Explore Campaign Button */}
                         <button
-                          onClick={() => router.push(`/campaigns/${campaign.id}`)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/campaigns/${campaign.id}`)
+                          }}
                           className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200"
                         >
                           <Eye className="w-4 h-4" />
-                          <span>Explore Your Campaign</span>
+                          <span>Explore Campaign</span>
                         </button>
                       </div>
 
@@ -255,12 +287,6 @@ export default function CampaignsPage() {
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
 
@@ -273,24 +299,21 @@ export default function CampaignsPage() {
                       {/* Progress Bar */}
                       <div className="mb-3">
                         <div className="flex justify-between text-sm text-gray-600 mb-1">
-                          <span>Progress</span>
-                          <span>{Math.round(getProgressPercentage(campaign.currentAmount || 0, campaign.goal))}%</span>
+                          <span className="flex items-center space-x-1">
+                            <DollarSign className="w-4 h-4" />
+                            <span>{formatCurrency(campaign.currentAmount || 0)} raised</span>
+                          </span>
+                          <span className="font-medium">{formatCurrency(campaign.goal)} goal</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
                           <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            className="bg-green-600 h-2.5 rounded-full transition-all duration-300"
                             style={{ width: `${getProgressPercentage(campaign.currentAmount || 0, campaign.goal)}%` }}
                           />
                         </div>
                       </div>
 
                       <div className="flex items-center space-x-6 text-sm text-gray-500">
-                        <div className="flex items-center space-x-1">
-                          <DollarSign className="w-4 h-4" />
-                          <span>
-                            {formatCurrency(campaign.currentAmount || 0)} of {formatCurrency(campaign.goal)}
-                          </span>
-                        </div>
                         <div className="flex items-center space-x-1">
                           <Calendar className="w-4 h-4" />
                           <span>Created {campaign.createdAt.toLocaleDateString()}</span>

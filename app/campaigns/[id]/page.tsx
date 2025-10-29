@@ -12,8 +12,9 @@ import {
   where,
   orderBy,
   getDocs,
-  limit
-
+  limit,
+  updateDoc,
+  Timestamp
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import { createCampaignInvitation, getCampaignInvitations } from '@/lib/firebase/invitations'
@@ -81,6 +82,7 @@ export default function CampaignDetailPage() {
   const [activeTab, setActiveTab] = useState<'tasks' | 'donations' | 'marketing' | 'team' | 'pending'>('tasks')
   const [shareUrl, setShareUrl] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [campaignTasks, setCampaignTasks] = useState<CampaignTask[]>([])
 
   // Load campaign tasks from Firestore
@@ -616,7 +618,10 @@ export default function CampaignDetailPage() {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                  <button className="inline-flex items-center space-x-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium border border-gray-300 rounded-lg transition-colors duration-200">
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium border border-gray-300 rounded-lg transition-colors duration-200"
+                  >
                     <Edit3 className="w-4 h-4" />
                     <span>Edit Campaign</span>
                   </button>
@@ -694,6 +699,32 @@ export default function CampaignDetailPage() {
                     Complete these tasks to get your campaign ready for donors.
                   </p>
 
+                  {/* Progress Overview */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900">Setup Progress</h4>
+                      <span className="text-2xl font-bold text-blue-600">
+                        {campaignTasks.filter(t => t.status === 'complete').length}/{campaignTasks.length}
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                      <div
+                        className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+                        style={{
+                          width: `${campaignTasks.length > 0 ? (campaignTasks.filter(t => t.status === 'complete').length / campaignTasks.length) * 100 : 0}%`
+                        }}
+                      ></div>
+                    </div>
+
+                    <p className="text-sm text-gray-600">
+                      {campaignTasks.filter(t => t.status === 'complete').length === campaignTasks.length
+                        ? "🎉 Great job! You've completed all setup tasks. Your campaign is ready to receive donors!"
+                        : `${campaignTasks.length - campaignTasks.filter(t => t.status === 'complete').length} task${campaignTasks.length - campaignTasks.filter(t => t.status === 'complete').length === 1 ? '' : 's'} remaining to complete your campaign setup.`
+                      }
+                    </p>
+                  </div>
+
                   <div className="space-y-4">
                     {campaignTasks.map((task, index) => (
                       <div
@@ -765,7 +796,7 @@ export default function CampaignDetailPage() {
                                     {index === 2 && (
                                       <button
                                         onClick={() => setShowInviteModal(true)}
-                                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
                                       >
                                         <UserPlus className="w-4 h-4" />
                                         <span>Invite Donors</span>
@@ -817,7 +848,7 @@ export default function CampaignDetailPage() {
                     <div className="flex items-center space-x-4">
                       <button
                         onClick={() => setShowInviteModal(true)}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
                       >
                         <UserPlus className="w-4 h-4" />
                         <span>Invite Donors</span>
@@ -936,12 +967,12 @@ export default function CampaignDetailPage() {
                     <div className="flex items-center space-x-4">
                       <button
                         onClick={() => setShowInviteModal(true)}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
                       >
                         <UserPlus className="w-4 h-4" />
                         <span>Send New Invitation</span>
                       </button>
-                      <button 
+                      <button
                         onClick={fetchPendingInvitations}
                         className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
                       >
@@ -961,7 +992,7 @@ export default function CampaignDetailPage() {
                       <div className="mt-6">
                         <button
                           onClick={() => setShowInviteModal(true)}
-                          className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                          className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
                         >
                           <UserPlus className="w-4 h-4" />
                           <span>Send First Invitation</span>
@@ -1172,8 +1203,153 @@ export default function CampaignDetailPage() {
             />
           </div>
         )}
+
+        {/* Edit Campaign Modal */}
+        {showEditModal && campaign && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-black/50"
+              onClick={() => setShowEditModal(false)} />
+            <EditCampaignModal
+              campaign={campaign}
+              onClose={() => setShowEditModal(false)}
+              onSuccess={() => {
+                setShowEditModal(false)
+                fetchCampaignDetails()
+              }}
+            />
+          </div>
+        )}
       </div>
     </NonprofitAdminRoute>
+  )
+}
+
+// Edit Campaign Modal Component
+function EditCampaignModal({
+  campaign,
+  onClose,
+  onSuccess
+}: {
+  campaign: Campaign
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [formData, setFormData] = useState({
+    title: campaign.title,
+    description: campaign.description,
+    goal: campaign.goal.toString(),
+    status: campaign.status,
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+
+    try {
+      await updateDoc(doc(db, 'campaigns', campaign.id), {
+        title: formData.title,
+        description: formData.description,
+        goal: parseInt(formData.goal),
+        status: formData.status,
+        updatedAt: Timestamp.now(),
+      })
+      onSuccess()
+    } catch (error) {
+      secureLogger.error('Error updating campaign', error, { campaignId: campaign.id })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative z-10 transform transition-all">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">Edit Campaign</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Campaign Title
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              rows={4}
+              required
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Funding Goal ($)
+              </label>
+              <input
+                type="number"
+                required
+                min="1"
+                value={formData.goal}
+                onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Status
+              </label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as Campaign['status'] }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+    </div>
   )
 }
 
@@ -1348,7 +1524,7 @@ function InviteModal({
           <button
             type="submit"
             disabled={sending}
-            className="inline-flex items-center space-x-2 px-6 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
+            className="inline-flex items-center space-x-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
           >
             {sending ? (
               <>
