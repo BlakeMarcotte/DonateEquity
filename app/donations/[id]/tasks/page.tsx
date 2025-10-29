@@ -27,6 +27,9 @@ function DonationTasksPage() {
 
   const { tasks, loading: tasksLoading, handleCommitmentDecision } = useDonationTasks(donationId)
 
+  // Extract participantId from tasks if available, otherwise use donationId
+  const effectiveId = tasks.length > 0 && tasks[0].participantId ? tasks[0].participantId : donationId
+
   // Fetch donation data for display
   useEffect(() => {
     const fetchDonation = async () => {
@@ -143,6 +146,7 @@ function DonationTasksPage() {
           <div className="p-6">
             {activeTab === 'tasks' && (
               <DonationTaskList
+                participantId={effectiveId}
                 donationId={donationId}
                 campaignId={donationData?.campaignId}
                 showAllTasks={true}
