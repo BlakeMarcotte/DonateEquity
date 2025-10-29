@@ -89,24 +89,26 @@ export function CommitmentDecisionTask({
   // Render blocked state
   if (task.status === 'blocked') {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 opacity-60">
-        <div className="flex items-start space-x-3">
-          {stepNumber && (
-            <div className="w-8 h-8 rounded-xl bg-gray-300 flex items-center justify-center text-xs font-bold text-gray-600">
-              {stepNumber}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-3 flex-1">
+            {stepNumber && (
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-md">
+                {stepNumber}
+              </div>
+            )}
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
+              <p className="text-gray-600 mt-1">{task.description}</p>
+              <p className="text-sm text-gray-500 mt-2 italic">
+                Waiting for previous task to complete
+              </p>
             </div>
-          )}
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-700">{task.title}</h3>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                🔒 Blocked
-              </span>
-            </div>
-            <p className="text-gray-500 mt-1">{task.description}</p>
-            <p className="text-sm text-gray-500 mt-2 italic">
-              Waiting for previous task to complete
-            </p>
+          </div>
+          <div className="ml-4">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+              🔒 Blocked
+            </span>
           </div>
         </div>
       </div>
