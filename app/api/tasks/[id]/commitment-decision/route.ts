@@ -110,7 +110,7 @@ export async function POST(
         }
       }
 
-      if (donationDoc.exists()) {
+      if (donationDoc.exists) {
         // Update existing donation
         batch.update(donationRef, donationData)
       } else {
