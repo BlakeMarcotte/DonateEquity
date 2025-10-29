@@ -1,6 +1,7 @@
 export interface Task {
   id: string
-  participantId: string
+  participantId?: string // Optional for backward compatibility with participant-based tasks
+  donationId?: string // For donation-based tasks (donors)
   campaignId: string
   donorId: string
   title: string

@@ -225,29 +225,6 @@ export async function POST(request: NextRequest) {
       // Create initial tasks for the donation workflow with donationId field
       const tasksToCreate = [
         {
-          id: `${donationId}_invite_appraiser`,
-          donationId: donationId,
-          campaignId: invitationData.campaignId,
-          donorId: decodedToken.uid,
-          assignedTo: decodedToken.uid,
-          assignedRole: 'donor',
-          title: 'Donor: Invite Appraiser or AI Appraisal',
-          description: 'Choose your preferred appraisal method: invite a professional appraiser or use our AI-powered appraisal service.',
-          type: 'invitation',
-          status: 'pending',
-          priority: 'high',
-          order: 1,
-          dependencies: [],
-          metadata: {
-            invitationType: 'appraiser',
-            role: 'appraiser'
-          },
-          comments: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: decodedToken.uid
-        },
-        {
           id: `${donationId}_sign_nda`,
           donationId: donationId,
           campaignId: invitationData.campaignId,
@@ -257,10 +234,10 @@ export async function POST(request: NextRequest) {
           title: 'Donor: Sign NDA',
           description: 'Review and digitally sign the Non-Disclosure Agreement before proceeding with the donation process.',
           type: 'docusign_signature',
-          status: 'blocked',
+          status: 'pending',
           priority: 'high',
-          order: 2,
-          dependencies: [`${donationId}_invite_appraiser`],
+          order: 1,
+          dependencies: [],
           metadata: {
             documentPath: '/public/nda-general.pdf',
             documentName: 'General NDA',
@@ -268,6 +245,29 @@ export async function POST(request: NextRequest) {
             signedAt: null,
             signingUrl: null,
             automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        {
+          id: `${donationId}_invite_appraiser`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: decodedToken.uid,
+          assignedRole: 'donor',
+          title: 'Donor: Invite Appraiser or AI Appraisal',
+          description: 'Choose your preferred appraisal method: invite a professional appraiser or use our AI-powered appraisal service.',
+          type: 'invitation',
+          status: 'blocked',
+          priority: 'high',
+          order: 2,
+          dependencies: [`${donationId}_sign_nda`],
+          metadata: {
+            invitationType: 'appraiser',
+            role: 'appraiser'
           },
           comments: [],
           createdAt: new Date(),
@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
           status: 'blocked',
           priority: 'high',
           order: 3,
-          dependencies: [`${donationId}_sign_nda`],
+          dependencies: [`${donationId}_invite_appraiser`],
           metadata: {
             options: [
               {

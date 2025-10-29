@@ -32,7 +32,7 @@ interface DonationTaskListProps {
 
 export function DonationTaskList({
   participantId,
-  donationId: _donationId, // Unused but kept for type compatibility
+  donationId,
   showAllTasks = false,
   tasks: externalTasks,
   loading: externalLoading,
@@ -400,8 +400,18 @@ export function DonationTaskList({
       const token = await user?.getIdToken()
 
       let response
-      if (participantId) {
-        // Reset participant tasks
+      // Try donationId first (for donors), then participantId (for appraisers)
+      if (donationId) {
+        // Reset donation tasks (for donors)
+        response = await fetch(`/api/donations/${donationId}/reset-tasks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+      } else if (participantId) {
+        // Reset participant tasks (for appraisers)
         response = await fetch(`/api/campaign-participants/${participantId}/reset-tasks`, {
           method: 'POST',
           headers: {
@@ -409,17 +419,29 @@ export function DonationTaskList({
             'Authorization': `Bearer ${token}`
           }
         })
-      } else if (tasks.length > 0 && tasks[0].participantId) {
-        // Fallback: get participantId from tasks
-        response = await fetch(`/api/campaign-participants/${tasks[0].participantId}/reset-tasks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        })
+      } else if (tasks.length > 0) {
+        // Fallback: get ID from tasks
+        if (tasks[0].donationId) {
+          response = await fetch(`/api/donations/${tasks[0].donationId}/reset-tasks`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          })
+        } else if (tasks[0].participantId) {
+          response = await fetch(`/api/campaign-participants/${tasks[0].participantId}/reset-tasks`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          })
+        } else {
+          throw new Error('No donation or participant ID available to reset tasks')
+        }
       } else {
-        throw new Error('No participant ID available to reset tasks')
+        throw new Error('No donation or participant ID available to reset tasks')
       }
 
       if (!response.ok) {
