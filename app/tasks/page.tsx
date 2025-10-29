@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useRouter } from 'next/navigation'
 import { updateProfile } from 'firebase/auth'
-import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore'
+import { doc, updateDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import CompleteProfileModal from '@/components/tasks/CompleteProfileModal'
 import CompleteOrganizationModal from '@/components/tasks/CompleteOrganizationModal'
@@ -119,48 +119,6 @@ export default function NonprofitDashboardPage() {
       secureLogger.error('Error fetching organization invite codes', error instanceof Error ? error : new Error(String(error)))
     }
   }, [customClaims?.organizationId, userProfile])
-
-  // Fetch task completions from Firestore
-  const fetchTaskCompletions = useCallback(async () => {
-    if (!user) return
-
-    secureLogger.info('Fetching task completions from Firestore...')
-
-    try {
-      const token = await user.getIdToken()
-      const response = await fetch('/api/tasks/completion', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error(`API responded with status ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      secureLogger.info('Task completions fetched successfully', {
-        onboarding: result.completions?.onboarding || {},
-        campaigns: Object.keys(result.completions?.campaigns || {}).length
-      })
-
-      if (result.success) {
-        setTaskCompletions({
-          onboarding: result.completions?.onboarding || {},
-          campaigns: result.completions?.campaigns || {}
-        })
-        // Mark that we've loaded task completions (even if empty)
-        hasEverLoadedTaskCompletions.current = true
-      } else {
-        secureLogger.error('Task completions fetch returned success: false', new Error('API call unsuccessful'))
-      }
-    } catch (error) {
-      secureLogger.error('Error fetching task completions', error instanceof Error ? error : new Error(String(error)))
-      // Even on error, mark as loaded to prevent infinite loading
-      hasEverLoadedTaskCompletions.current = true
-    }
-  }, [user])
 
   // Helper function to determine status
   const getTaskStatus = useCallback((taskId: string, isAutomaticallyComplete: boolean): 'not_started' | 'in_progress' | 'complete' => {
@@ -429,13 +387,61 @@ export default function NonprofitDashboardPage() {
     }
   }, [customClaims?.organizationId, userProfile?.uid, taskCompletions])
 
+  // Set up real-time listener for task completions
+  useEffect(() => {
+    if (!user?.uid) return
+
+    secureLogger.info('Setting up real-time listener for task completions')
+
+    const taskCompletionsRef = doc(db, 'task_completions', user.uid)
+
+    const unsubscribe = onSnapshot(
+      taskCompletionsRef,
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const data = docSnapshot.data()
+          secureLogger.info('Task completions updated via real-time listener', {
+            onboarding: data?.onboarding || {},
+            campaigns: Object.keys(data?.campaigns || {}).length
+          })
+
+          setTaskCompletions({
+            onboarding: data?.onboarding || {},
+            campaigns: data?.campaigns || {}
+          })
+        } else {
+          // Document doesn't exist yet, set empty
+          secureLogger.info('Task completions document does not exist yet')
+          setTaskCompletions({
+            onboarding: {},
+            campaigns: {}
+          })
+        }
+
+        // Mark that we've loaded task completions (even if empty)
+        hasEverLoadedTaskCompletions.current = true
+      },
+      (error) => {
+        secureLogger.error('Error in task completions real-time listener', error instanceof Error ? error : new Error(String(error)))
+        // Even on error, mark as loaded to prevent infinite loading
+        hasEverLoadedTaskCompletions.current = true
+      }
+    )
+
+    // Cleanup listener on unmount
+    return () => {
+      secureLogger.info('Cleaning up task completions real-time listener')
+      unsubscribe()
+    }
+  }, [user?.uid])
+
   // Fetch initial data once on mount
   useEffect(() => {
     if (user && userProfile && customClaims?.organizationId && !hasRunInitialFetch.current) {
       hasRunInitialFetch.current = true
 
-      // Fetch task completions, then check automatic completions
-      fetchTaskCompletions()
+      // Note: We don't need to call fetchTaskCompletions() here anymore
+      // because the real-time listener will handle it automatically
 
       // Fetch other data in parallel
       fetchCampaignTasks()
@@ -541,9 +547,8 @@ export default function NonprofitDashboardPage() {
         throw new Error(errorData.error || 'Failed to send invitation')
       }
 
-      // Refresh task completion status
-      await fetchTaskCompletions()
-      checkTaskCompletion()
+      // Note: Task completion status will be updated automatically via the real-time listener
+      // No need to manually fetch or check
     } catch (error) {
       throw error // Re-throw to let the modal handle it
     }
@@ -556,17 +561,15 @@ export default function NonprofitDashboardPage() {
     if (taskId === 'team') setInviteTeamModalOpen(false)
     if (taskId === 'campaign') setCreateCampaignModalOpen(false)
 
-    // Refresh data and fetch task completions from Firestore
-    // checkTaskCompletion() will be called automatically by useEffect when taskCompletions updates
+    // Refresh user data (for profile updates)
+    // Note: We no longer need to manually fetch task completions because
+    // the real-time listener will automatically detect changes and update the UI
     try {
-      await refreshUserData()
-      // Add a delay before fetching to allow Firestore write to propagate
-      await new Promise(resolve => setTimeout(resolve, 300))
-      await fetchTaskCompletions()
+      if (taskId === 'profile') {
+        await refreshUserData()
+      }
     } catch (error) {
       secureLogger.error('Error refreshing after task completion', error instanceof Error ? error : new Error(String(error)))
-      // Still try to fetch completions even if refresh fails
-      await fetchTaskCompletions()
     }
   }
 
@@ -593,9 +596,8 @@ export default function NonprofitDashboardPage() {
         })
       }
 
-      // Refresh task completions
-      await fetchTaskCompletions()
-      checkTaskCompletion()
+      // Note: Task completions will be updated automatically via the real-time listener
+      // No need to manually fetch
     } catch (error) {
       secureLogger.error('Error resetting task completions', error instanceof Error ? error : new Error(String(error)))
     }
