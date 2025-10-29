@@ -44,6 +44,9 @@ export function DonationTaskList({
 }: DonationTaskListProps) {
   const { user, customClaims } = useAuth()
   const { tasks: participantTasks, loading: participantLoading, completeTask: participantCompleteTask } = useParticipantTasks(participantId || null)
+
+  // Debug: Log the IDs received
+  console.log('DonationTaskList received:', { participantId, donationId })
   
   // Use external tasks/handlers if provided, otherwise use participant tasks
   const tasks = externalTasks || participantTasks

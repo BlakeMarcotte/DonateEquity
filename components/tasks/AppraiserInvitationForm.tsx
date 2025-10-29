@@ -52,25 +52,37 @@ export function AppraiserInvitationForm({
 
     try {
       const token = await user?.getIdToken()
-      
+
+      const effectiveId = participantId || donationId
+
       console.log('🔥 Sending appraiser invitation:', {
         participantId,
         donationId,
-        effectiveId: participantId || donationId
+        effectiveId,
+        appraiserEmail: formData.appraiserEmail.trim()
       })
-      
+
+      // Validate we have the required ID
+      if (!effectiveId) {
+        throw new Error('No donation or participant ID available')
+      }
+
+      const requestBody = {
+        donationId: effectiveId,
+        appraiserEmail: formData.appraiserEmail.trim(),
+        appraiserName: formData.appraiserName.trim() || null,
+        personalMessage: formData.personalMessage.trim() || null
+      }
+
+      console.log('📤 Request body being sent:', requestBody)
+
       const response = await fetch('/api/appraisers/invite', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          donationId: participantId || donationId, // Use participantId if available, fallback to donationId
-          appraiserEmail: formData.appraiserEmail.trim(),
-          appraiserName: formData.appraiserName.trim() || null,
-          personalMessage: formData.personalMessage.trim() || null
-        })
+        body: JSON.stringify(requestBody)
       })
 
       const result = await response.json()

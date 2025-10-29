@@ -30,6 +30,11 @@ function DonationTasksPage() {
   // Extract participantId from tasks if available, otherwise use donationId
   const effectiveId = tasks.length > 0 && tasks[0].participantId ? tasks[0].participantId : donationId
 
+  // Debug: Log the IDs
+  console.log('Donations page - donationId:', donationId)
+  console.log('Donations page - tasks:', tasks)
+  console.log('Donations page - effectiveId:', effectiveId)
+
   // Fetch donation data for display
   useEffect(() => {
     const fetchDonation = async () => {
