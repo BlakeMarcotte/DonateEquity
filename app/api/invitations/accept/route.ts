@@ -121,6 +121,7 @@ export async function POST(request: NextRequest) {
 
     // Update the invitation and create campaign participant record
     const batch = adminDb.batch()
+    let donationId = ''
 
     try {
       // Update the invitation
@@ -131,77 +132,108 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date()
       })
 
-      // Create campaign participant record to track donor interest
-      const participantId = `${invitationData.campaignId}_${decodedToken.uid}`
-      const participantRef = adminDb.collection('campaign_participants').doc(participantId)
-      const participantData = {
-        campaignId: invitationData.campaignId,
-        userId: decodedToken.uid,
-        userRole: 'donor',
-        status: 'active', // active -> completed
-        joinedAt: new Date(),
-        joinedVia: 'invitation',
-        invitationId: invitationDoc.id,
-        inviterUserId: invitationData.inviterUserId,
-        metadata: {
-          invitedEmail: invitationData.invitedEmail,
-          inviterName: invitationData.inviterName
-        },
-        createdAt: new Date(),
-        updatedAt: new Date()
+      // Get campaign details for donation creation
+      const campaignRef = adminDb.collection('campaigns').doc(invitationData.campaignId)
+      const campaignDoc = await campaignRef.get()
+
+      if (!campaignDoc.exists) {
+        return NextResponse.json(
+          { error: 'Campaign not found' },
+          { status: 404 }
+        )
       }
 
-      console.log('Creating participant record:', {
-        participantId,
+      const campaignData = campaignDoc.data()
+      if (!campaignData) {
+        return NextResponse.json(
+          { error: 'Campaign data not found' },
+          { status: 404 }
+        )
+      }
+
+      // Create a donation record instead of just a participant record
+      // This represents the donor's commitment to the campaign
+      const donationRef = adminDb.collection('donations').doc()
+      donationId = donationRef.id
+
+      // Get donor's organization info if available
+      let donorOrganizationName = 'Individual Donor'
+      let donorOrganizationId = null
+
+      if (userData?.organizationId) {
+        donorOrganizationId = userData.organizationId
+        try {
+          const orgDoc = await adminDb.collection('organizations').doc(donorOrganizationId).get()
+          if (orgDoc.exists) {
+            donorOrganizationName = orgDoc.data()?.name || 'Unknown Organization'
+          }
+        } catch (orgError) {
+          console.error('Error fetching donor organization:', orgError)
+        }
+      }
+
+      const donationData = {
         campaignId: invitationData.campaignId,
-        userId: decodedToken.uid,
-        userRole: 'donor'
+        campaignTitle: campaignData.title,
+        donorId: decodedToken.uid,
+        donorName: userData?.displayName || userEmail || 'Unknown Donor',
+        donorEmail: userEmail || '',
+        nonprofitAdminId: campaignData.createdBy,
+        amount: 0, // Initial amount, to be set later
+        donationType: 'equity',
+        status: 'pending', // Pending until donor provides commitment details
+        message: invitationData.message || '',
+        isAnonymous: false,
+
+        // Equity-specific fields
+        commitmentDetails: {
+          donorOrganizationId: donorOrganizationId,
+          donorOrganizationName: donorOrganizationName,
+          estimatedValue: 0
+        },
+        requiresAppraisal: true,
+        appraiserId: null,
+        appraiserEmail: null,
+        appraisalStatus: 'not_required' as const, // Will change when commitment is made
+
+        // Timestamps
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        completedAt: null,
+
+        // Organization context
+        organizationId: campaignData.organizationId,
+        organizationName: campaignData.organizationName,
+
+        // Metadata
+        invitationId: invitationDoc.id,
+        inviterUserId: invitationData.inviterUserId,
+        invitedVia: 'invitation'
+      }
+
+      console.log('Creating donation record:', {
+        donationId: donationRef.id,
+        campaignId: invitationData.campaignId,
+        donorId: decodedToken.uid,
+        status: 'pending'
       })
 
-      batch.set(participantRef, participantData)
+      batch.set(donationRef, donationData)
 
       // Execute batch
       await batch.commit()
-      console.log('Successfully updated invitation and created participant record:', {
+      console.log('Successfully updated invitation and created donation record:', {
         invitationId: invitationDoc.id,
-        participantId,
+        donationId: donationRef.id,
         userId: decodedToken.uid
       })
 
-      // Verify participant was created
-      const verifyParticipant = await participantRef.get()
-      if (verifyParticipant.exists) {
-        console.log('Verified participant record exists:', verifyParticipant.data())
+      // Verify donation was created
+      const verifyDonation = await donationRef.get()
+      if (verifyDonation.exists) {
+        console.log('Verified donation record exists:', verifyDonation.data())
       } else {
-        console.error('WARNING: Participant record was not created!')
-      }
-
-      // Create the full 9-step task workflow for the participant
-      try {
-        // Use the task creation API endpoint to create the full workflow
-        const createTasksUrl = `${request.url.split('/api/')[0]}/api/campaign-participants/create-tasks`
-        const taskCreationResponse = await fetch(createTasksUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authHeader.split('Bearer ')[1]}`
-          },
-          body: JSON.stringify({
-            campaignId: invitationData.campaignId,
-            participantId: participantId
-          })
-        })
-
-        if (taskCreationResponse.ok) {
-          const taskResult = await taskCreationResponse.json()
-          console.log('Successfully created full task workflow for participant:', participantId, 'Tasks:', taskResult.tasksCreated)
-        } else {
-          const taskError = await taskCreationResponse.text()
-          console.error('Failed to create full task workflow:', taskError)
-        }
-      } catch (taskError) {
-        console.error('Error creating initial tasks:', taskError)
-        // Don't fail the invitation acceptance if task creation fails
+        console.error('WARNING: Donation record was not created!')
       }
     } catch (updateError) {
       console.error('Error updating invitation or creating participant record:', updateError)
@@ -214,9 +246,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Invitation accepted successfully',
+      requiresTokenRefresh: !currentRole, // Let client know to refresh token if role was just set
       data: {
         campaignId: invitationData.campaignId,
-        participantId: `${invitationData.campaignId}_${decodedToken.uid}`,
+        donationId: donationId,
         donorId: decodedToken.uid
       }
     })
