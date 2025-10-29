@@ -119,19 +119,75 @@ export default function OrganizationSelectionPage() {
           await signIn(basicData.email, basicData.password)
           await refreshUserData()
 
-          // Redirect based on role
-          switch (basicData.role) {
-            case 'donor':
-              router.push('/my-campaign')
-              break
-            case 'appraiser':
-              router.push('/my-campaign')
-              break
-            case 'nonprofit_admin':
-              router.push('/tasks')
-              break
-            default:
-              router.push('/dashboard')
+          // Check if there's a pending invitation to accept
+          const pendingInvitation = sessionStorage.getItem('pendingInvitation')
+          let redirectPath = ''
+
+          if (pendingInvitation) {
+            try {
+              const invitation = JSON.parse(pendingInvitation)
+              sessionStorage.removeItem('pendingInvitation')
+
+              console.log('Accepting pending invitation after registration:', invitation)
+
+              // Wait a bit for Firebase to process the registration
+              await new Promise(resolve => setTimeout(resolve, 1000))
+
+              // Get auth token
+              const { auth } = await import('@/lib/firebase/config')
+              const currentUser = auth.currentUser
+              if (currentUser) {
+                const idToken = await currentUser.getIdToken(true)
+
+                // Accept the invitation
+                const response = await fetch('/api/invitations/accept', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                  },
+                  body: JSON.stringify({
+                    invitationId: invitation.id,
+                    invitationToken: invitation.token
+                  })
+                })
+
+                if (response.ok) {
+                  const result = await response.json()
+                  console.log('Invitation accepted:', result)
+
+                  // Redirect to donation tasks if we have the data
+                  if (result.data?.donationId) {
+                    redirectPath = `/donations/${result.data.donationId}/tasks?refresh=1`
+                  } else if (result.data?.campaignId) {
+                    redirectPath = `/my-campaign?campaignId=${result.data.campaignId}&refresh=1`
+                  }
+                } else {
+                  console.error('Failed to accept invitation:', await response.json())
+                }
+              }
+            } catch (invitationError) {
+              console.error('Error accepting invitation:', invitationError)
+            }
+          }
+
+          // Redirect based on role or invitation
+          if (redirectPath) {
+            router.push(redirectPath)
+          } else {
+            switch (basicData.role) {
+              case 'donor':
+                router.push('/my-campaign?refresh=1')
+                break
+              case 'appraiser':
+                router.push('/my-campaign')
+                break
+              case 'nonprofit_admin':
+                router.push('/tasks')
+                break
+              default:
+                router.push('/dashboard')
+            }
           }
         } catch (signInError) {
           console.error('Auto sign-in error:', signInError)

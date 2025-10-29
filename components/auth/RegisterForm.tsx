@@ -162,6 +162,16 @@ export default function RegisterForm({
         appraiserInvitationToken: appraiserInvitationToken || undefined,
       }
       sessionStorage.setItem('basicSignupData', JSON.stringify(basicData))
+
+      // Also save invitation data if present so organization page can accept it after registration
+      if (invitation) {
+        sessionStorage.setItem('pendingInvitation', JSON.stringify({
+          id: invitation.id,
+          token: invitation.invitationToken,
+          campaignId: invitation.campaignId
+        }))
+      }
+
       router.push('/auth/register/organization')
     }
   }
