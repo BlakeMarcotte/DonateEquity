@@ -44,9 +44,9 @@ export function AppraisalMethodTask({
   }
 
   if (task.status === 'completed') {
-    const method = task.metadata?.appraisalMethod || 
+    const method = task.metadata?.appraisalMethod ||
                    (task.metadata?.valuationId ? 'ai_appraisal' : 'invite_appraiser')
-    
+
     return (
       <div className="bg-green-50 border border-green-200 rounded-lg p-6">
         <div className="flex items-center space-x-3">
@@ -56,10 +56,37 @@ export function AppraisalMethodTask({
           <div>
             <h3 className="text-lg font-semibold text-green-900">{task.title}</h3>
             <p className="text-green-700 mt-1">
-              {method === 'ai_appraisal' 
+              {method === 'ai_appraisal'
                 ? `You chose AI Appraisal. Your valuation is being processed automatically.`
                 : `You chose to invite an external appraiser. They will complete the valuation process.`
               }
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Render blocked state
+  if (task.status === 'blocked') {
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 opacity-60">
+        <div className="flex items-start space-x-3">
+          {stepNumber && (
+            <div className="w-8 h-8 rounded-xl bg-gray-300 flex items-center justify-center text-xs font-bold text-gray-600">
+              {stepNumber}
+            </div>
+          )}
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-700">{task.title}</h3>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                🔒 Blocked
+              </span>
+            </div>
+            <p className="text-gray-500 mt-1">{task.description}</p>
+            <p className="text-sm text-gray-500 mt-2 italic">
+              Waiting for previous task to complete
             </p>
           </div>
         </div>

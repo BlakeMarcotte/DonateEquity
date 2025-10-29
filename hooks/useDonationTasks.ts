@@ -242,11 +242,19 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
         // Additional check: sometimes the completed status might be a string 'completed' vs an enum
         const isCompleted = (status as string) === 'completed' || (status as string) === 'complete'
 
+        secureLogger.info('Dependency check', {
+          taskId: task.id,
+          dependencyId: depId,
+          dependencyStatus: status,
+          isCompleted
+        })
+
         return isCompleted
       })
 
       // Update status based on dependencies
       let newStatus = task.status
+      const originalStatus = task.status
       if (task.status !== 'completed') {
         if (!allDependenciesCompleted) {
           newStatus = 'blocked'
@@ -254,6 +262,16 @@ function calculateBlockingStatus(tasks: Task[]): Task[] {
           // Unblock the task when all dependencies are met
           newStatus = 'pending'
         }
+      }
+
+      if (newStatus !== originalStatus) {
+        secureLogger.info('Task status changed by dependency logic', {
+          taskId: task.id,
+          title: task.title,
+          originalStatus,
+          newStatus,
+          allDependenciesCompleted
+        })
       }
 
       return {
