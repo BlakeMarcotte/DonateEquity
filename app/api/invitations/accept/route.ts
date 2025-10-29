@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
         requiresAppraisal: true,
         appraiserId: null,
         appraiserEmail: null,
-        appraisalStatus: 'not_required' as const, // Will change when commitment is made
+        appraisalStatus: 'pending', // Pending appraisal assignment
 
         // Timestamps
         createdAt: new Date(),
