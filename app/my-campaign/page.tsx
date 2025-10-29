@@ -9,6 +9,7 @@ import { TaskTimeline } from '@/components/tasks/TaskTimeline'
 import { DonationFiles } from '@/components/files/DonationFiles'
 import { EquityCommitmentModal } from '@/components/tasks/EquityCommitmentModal'
 import { useParticipantTasks } from '@/hooks/useParticipantTasks'
+import { useDonationTasks } from '@/hooks/useDonationTasks'
 import { Heart, CheckSquare, FileText } from 'lucide-react'
 
 function MyCampaignPage() {
@@ -18,16 +19,23 @@ function MyCampaignPage() {
   const shouldRefresh = searchParams.get('refresh') === '1'
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign(shouldRefresh)
 
-  // Create participant ID for task querying
+  // Create participant ID for task querying (for appraisers)
   // For appraisers, use the participant ID from the campaign (which is the donor's participant ID)
   // For donors, construct it from campaign ID and user ID
   const participantId = campaign?.participantId || (campaign && user ? `${campaign.id}_${user.uid}` : null)
 
-  const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
+  // Donors use donation-based tasks, appraisers use participant-based tasks
+  const isDonor = customClaims?.role === 'donor'
+  const donationId = donation?.id || null
 
-  // Use participant tasks exclusively
-  const tasks = participantTasks
-  const tasksLoading = participantTasksLoading
+  // Conditionally fetch tasks based on role
+  const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision: participantHandleCommitmentDecision } = useParticipantTasks(isDonor ? null : participantId)
+  const { tasks: donationTasks, loading: donationTasksLoading, handleCommitmentDecision: donationHandleCommitmentDecision } = useDonationTasks(isDonor ? donationId : null)
+
+  // Use the appropriate tasks based on role
+  const tasks = isDonor ? donationTasks : participantTasks
+  const tasksLoading = isDonor ? donationTasksLoading : participantTasksLoading
+  const handleCommitmentDecision = isDonor ? donationHandleCommitmentDecision : participantHandleCommitmentDecision
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
@@ -303,14 +311,15 @@ function MyCampaignPage() {
             <div className="p-6">
               {activeTab === 'tasks' && (
                 <DonationTaskList
-                  participantId={participantId || undefined}
+                  participantId={isDonor ? undefined : (participantId || undefined)}
+                  donationId={isDonor ? (donationId || undefined) : undefined}
                   campaignId={campaign?.id}
                   showAllTasks={true}
                   // Pass required props for EquityCommitmentModal
                   campaignTitle={campaign?.title}
                   donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}
                   organizationName={campaign?.organizationName}
-                  // Always pass participant tasks and handlers
+                  // Pass tasks and handlers based on role
                   tasks={tasks}
                   loading={tasksLoading}
                   handleCommitmentDecision={handleCommitmentDecision}
@@ -319,9 +328,9 @@ function MyCampaignPage() {
               
               {activeTab === 'files' && (
                 <>
-                  {participantId ? (
-                    <DonationFiles 
-                      donationId={`participants/${participantId}`}
+                  {(isDonor && donationId) || (!isDonor && participantId) ? (
+                    <DonationFiles
+                      donationId={isDonor ? (donationId || '') : `participants/${participantId}`}
                       title="Shared Documents"
                       showUpload={false}
                       className="border-0 shadow-none p-0"

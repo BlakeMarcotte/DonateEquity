@@ -17,6 +17,7 @@ import { EquityCommitmentModal } from './EquityCommitmentModal'
 
 interface DonationTaskListProps {
   participantId?: string
+  donationId?: string // For donation-based tasks (donors)
   campaignId?: string
   showAllTasks?: boolean // Show tasks for all roles (admin view)
   // Allow passing tasks and handlers from parent
@@ -29,9 +30,9 @@ interface DonationTaskListProps {
   organizationName?: string
 }
 
-export function DonationTaskList({ 
-  participantId, 
- 
+export function DonationTaskList({
+  participantId,
+  donationId: _donationId, // Unused but kept for type compatibility
   showAllTasks = false,
   tasks: externalTasks,
   loading: externalLoading,
