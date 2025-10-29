@@ -110,10 +110,20 @@ export default function CompleteOrganizationModal({
         cleanedData.address?.state
       )
 
+      secureLogger.info('Organization update completion check', {
+        isComplete,
+        hasName: !!cleanedData.name,
+        hasTaxId: !!cleanedData.taxId,
+        hasWebsite: !!cleanedData.website,
+        hasPhone: !!cleanedData.phone,
+        hasCity: !!cleanedData.address?.city,
+        hasState: !!cleanedData.address?.state
+      })
+
       // Mark task as complete if all required fields are filled
       if (isComplete && user) {
         const token = await user.getIdToken()
-        await fetch('/api/tasks/completion', {
+        const response = await fetch('/api/tasks/completion', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -125,6 +135,19 @@ export default function CompleteOrganizationModal({
             status: 'complete'
           })
         })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          secureLogger.error('Failed to mark organization task as complete', new Error(errorData.error || 'API request failed'), {
+            status: response.status,
+            statusText: response.statusText
+          })
+          throw new Error('Failed to mark task as complete. Please try again.')
+        }
+
+        secureLogger.info('Organization task marked as complete successfully')
+      } else if (!isComplete) {
+        secureLogger.info('Organization task not marked complete - missing required fields')
       }
 
       return { success: true }
@@ -175,7 +198,7 @@ export default function CompleteOrganizationModal({
       isOpen={isOpen}
       onClose={handleClose}
       title="Complete Organization Information"
-      description="Add your organization's details. You can save your progress at any time and complete this later."
+      description="Fill out all 6 fields below to complete this task. You can save partial progress, but the task will only be marked complete when all fields are filled."
       onSubmit={handleSubmit}
       loading={loading}
       loadingText="Updating Organization..."
@@ -198,7 +221,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
             <Building2 className="inline w-4 h-4 mr-1" />
-            Organization Name
+            Organization Name <span className="text-red-600 font-bold">*</span>
           </label>
           <input
             type="text"
@@ -214,7 +237,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="taxId" className="block text-sm font-medium text-gray-700 mb-2">
             <FileText className="inline w-4 h-4 mr-1" />
-            EIN (Tax ID)
+            EIN (Tax ID) <span className="text-red-600 font-bold">*</span>
           </label>
           <input
             type="text"
@@ -231,7 +254,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
             <Phone className="inline w-4 h-4 mr-1" />
-            Phone Number
+            Phone Number <span className="text-red-600 font-bold">*</span>
           </label>
           <input
             type="tel"
@@ -248,7 +271,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">
             <Globe className="inline w-4 h-4 mr-1" />
-            Website
+            Website <span className="text-red-600 font-bold">*</span>
           </label>
           <input
             type="text"
@@ -264,7 +287,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
             <MapPin className="inline w-4 h-4 mr-1" />
-            City
+            City <span className="text-red-600 font-bold">*</span>
           </label>
           <input
             type="text"
@@ -280,7 +303,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
             <MapPin className="inline w-4 h-4 mr-1" />
-            State
+            State <span className="text-red-600 font-bold">*</span>
           </label>
           <input
             type="text"
