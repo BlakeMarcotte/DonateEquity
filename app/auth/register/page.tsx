@@ -207,16 +207,16 @@ function RegisterPage() {
           roleParam as 'donor' | 'nonprofit_admin' | 'appraiser' | null
         }
         onSuccessRedirect={
-          returnUrl 
+          returnUrl
             ? returnUrl
-            : redirectParam 
+            : redirectParam
               ? redirectParam
               : appraiserInvitation
                 ? '/my-campaign'
-                : campaignId && invitationToken && invitation
-                  ? '/my-campaign'
-                  : campaignId 
-                    ? `/campaigns/${campaignId}/donate` 
+                : invitationToken
+                  ? `/invite/${invitationToken}`
+                  : campaignId
+                    ? `/campaigns/${campaignId}/donate`
                     : undefined
         }
       />

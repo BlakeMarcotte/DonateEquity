@@ -105,6 +105,7 @@ export function useDonorCampaign(forceRefresh = false) {
     }
 
     // For donors, check for actual donations first
+    console.log('Setting up donations listener for user:', user.uid)
     const donationsQuery = query(
       collection(db, 'donations'),
       where('donorId', '==', user.uid)
@@ -114,11 +115,20 @@ export function useDonorCampaign(forceRefresh = false) {
       donationsQuery,
       async (snapshot) => {
         try {
+          console.log('Donations snapshot received:', snapshot.docs.length, 'documents')
+
           if (!snapshot.empty) {
             // Get the first donation to extract campaign info
             const firstDonationDoc = snapshot.docs[0]
             const firstDonation = firstDonationDoc.data()
-            
+
+            console.log('Found donation:', {
+              id: firstDonationDoc.id,
+              campaignId: firstDonation.campaignId,
+              status: firstDonation.status,
+              amount: firstDonation.amount
+            })
+
             // Set donation data
             setDonation({
               id: firstDonationDoc.id,
