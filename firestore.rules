@@ -361,25 +361,40 @@ service cloud.firestore {
         resource.data.sharedWith[getUserId()] == true ||
         isOrganizationAdmin()
       );
-      
-      allow create: if isAuthenticated() && 
+
+      allow create: if isAuthenticated() &&
                        request.resource.data.uploadedBy == getUserId();
-      
+
       allow update: if isAuthenticated() && (
         resource.data.uploadedBy == getUserId() ||
         isOrganizationAdmin()
       ) &&
       // Prevent changing uploader
       request.resource.data.uploadedBy == resource.data.uploadedBy;
-      
+
       allow delete: if isAuthenticated() && (
         resource.data.uploadedBy == getUserId() ||
         isOrganizationAdmin()
       );
-      
+
       allow list: if isAuthenticated();
     }
-    
+
+    // Task completions collection - users can only access their own completion data
+    match /task_completions/{userId} {
+      // Users can read their own task completions
+      allow read: if isAuthenticated() && belongsToUser(userId);
+
+      // Users can create their own task completion document
+      allow create: if isAuthenticated() && belongsToUser(userId);
+
+      // Users can update their own task completions
+      allow update: if isAuthenticated() && belongsToUser(userId);
+
+      // Users can delete their own task completions (for testing)
+      allow delete: if isAuthenticated() && belongsToUser(userId);
+    }
+
     // Default deny rule - blocks access to any other collections
     match /{document=**} {
       allow read, write: if false;

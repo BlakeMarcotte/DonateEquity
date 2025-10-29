@@ -72,15 +72,46 @@ export async function POST(request: NextRequest) {
     const docRef = adminDb.collection('task_completions').doc(userId)
 
     if (taskType === 'onboarding') {
-      // Use field path notation to update nested field without replacing entire object
+      // First, get the current document to preserve existing data
+      const currentDoc = await docRef.get()
+      const currentData = currentDoc.exists ? currentDoc.data() : {}
+
+      // Build the proper nested structure
+      const updatedOnboarding = {
+        ...((currentData?.onboarding as Record<string, string>) || {}),
+        [taskId]: status
+      }
+
       await docRef.set({
-        [`onboarding.${taskId}`]: status,
+        onboarding: updatedOnboarding,
+        campaigns: currentData?.campaigns || {},
         updatedAt: new Date()
       }, { merge: true })
+
+      secureLogger.info('Updated onboarding task', {
+        userId,
+        taskId,
+        status,
+        updatedOnboarding
+      })
     } else if (taskType === 'campaign') {
-      // Use field path notation to update nested field without replacing entire object
+      // First, get the current document to preserve existing data
+      const currentDoc = await docRef.get()
+      const currentData = currentDoc.exists ? currentDoc.data() : {}
+
+      // Build the proper nested structure for campaigns
+      const currentCampaigns = (currentData?.campaigns as Record<string, Record<string, string>>) || {}
+      const campaignData = currentCampaigns[campaignId] || {}
+
       await docRef.set({
-        [`campaigns.${campaignId}.${taskId}`]: status,
+        onboarding: currentData?.onboarding || {},
+        campaigns: {
+          ...currentCampaigns,
+          [campaignId]: {
+            ...campaignData,
+            [taskId]: status
+          }
+        },
         updatedAt: new Date()
       }, { merge: true })
     }
