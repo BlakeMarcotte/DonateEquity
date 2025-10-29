@@ -42,11 +42,11 @@ export function DonationTaskList({
   donorName,
   organizationName
 }: DonationTaskListProps) {
+  // Calculate effective ID FIRST, before any hooks
+  const effectiveId = participantId || donationId
+
   const { user, customClaims } = useAuth()
   const { tasks: participantTasks, loading: participantLoading, completeTask: participantCompleteTask } = useParticipantTasks(participantId || null)
-
-  // Debug: Log the IDs received
-  console.log('DonationTaskList received:', { participantId, donationId })
   
   // Use external tasks/handlers if provided, otherwise use participant tasks
   const tasks = externalTasks || participantTasks
@@ -62,7 +62,7 @@ export function DonationTaskList({
   const [showResetModal, setShowResetModal] = useState(false)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const { uploadFile } = useParticipantFiles(participantId || donationId || null, null)
+  const { uploadFile } = useParticipantFiles(effectiveId || null, null)
   const fileUploadRef = useRef<{ triggerUpload: () => Promise<void>; hasFiles: () => boolean } | null>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
@@ -282,7 +282,7 @@ export function DonationTaskList({
         body: JSON.stringify({
           signerEmail: user?.email,
           signerName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          donationId: participantId || donationId, // Use participantId or donationId (whichever is available)
+          donationId: effectiveId,
           documentName: 'General NDA',
           emailSubject: 'Please sign the General NDA for your donation'
         })
@@ -305,7 +305,7 @@ export function DonationTaskList({
           envelopeId: envelopeResult.envelopeId,
           recipientEmail: user?.email,
           recipientName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          donationId: participantId || donationId // Use participantId or donationId (whichever is available)
+          donationId: effectiveId
         })
       })
       
@@ -358,7 +358,6 @@ export function DonationTaskList({
   
 
   const handleRefreshTasks = async () => {
-    const effectiveId = participantId || donationId
     if (refreshing || !effectiveId) return
 
     setRefreshing(true)
@@ -404,20 +403,10 @@ export function DonationTaskList({
       const token = await user?.getIdToken()
 
       let response
-      const effectiveId = participantId || donationId
 
-      // Try donationId first (for donors), then participantId (for appraisers)
-      if (donationId && !participantId) {
-        // Reset donation tasks (for donors) - only if we have donationId and NOT participantId
-        response = await fetch(`/api/donations/${donationId}/reset-tasks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        })
-      } else if (effectiveId) {
-        // Reset participant tasks (for appraisers and new donation structure)
+      // Use effectiveId for reset
+      if (effectiveId) {
+        // Try participant-based reset first (new structure)
         response = await fetch(`/api/campaign-participants/${effectiveId}/reset-tasks`, {
           method: 'POST',
           headers: {
@@ -849,28 +838,20 @@ export function DonationTaskList({
       </div>
 
       {/* Invitation Modal */}
-      <Modal
-        isOpen={showInvitationModal}
-        onClose={() => setShowInvitationModal(false)}
-        title="Invite Appraiser to Platform"
-        size="md"
-      >
-        {(() => {
-          const effectiveParticipantId = participantId || donationId
-          console.log('🎯 Rendering AppraiserInvitationForm with props:', {
-            participantId,
-            donationId,
-            effectiveParticipantId
-          })
-          return (
-            <AppraiserInvitationForm
-              participantId={effectiveParticipantId}
-              donationId={effectiveParticipantId}
-              onSuccess={handleInvitationSuccess}
-            />
-          )
-        })()}
-      </Modal>
+      {showInvitationModal && (
+        <Modal
+          isOpen={showInvitationModal}
+          onClose={() => setShowInvitationModal(false)}
+          title="Invite Appraiser to Platform"
+          size="md"
+        >
+          <AppraiserInvitationForm
+            participantId={effectiveId}
+            donationId={effectiveId}
+            onSuccess={handleInvitationSuccess}
+          />
+        </Modal>
+      )}
       
       {/* Upload Modal */}
       <Modal

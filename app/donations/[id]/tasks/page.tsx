@@ -27,13 +27,9 @@ function DonationTasksPage() {
 
   const { tasks, loading: tasksLoading, handleCommitmentDecision } = useDonationTasks(donationId)
 
-  // Extract participantId from tasks if available, otherwise use donationId
-  const effectiveId = tasks.length > 0 && tasks[0].participantId ? tasks[0].participantId : donationId
-
-  // Debug: Log the IDs
-  console.log('Donations page - donationId:', donationId)
-  console.log('Donations page - tasks:', tasks)
-  console.log('Donations page - effectiveId:', effectiveId)
+  // Extract participantId from tasks if available, otherwise ALWAYS fall back to donationId
+  // Make sure donationId is always used as a fallback even if tasks is empty
+  const effectiveId = (tasks.length > 0 && tasks[0].participantId) || donationId
 
   // Fetch donation data for display
   useEffect(() => {

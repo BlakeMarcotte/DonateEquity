@@ -55,13 +55,6 @@ export function AppraiserInvitationForm({
 
       const effectiveId = participantId || donationId
 
-      console.log('🔥 Sending appraiser invitation:', {
-        participantId,
-        donationId,
-        effectiveId,
-        appraiserEmail: formData.appraiserEmail.trim()
-      })
-
       // Validate we have the required ID
       if (!effectiveId) {
         throw new Error('No donation or participant ID available')
@@ -73,8 +66,6 @@ export function AppraiserInvitationForm({
         appraiserName: formData.appraiserName.trim() || null,
         personalMessage: formData.personalMessage.trim() || null
       }
-
-      console.log('📤 Request body being sent:', requestBody)
 
       const response = await fetch('/api/appraisers/invite', {
         method: 'POST',
