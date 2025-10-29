@@ -855,11 +855,21 @@ export function DonationTaskList({
         title="Invite Appraiser to Platform"
         size="md"
       >
-        <AppraiserInvitationForm
-          participantId={participantId || donationId}
-          donationId={participantId || donationId} // For backward compatibility
-          onSuccess={handleInvitationSuccess}
-        />
+        {(() => {
+          const effectiveParticipantId = participantId || donationId
+          console.log('🎯 Rendering AppraiserInvitationForm with props:', {
+            participantId,
+            donationId,
+            effectiveParticipantId
+          })
+          return (
+            <AppraiserInvitationForm
+              participantId={effectiveParticipantId}
+              donationId={effectiveParticipantId}
+              onSuccess={handleInvitationSuccess}
+            />
+          )
+        })()}
       </Modal>
       
       {/* Upload Modal */}
