@@ -128,14 +128,19 @@ export async function POST(
         })
       })
 
-      // Update participant status to committed
-      const participantRef = adminDb.collection('campaign_participants').doc(effectiveId)
-      batch.update(participantRef, {
-        status: 'committed',
-        'metadata.commitmentTiming': 'now',
-        'metadata.donationId': donationRef.id,
-        updatedAt: new Date()
-      })
+      // Update participant status to committed (only if participant record exists)
+      if (taskData.participantId) {
+        const participantRef = adminDb.collection('campaign_participants').doc(effectiveId)
+        const participantDoc = await participantRef.get()
+        if (participantDoc.exists) {
+          batch.update(participantRef, {
+            status: 'committed',
+            'metadata.commitmentTiming': 'now',
+            'metadata.donationId': donationRef.id,
+            updatedAt: new Date()
+          })
+        }
+      }
     } else {
       // Decision is 'commit_after_appraisal'
       // Create the conditional "Donor: Makes Equity Commitment" task to be completed after appraisal
@@ -212,13 +217,18 @@ export async function POST(
         })
       })
 
-      // Mark participant as awaiting appraisal
-      const participantRef = adminDb.collection('campaign_participants').doc(effectiveId)
-      batch.update(participantRef, {
-        status: 'awaiting_appraisal',
-        'metadata.commitmentTiming': 'after_appraisal',
-        updatedAt: new Date()
-      })
+      // Mark participant as awaiting appraisal (only if participant record exists)
+      if (taskData.participantId) {
+        const participantRef = adminDb.collection('campaign_participants').doc(effectiveId)
+        const participantDoc = await participantRef.get()
+        if (participantDoc.exists) {
+          batch.update(participantRef, {
+            status: 'awaiting_appraisal',
+            'metadata.commitmentTiming': 'after_appraisal',
+            updatedAt: new Date()
+          })
+        }
+      }
     }
 
     await batch.commit()

@@ -404,10 +404,19 @@ export function DonationTaskList({
 
       let response
 
-      // Use effectiveId for reset
-      if (effectiveId) {
-        // Try participant-based reset first (new structure)
-        response = await fetch(`/api/campaign-participants/${effectiveId}/reset-tasks`, {
+      // Use the appropriate endpoint based on which ID we have
+      if (participantId) {
+        // Use participant-based reset (new structure)
+        response = await fetch(`/api/campaign-participants/${participantId}/reset-tasks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+      } else if (donationId) {
+        // Use donation-based reset (legacy structure)
+        response = await fetch(`/api/donations/${donationId}/reset-tasks`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -416,16 +425,16 @@ export function DonationTaskList({
         })
       } else if (tasks.length > 0) {
         // Fallback: get ID from tasks
-        if (tasks[0].donationId) {
-          response = await fetch(`/api/donations/${tasks[0].donationId}/reset-tasks`, {
+        if (tasks[0].participantId) {
+          response = await fetch(`/api/campaign-participants/${tasks[0].participantId}/reset-tasks`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             }
           })
-        } else if (tasks[0].participantId) {
-          response = await fetch(`/api/campaign-participants/${tasks[0].participantId}/reset-tasks`, {
+        } else if (tasks[0].donationId) {
+          response = await fetch(`/api/donations/${tasks[0].donationId}/reset-tasks`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

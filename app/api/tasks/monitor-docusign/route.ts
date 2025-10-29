@@ -239,16 +239,19 @@ async function checkDocuSignTaskCompletion(taskDoc: FirebaseFirestore.QueryDocum
 async function processDependentTasksForMonitoring(completedTask: FirebaseFirestore.DocumentData, completedTaskId: string) {
   try {
     const participantId = completedTask.participantId
-    
-    if (!participantId) {
-      secureLogger.warn('No participant ID for dependency processing', { taskId: completedTaskId })
+    const donationId = completedTask.donationId
+    const effectiveId = participantId || donationId
+
+    if (!effectiveId) {
+      secureLogger.warn('No participant ID or donation ID for dependency processing', { taskId: completedTaskId })
       return
     }
 
-    // Find dependent tasks
+    // Find dependent tasks - query by the correct field
+    const queryField = participantId ? 'participantId' : 'donationId'
     const dependentTasksQuery = await adminDb
       .collection('tasks')
-      .where('participantId', '==', participantId)
+      .where(queryField, '==', effectiveId)
       .where('dependencies', 'array-contains', completedTaskId)
       .get()
 
@@ -267,7 +270,7 @@ async function processDependentTasksForMonitoring(completedTask: FirebaseFiresto
       
       if (depTask.status === 'blocked') {
         // Validate all dependencies before unblocking
-        const allDependenciesCompleted = await validateDependenciesForMonitoring(depTask, participantId)
+        const allDependenciesCompleted = await validateDependenciesForMonitoring(depTask, effectiveId, queryField)
         
         if (allDependenciesCompleted) {
           await adminDb.collection('tasks').doc(depTaskDoc.id).update({
@@ -296,7 +299,7 @@ async function processDependentTasksForMonitoring(completedTask: FirebaseFiresto
   }
 }
 
-async function validateDependenciesForMonitoring(task: FirebaseFirestore.DocumentData, participantId: string): Promise<boolean> {
+async function validateDependenciesForMonitoring(task: FirebaseFirestore.DocumentData, effectiveId: string, queryField: 'participantId' | 'donationId'): Promise<boolean> {
   if (!task.dependencies || task.dependencies.length === 0) {
     return true
   }
@@ -304,7 +307,7 @@ async function validateDependenciesForMonitoring(task: FirebaseFirestore.Documen
   try {
     const allTasksQuery = await adminDb
       .collection('tasks')
-      .where('participantId', '==', participantId)
+      .where(queryField, '==', effectiveId)
       .get()
     
     const taskStatusMap = new Map<string, string>()
