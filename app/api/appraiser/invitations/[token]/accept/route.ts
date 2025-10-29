@@ -128,6 +128,7 @@ export async function POST(
         userId: decodedToken.uid,
         userEmail: decodedToken.email,
         role: 'appraiser',
+        appraiserId: decodedToken.uid, // CRITICAL: Add appraiserId so the by-appraiser query can find this record
         status: 'active',
         joinedAt: FieldValue.serverTimestamp(),
         createdAt: FieldValue.serverTimestamp(),
