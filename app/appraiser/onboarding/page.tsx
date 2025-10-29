@@ -48,10 +48,6 @@ export default function AppraiserOnboardingPage() {
   const hasRunInitialFetch = useRef(false)
   const hasRunInitialTaskCheck = useRef(false)
 
-  if (taskCompletions.onboarding && Object.keys(taskCompletions.onboarding).length > 0) {
-    hasEverLoadedTaskCompletions.current = true
-  }
-
   // Fetch task completions from Firestore
   const fetchTaskCompletions = useCallback(async () => {
     if (!user) return
@@ -69,9 +65,13 @@ export default function AppraiserOnboardingPage() {
         setTaskCompletions({
           onboarding: result.completions?.onboarding || {}
         })
+        // Mark that we've successfully loaded data (even if empty)
+        hasEverLoadedTaskCompletions.current = true
       }
     } catch (error) {
       secureLogger.error('Error fetching task completions', error instanceof Error ? error : new Error(String(error)))
+      // Even on error, mark as loaded to prevent infinite loading
+      hasEverLoadedTaskCompletions.current = true
     }
   }, [user])
 
@@ -194,12 +194,12 @@ export default function AppraiserOnboardingPage() {
 
   // Run checkTaskCompletion once after initial taskCompletions load
   useEffect(() => {
-    const hasData = taskCompletions.onboarding && Object.keys(taskCompletions.onboarding).length > 0
-    if (hasData && user && userProfile && !hasRunInitialTaskCheck.current) {
+    // Run once the API has loaded (even if it returns empty data)
+    if (hasEverLoadedTaskCompletions.current && user && userProfile && !hasRunInitialTaskCheck.current) {
       hasRunInitialTaskCheck.current = true
       checkTaskCompletion()
     }
-  }, [taskCompletions, user, userProfile, checkTaskCompletion])
+  }, [hasEverLoadedTaskCompletions.current, taskCompletions, user, userProfile, checkTaskCompletion])
 
   const handleSetTaskStatus = async (taskId: string, newStatus: 'not_started' | 'in_progress' | 'complete') => {
     if (!user) return
@@ -261,9 +261,7 @@ export default function AppraiserOnboardingPage() {
   const totalTasks = tasks.length
   const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
 
-  const waitingForInitialLoad = user && userProfile &&
-    !hasEverLoadedTaskCompletions.current &&
-    Object.keys(taskCompletions.onboarding).length === 0
+  const waitingForInitialLoad = user && userProfile && !hasEverLoadedTaskCompletions.current
 
   const showLoadingScreen = loading || waitingForInitialLoad
 
