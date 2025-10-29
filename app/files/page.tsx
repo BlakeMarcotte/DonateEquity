@@ -8,7 +8,6 @@ import {
   File,
   Trash2,
   Download,
-  Plus,
   FolderPlus,
   Lock,
   Users,
@@ -93,7 +92,7 @@ function FilesPage() {
   }, [authLoading, user, loadFiles])
 
   const handleFileUpload = async (selectedFiles: FileList | null) => {
-    if (!selectedFiles || selectedFiles.length === 0 || !user || !userProfile) return
+    if (!selectedFiles || selectedFiles.length === 0 || !user || !userProfile || !userProfile.organizationId) return
 
     try {
       setUploading(true)
@@ -157,7 +156,7 @@ function FilesPage() {
   }
 
   const handleCreateFolder = async () => {
-    if (!newFolderName.trim() || !user || !userProfile) return
+    if (!newFolderName.trim() || !user || !userProfile || !userProfile.organizationId) return
 
     try {
       const token = await user.getIdToken()

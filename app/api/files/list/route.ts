@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
 import { secureLogger } from '@/lib/logging/secure-logger'
 
+interface FileData {
+  id: string
+  visibility: 'private' | 'organization'
+  uploadedBy: string
+  [key: string]: unknown
+}
+
+interface FolderData {
+  id: string
+  visibility: 'private' | 'organization'
+  createdBy: string
+  [key: string]: unknown
+}
+
 export async function GET(request: NextRequest) {
   try {
     // 1. Authenticate user
@@ -38,8 +52,8 @@ export async function GET(request: NextRequest) {
       .map(doc => ({
         id: doc.id,
         ...doc.data()
-      }))
-      .filter((file: any) => {
+      }) as FileData)
+      .filter((file: FileData) => {
         // Include if:
         // 1. File is organization-wide, OR
         // 2. File is private and belongs to current user
@@ -58,8 +72,8 @@ export async function GET(request: NextRequest) {
       .map(doc => ({
         id: doc.id,
         ...doc.data()
-      }))
-      .filter((folder: any) => {
+      }) as FolderData)
+      .filter((folder: FolderData) => {
         // Include if:
         // 1. Folder is organization-wide, OR
         // 2. Folder is private and belongs to current user
