@@ -431,12 +431,17 @@ export default function NonprofitDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, userProfile, customClaims?.organizationId])
 
-  // Run checkTaskCompletion once after initial taskCompletions load
+  // Run checkTaskCompletion whenever taskCompletions changes
   useEffect(() => {
     // Check if we've loaded task completions (even if empty)
     // The hasEverLoadedTaskCompletions ref will be set to true after fetchTaskCompletions runs
-    if (hasEverLoadedTaskCompletions.current && user && userProfile && customClaims?.organizationId && !hasRunInitialTaskCheck.current) {
-      hasRunInitialTaskCheck.current = true
+    if (hasEverLoadedTaskCompletions.current && user && userProfile && customClaims?.organizationId) {
+      // Mark that we've run at least once
+      if (!hasRunInitialTaskCheck.current) {
+        hasRunInitialTaskCheck.current = true
+      }
+      // Always run checkTaskCompletion when taskCompletions changes
+      // This ensures UI updates when tasks are completed
       checkTaskCompletion()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -533,18 +538,16 @@ export default function NonprofitDashboardPage() {
     if (taskId === 'campaign') setCreateCampaignModalOpen(false)
 
     // Refresh data and fetch task completions from Firestore
+    // checkTaskCompletion() will be called automatically by useEffect when taskCompletions updates
     try {
       await refreshUserData()
       // Add a delay before fetching to allow Firestore write to propagate
       await new Promise(resolve => setTimeout(resolve, 300))
       await fetchTaskCompletions()
-      // Call checkTaskCompletion to recreate tasks array with updated statuses
-      checkTaskCompletion()
     } catch (error) {
       secureLogger.error('Error refreshing after task completion', error instanceof Error ? error : new Error(String(error)))
-      // Still try to fetch completions and check tasks even if refresh fails
+      // Still try to fetch completions even if refresh fails
       await fetchTaskCompletions()
-      checkTaskCompletion()
     }
   }
 
