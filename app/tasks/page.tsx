@@ -124,6 +124,8 @@ export default function NonprofitDashboardPage() {
   const fetchTaskCompletions = useCallback(async () => {
     if (!user) return
 
+    secureLogger.info('Fetching task completions from Firestore...')
+
     try {
       const token = await user.getIdToken()
       const response = await fetch('/api/tasks/completion', {
@@ -132,7 +134,17 @@ export default function NonprofitDashboardPage() {
         }
       })
 
+      if (!response.ok) {
+        throw new Error(`API responded with status ${response.status}`)
+      }
+
       const result = await response.json()
+
+      secureLogger.info('Task completions fetched successfully', {
+        onboarding: result.completions?.onboarding || {},
+        campaigns: Object.keys(result.completions?.campaigns || {}).length
+      })
+
       if (result.success) {
         setTaskCompletions({
           onboarding: result.completions?.onboarding || {},
@@ -140,6 +152,8 @@ export default function NonprofitDashboardPage() {
         })
         // Mark that we've loaded task completions (even if empty)
         hasEverLoadedTaskCompletions.current = true
+      } else {
+        secureLogger.error('Task completions fetch returned success: false', new Error('API call unsuccessful'))
       }
     } catch (error) {
       secureLogger.error('Error fetching task completions', error instanceof Error ? error : new Error(String(error)))
@@ -436,6 +450,11 @@ export default function NonprofitDashboardPage() {
     // Check if we've loaded task completions (even if empty)
     // The hasEverLoadedTaskCompletions ref will be set to true after fetchTaskCompletions runs
     if (hasEverLoadedTaskCompletions.current && user && userProfile && customClaims?.organizationId) {
+      secureLogger.info('taskCompletions changed, rebuilding tasks UI', {
+        onboardingTasks: taskCompletions.onboarding,
+        hasRunBefore: hasRunInitialTaskCheck.current
+      })
+
       // Mark that we've run at least once
       if (!hasRunInitialTaskCheck.current) {
         hasRunInitialTaskCheck.current = true

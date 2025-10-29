@@ -198,7 +198,7 @@ export default function CompleteOrganizationModal({
       isOpen={isOpen}
       onClose={handleClose}
       title="Complete Organization Information"
-      description="Fill out all 6 fields below to complete this task. You can save partial progress, but the task will only be marked complete when all fields are filled."
+      description="Add your organization's details. You can save your progress at any time and complete this later."
       onSubmit={handleSubmit}
       loading={loading}
       loadingText="Updating Organization..."
@@ -221,7 +221,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
             <Building2 className="inline w-4 h-4 mr-1" />
-            Organization Name <span className="text-red-600 font-bold">*</span>
+            Organization Name
           </label>
           <input
             type="text"
@@ -237,7 +237,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="taxId" className="block text-sm font-medium text-gray-700 mb-2">
             <FileText className="inline w-4 h-4 mr-1" />
-            EIN (Tax ID) <span className="text-red-600 font-bold">*</span>
+            EIN (Tax ID)
           </label>
           <input
             type="text"
@@ -254,7 +254,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
             <Phone className="inline w-4 h-4 mr-1" />
-            Phone Number <span className="text-red-600 font-bold">*</span>
+            Phone Number
           </label>
           <input
             type="tel"
@@ -271,7 +271,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">
             <Globe className="inline w-4 h-4 mr-1" />
-            Website <span className="text-red-600 font-bold">*</span>
+            Website
           </label>
           <input
             type="text"
@@ -287,7 +287,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
             <MapPin className="inline w-4 h-4 mr-1" />
-            City <span className="text-red-600 font-bold">*</span>
+            City
           </label>
           <input
             type="text"
@@ -303,7 +303,7 @@ export default function CompleteOrganizationModal({
         <div>
           <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
             <MapPin className="inline w-4 h-4 mr-1" />
-            State <span className="text-red-600 font-bold">*</span>
+            State
           </label>
           <input
             type="text"
