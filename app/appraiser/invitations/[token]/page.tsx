@@ -58,6 +58,14 @@ export default function AppraiserInvitationPage() {
     }
   }, [token, fetchInvitation])
 
+  // If user is not authenticated, redirect directly to registration
+  // The registration flow will handle accepting the invitation
+  useEffect(() => {
+    if (!authLoading && !user && invitation && invitation.status === 'pending') {
+      router.push(`/auth/register?appraiserInvitation=${token}&email=${encodeURIComponent(invitation.appraiserEmail)}`)
+    }
+  }, [authLoading, user, invitation, token, router])
+
   const handleAcceptInvitation = async () => {
     if (!invitation || !user) return
 
@@ -214,10 +222,10 @@ export default function AppraiserInvitationPage() {
 
   // Check if invitation is expired
   const isExpired = invitation ? new Date() > new Date(invitation.expiresAt) : false
-  
+
   // Check if user is already authenticated and matches the invitation
   const isCorrectUser = user?.email === invitation?.appraiserEmail
-  
+
   const handleSignUpToAccept = () => {
     // Redirect to register with the appraiser invitation token
     router.push(`/auth/register?appraiserInvitation=${token}`)
