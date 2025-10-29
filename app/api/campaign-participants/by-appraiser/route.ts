@@ -10,47 +10,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Appraiser ID is required' }, { status: 400 })
     }
 
-    // Query campaign_participants where appraiserId matches
-    console.log('Querying for appraiser participants with appraiserId:', appraiserId)
+    // Query campaign_participants where userId matches and role is appraiser
+    // This is more reliable than querying by appraiserId field alone
+    console.log('Querying for appraiser participants with userId:', appraiserId)
     const participantsQuery = adminDb.collection('campaign_participants')
-      .where('appraiserId', '==', appraiserId)
+      .where('userId', '==', appraiserId)
+      .where('role', '==', 'appraiser')
 
     const participantsSnapshot = await participantsQuery.get()
-    console.log(`Found ${participantsSnapshot.docs.length} appraiser participant records for appraiserId: ${appraiserId}`)
-
-    // Debug: Log all participant records to see what we're getting
-    if (participantsSnapshot.docs.length > 0) {
-      participantsSnapshot.docs.forEach((doc, index) => {
-        console.log(`Participant ${index + 1}:`, {
-          id: doc.id,
-          campaignId: doc.data().campaignId,
-          userId: doc.data().userId,
-          appraiserId: doc.data().appraiserId,
-          role: doc.data().role
-        })
-      })
-    } else {
-      // Debug: Check if there are ANY participant records for this user ID
-      console.log('No records found with appraiserId. Checking for userId:', appraiserId)
-      const userIdQuery = adminDb.collection('campaign_participants')
-        .where('userId', '==', appraiserId)
-      const userIdSnapshot = await userIdQuery.get()
-      console.log(`Found ${userIdSnapshot.docs.length} records with userId: ${appraiserId}`)
-
-      if (userIdSnapshot.docs.length > 0) {
-        console.log('Records found by userId (missing appraiserId field):')
-        userIdSnapshot.docs.forEach((doc, index) => {
-          const data = doc.data()
-          console.log(`Record ${index + 1}:`, {
-            id: doc.id,
-            campaignId: data.campaignId,
-            userId: data.userId,
-            appraiserId: data.appraiserId || 'MISSING',
-            role: data.role
-          })
-        })
-      }
-    }
+    console.log(`Found ${participantsSnapshot.docs.length} appraiser participant records for userId: ${appraiserId}`)
 
     const participants = participantsSnapshot.docs.map(doc => ({
       id: doc.id,

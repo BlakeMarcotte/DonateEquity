@@ -41,88 +41,84 @@ export function useDonorCampaign(forceRefresh = false) {
       return
     }
 
-    // For appraisers, query donations where they are assigned
+    // For appraisers, query campaign_participants where they are assigned
     if (customClaims?.role === 'appraiser') {
-      console.log('Setting up donations listener for appraiser:', user.uid)
-      const appraiserDonationsQuery = query(
-        collection(db, 'donations'),
-        where('appraiserId', '==', user.uid)
+      console.log('Setting up campaign participants listener for appraiser:', user.uid)
+
+      // Query for appraiser participant records (participant-based system)
+      const appraiserParticipantsQuery = query(
+        collection(db, 'campaign_participants'),
+        where('userId', '==', user.uid),
+        where('role', '==', 'appraiser')
       )
 
-      const unsubscribeAppraiserDonations = onSnapshot(
-        appraiserDonationsQuery,
+      const unsubscribeAppraiserParticipants = onSnapshot(
+        appraiserParticipantsQuery,
         async (snapshot) => {
           try {
-            console.log('Appraiser donations snapshot received:', snapshot.docs.length, 'documents')
+            console.log('Appraiser participants snapshot received:', snapshot.docs.length, 'documents')
 
             if (!snapshot.empty) {
-              // Get the first donation assigned to this appraiser
-              const firstDonationDoc = snapshot.docs[0]
-              const firstDonation = firstDonationDoc.data()
+              // Get the first participant record assigned to this appraiser
+              const firstParticipantDoc = snapshot.docs[0]
+              const firstParticipant = firstParticipantDoc.data()
 
-              console.log('Found donation for appraiser:', {
-                id: firstDonationDoc.id,
-                campaignId: firstDonation.campaignId,
-                donorId: firstDonation.donorId,
-                appraiserId: firstDonation.appraiserId
+              console.log('Found participant record for appraiser:', {
+                id: firstParticipantDoc.id,
+                campaignId: firstParticipant.campaignId,
+                userId: firstParticipant.userId,
+                role: firstParticipant.role,
+                linkedDonorParticipantId: firstParticipant.linkedDonorParticipantId
               })
 
-              // Set donation data
-              setDonation({
-                id: firstDonationDoc.id,
-                campaignId: firstDonation.campaignId,
-                campaignTitle: firstDonation.campaignTitle || '',
-                organizationName: firstDonation.organizationName || '',
-                amount: firstDonation.amount || 0,
-                status: firstDonation.status || 'pending'
-              })
-
-              // If campaign info is embedded in donation, use it
-              if (firstDonation.campaignTitle) {
-                setCampaign({
-                  id: firstDonation.campaignId,
-                  title: firstDonation.campaignTitle,
-                  organizationName: firstDonation.organizationName || ''
-                })
-                setLoading(false)
-                return
-              }
-
-              // Otherwise fetch campaign details
-              const campaignDoc = await getDoc(doc(db, 'campaigns', firstDonation.campaignId))
+              // Fetch campaign details
+              const campaignDoc = await getDoc(doc(db, 'campaigns', firstParticipant.campaignId))
               if (campaignDoc.exists()) {
                 const campaignData = campaignDoc.data()
                 setCampaign({
-                  id: firstDonation.campaignId,
+                  id: firstParticipant.campaignId,
                   title: campaignData.title,
-                  organizationName: campaignData.organizationName || ''
+                  organizationName: campaignData.organizationName || '',
+                  participantId: firstParticipantDoc.id
+                })
+
+                // For participant-based system, we don't have a donation record
+                // The participant ID serves as the donation identifier
+                setDonation({
+                  id: firstParticipantDoc.id,
+                  campaignId: firstParticipant.campaignId,
+                  campaignTitle: campaignData.title || '',
+                  organizationName: campaignData.organizationName || '',
+                  amount: 0, // Not stored in participant record
+                  status: firstParticipant.status || 'active'
                 })
               } else {
                 setCampaign(null)
+                setDonation(null)
               }
               setLoading(false)
               return
             }
 
-            // No donations assigned to this appraiser
-            console.log('No donations found for appraiser')
+            // No participant records assigned to this appraiser
+            console.log('No campaign participants found for appraiser')
             setCampaign(null)
             setDonation(null)
             setLoading(false)
           } catch (err) {
-            console.error('Error fetching appraiser donations:', err)
-            setError('Failed to load donation information')
+            console.error('Error fetching appraiser participants:', err)
+            setError('Failed to load campaign information')
             setLoading(false)
           }
         },
         (err) => {
-          console.error('Error listening to appraiser donations:', err)
-          setError('Failed to load donation information')
+          console.error('Error listening to appraiser participants:', err)
+          setError('Failed to load campaign information')
           setLoading(false)
         }
       )
 
-      return () => unsubscribeAppraiserDonations()
+      return () => unsubscribeAppraiserParticipants()
     }
 
     // For donors, check for actual donations first

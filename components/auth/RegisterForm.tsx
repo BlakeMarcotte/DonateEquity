@@ -212,6 +212,7 @@ export default function RegisterForm({
           let acceptedCampaignId = null
           let acceptedDonationId = null
 
+          // Handle campaign invitation acceptance
           if (invitation) {
             try {
               // Get the user's auth token
@@ -254,6 +255,43 @@ export default function RegisterForm({
               }
             } catch (invitationError) {
               console.error('Error accepting invitation:', invitationError)
+              // Continue with registration flow even if invitation acceptance fails
+            }
+          }
+
+          // Handle appraiser invitation acceptance
+          if (appraiserInvitationToken && !invitationAccepted) {
+            try {
+              const currentUser = auth.currentUser
+              if (currentUser) {
+                const idToken = await currentUser.getIdToken()
+
+                // Call the API to accept the appraiser invitation
+                const response = await fetch(`/api/appraiser/invitations/${appraiserInvitationToken}/accept`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                  }
+                })
+
+                if (response.ok) {
+                  const result = await response.json()
+                  invitationAccepted = true
+
+                  // Refresh token if role was just set
+                  if (result.roleUpdated) {
+                    await currentUser.getIdToken(true)
+                  }
+
+                  console.log('Appraiser invitation accepted successfully after registration')
+                } else {
+                  const error = await response.json()
+                  console.error('Error accepting appraiser invitation:', error)
+                }
+              }
+            } catch (appraiserInvitationError) {
+              console.error('Error accepting appraiser invitation:', appraiserInvitationError)
               // Continue with registration flow even if invitation acceptance fails
             }
           }
