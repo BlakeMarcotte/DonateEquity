@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const {
-      donationId, // API still accepts 'donationId' for backwards compatibility, but it's actually participantId
+      donationId,
       appraiserEmail,
       appraiserName,
       personalMessage
@@ -35,25 +35,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // PARTICIPANT-BASED SYSTEM ONLY - donationId is actually participantId
-    const participantId = donationId
+    // Validate donation exists and belongs to the user
+    const donationRef = adminDb.collection('donations').doc(donationId)
+    const donationDoc = await donationRef.get()
 
-    // Validate participantId format (should be campaignId_userId)
-    if (!participantId.includes('_')) {
-      return NextResponse.json({ error: 'Invalid participant ID format' }, { status: 400 })
+    if (!donationDoc.exists) {
+      return NextResponse.json({ error: 'Donation not found' }, { status: 404 })
     }
 
-    // Validate participant exists and belongs to the user
-    const participantRef = adminDb.collection('campaign_participants').doc(participantId)
-    const participantDoc = await participantRef.get()
-
-    if (!participantDoc.exists) {
-      return NextResponse.json({ error: 'Participant record not found' }, { status: 404 })
-    }
-
-    const participantData = participantDoc.data()
-    if (participantData?.userId !== decodedToken.uid) {
-      return NextResponse.json({ error: 'You can only invite appraisers for your own participation' }, { status: 403 })
+    const donationData = donationDoc.data()
+    if (donationData?.donorId !== decodedToken.uid) {
+      return NextResponse.json({ error: 'You can only invite appraisers for your own donations' }, { status: 403 })
     }
 
     // Get user profile for inviter information
@@ -74,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // Create invitation record
     const invitationData = {
-      donationId: participantId, // Store as 'donationId' for backwards compatibility with accept endpoint
+      donationId,
       appraiserEmail,
       appraiserName: appraiserName || null,
       inviterUserId: decodedToken.uid,
@@ -94,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Update the invitation task to mark it as completed
     const tasksQuery = adminDb.collection('tasks')
-      .where('participantId', '==', participantId)
+      .where('donationId', '==', donationId)
       .where('type', '==', 'invitation')
       .where('assignedRole', '==', 'donor')
 
@@ -114,7 +106,7 @@ export async function POST(request: NextRequest) {
 
       // Find and unblock the next task (Upload Company Information)
       const nextTaskQuery = adminDb.collection('tasks')
-        .where('participantId', '==', participantId)
+        .where('donationId', '==', donationId)
         .where('dependencies', 'array-contains', firstTask.id)
 
       const nextTaskSnapshot = await nextTaskQuery.get()

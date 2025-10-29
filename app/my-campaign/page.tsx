@@ -8,7 +8,7 @@ import { DonationTaskList } from '@/components/tasks/DonationTaskList'
 import { TaskTimeline } from '@/components/tasks/TaskTimeline'
 import { DonationFiles } from '@/components/files/DonationFiles'
 import { EquityCommitmentModal } from '@/components/tasks/EquityCommitmentModal'
-import { useParticipantTasks } from '@/hooks/useParticipantTasks'
+import { useDonationTasks } from '@/hooks/useDonationTasks'
 import { Heart, CheckSquare, FileText } from 'lucide-react'
 
 function MyCampaignPage() {
@@ -18,13 +18,11 @@ function MyCampaignPage() {
   const shouldRefresh = searchParams.get('refresh') === '1'
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign(shouldRefresh)
 
-  // PARTICIPANT-BASED ARCHITECTURE FOR EVERYONE (donors and appraisers)
-  // For appraisers, use the participant ID from the campaign
-  // For donors, construct it from campaign ID and user ID
-  const participantId = campaign?.participantId || (campaign && user ? `${campaign.id}_${user.uid}` : null)
+  // DONATION-BASED ARCHITECTURE FOR EVERYONE
+  const donationId = donation?.id || null
 
-  // EVERYONE uses participant-based tasks now - no more donation-based legacy system
-  const { tasks, loading: tasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
+  // EVERYONE uses donation-based tasks
+  const { tasks, loading: tasksLoading, handleCommitmentDecision } = useDonationTasks(donationId)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
@@ -130,10 +128,10 @@ function MyCampaignPage() {
     return null
   }
 
-  // Only show "No Campaign Found" if we have no campaign AND no tasks AND no participantId
-  // If we have a participantId, that means we have participation, so never show "not found"
+  // Only show "No Campaign Found" if we have no campaign AND no tasks AND no donationId
+  // If we have a donationId, that means we have a donation, so never show "not found"
   // If we have tasks, show the page even without a campaign object
-  if (!campaign && tasks.length === 0 && !participantId) {
+  if (!campaign && tasks.length === 0 && !donationId) {
     // If we have a campaign ID from URL, show loading while redirecting
     if (campaignIdFromUrl) {
       return (
@@ -300,14 +298,14 @@ function MyCampaignPage() {
             <div className="p-6">
               {activeTab === 'tasks' && (
                 <DonationTaskList
-                  participantId={participantId || undefined}
+                  donationId={donationId || undefined}
                   campaignId={campaign?.id}
                   showAllTasks={true}
                   // Pass required props for EquityCommitmentModal
                   campaignTitle={campaign?.title}
                   donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}
                   organizationName={campaign?.organizationName}
-                  // Pass tasks and handlers based on role
+                  // Pass tasks and handlers
                   tasks={tasks}
                   loading={tasksLoading}
                   handleCommitmentDecision={handleCommitmentDecision}
@@ -316,9 +314,9 @@ function MyCampaignPage() {
               
               {activeTab === 'files' && (
                 <>
-                  {participantId ? (
+                  {donationId ? (
                     <DonationFiles
-                      donationId={`participants/${participantId}`}
+                      donationId={donationId}
                       title="Shared Documents"
                       showUpload={false}
                       className="border-0 shadow-none p-0"
