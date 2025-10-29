@@ -10,6 +10,7 @@ import { useFormSubmission } from '@/hooks/useAsyncOperation'
 import { formatPhoneNumber } from '@/lib/utils/formatters'
 import { User, Phone, FileText } from 'lucide-react'
 import { secureLogger } from '@/lib/logging/secure-logger'
+import ProfilePictureUpload from '@/components/profile/ProfilePictureUpload'
 
 interface CompleteAppraiserProfileModalProps {
   isOpen: boolean
@@ -155,6 +156,18 @@ export default function CompleteAppraiserProfileModal({
       submitText="Save Profile"
       maxWidth="lg"
     >
+      {/* Profile Picture Upload */}
+      {user && (
+        <div className="pb-6 mb-6 border-b border-gray-200">
+          <ProfilePictureUpload
+            user={user}
+            currentPhotoURL={userProfile?.photoURL}
+            disabled={loading}
+            size="md"
+          />
+        </div>
+      )}
+
       <div className="space-y-4">
         <div>
           <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-2">

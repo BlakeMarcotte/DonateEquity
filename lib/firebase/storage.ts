@@ -503,11 +503,136 @@ export function getFileExtension(filename: string): string {
  */
 export function getFileIcon(contentType: string | undefined): string {
   if (!contentType) return '📄'
-  
+
   if (contentType.includes('pdf')) return '📋'
   if (contentType.includes('image')) return '🖼️'
   if (contentType.includes('word') || contentType.includes('document')) return '📝'
   if (contentType.includes('text')) return '📄'
-  
+
   return '📁'
+}
+
+/**
+ * Upload a profile picture for a user
+ */
+export async function uploadProfilePicture(
+  userId: string,
+  file: File,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<FileUploadResult> {
+  // Validate file type
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error('Only JPEG, PNG, and WebP images are allowed for profile pictures')
+  }
+
+  // Validate file size (5MB max)
+  const maxSize = 5 * 1024 * 1024
+  if (file.size > maxSize) {
+    throw new Error('Profile picture must be less than 5MB')
+  }
+
+  const fileName = `profile_${Date.now()}.${file.type.split('/')[1]}`
+  const filePath = `users/${userId}/profile/${fileName}`
+  const storageRef = ref(storage, filePath)
+
+  return new Promise((resolve, reject) => {
+    secureLogger.info('Starting profile picture upload', {
+      filePath,
+      fileName,
+      fileSize: file.size,
+      fileType: file.type,
+      userId
+    })
+
+    const uploadTask = uploadBytesResumable(storageRef, file, {
+      contentType: file.type,
+      customMetadata: {
+        uploadedBy: userId,
+        uploadType: 'profile_picture'
+      }
+    })
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+        onProgress?.({
+          bytesTransferred: snapshot.bytesTransferred,
+          totalBytes: snapshot.totalBytes,
+          progress,
+          state: snapshot.state as UploadProgress['state']
+        })
+      },
+      (error) => {
+        secureLogger.error('Profile picture upload failed', error, {
+          filePath,
+          fileName,
+          userId,
+          errorCode: error.code
+        })
+        reject(error)
+      },
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+          secureLogger.info('Profile picture upload completed', {
+            filePath,
+            fileName,
+            userId
+          })
+          resolve({
+            url: downloadURL,
+            path: filePath,
+            name: fileName,
+            size: file.size,
+            type: file.type,
+            uploadedAt: new Date()
+          })
+        } catch (error) {
+          secureLogger.error('Error getting download URL for profile picture', error, {
+            filePath,
+            fileName,
+            userId
+          })
+          reject(error)
+        }
+      }
+    )
+  })
+}
+
+/**
+ * Delete a user's profile picture
+ */
+export async function deleteProfilePicture(userId: string, photoURL: string): Promise<void> {
+  try {
+    // Extract the path from the photoURL
+    const urlObj = new URL(photoURL)
+    const pathMatch = urlObj.pathname.match(/\/o\/(.+)\?/)
+    if (!pathMatch) {
+      throw new Error('Invalid photo URL format')
+    }
+
+    const filePath = decodeURIComponent(pathMatch[1])
+
+    // Verify it's a profile picture path
+    if (!filePath.startsWith(`users/${userId}/profile/`)) {
+      throw new Error('Invalid profile picture path')
+    }
+
+    const storageRef = ref(storage, filePath)
+    await deleteObject(storageRef)
+
+    secureLogger.info('Profile picture deleted', {
+      userId,
+      filePath
+    })
+  } catch (error) {
+    secureLogger.error('Error deleting profile picture', error, {
+      userId,
+      photoURL
+    })
+    throw error
+  }
 }

@@ -6,12 +6,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { updateProfile } from 'firebase/auth'
 import { doc, updateDoc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
+import ProfilePictureUpload from '@/components/profile/ProfilePictureUpload'
 import {
   User,
   Mail,
   Building2,
   Save,
-  Camera,
   Calendar,
   CheckCircle
 } from 'lucide-react'
@@ -197,15 +197,17 @@ function ProfilePageContent() {
             <div className="bg-white rounded-lg shadow p-6">
               {/* Profile Summary */}
               <div className="text-center mb-6">
-                <div className="relative mx-auto w-20 h-20 mb-4">
-                  <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center">
-                    <User className="w-10 h-10 text-white" />
+                {user && (
+                  <div className="mb-4">
+                    <ProfilePictureUpload
+                      user={user}
+                      currentPhotoURL={userProfile?.photoURL}
+                      size="md"
+                      onUploadComplete={refreshUserData}
+                    />
                   </div>
-                  <button className="absolute bottom-0 right-0 w-6 h-6 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200">
-                    <Camera className="w-3 h-3 text-gray-600" />
-                  </button>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                )}
+                <h3 className="text-lg font-semibold text-gray-900 mt-4">
                   {userProfile?.displayName || 'User'}
                 </h3>
                 <p className="text-sm text-gray-500 capitalize">
