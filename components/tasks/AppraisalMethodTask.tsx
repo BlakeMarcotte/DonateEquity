@@ -258,8 +258,8 @@ export function AppraisalMethodTask({
         size="md"
       >
         <AppraiserInvitationForm
-          participantId={task.participantId}
-          donationId={task.participantId} // For backward compatibility
+          participantId={task.participantId || task.donationId}
+          donationId={task.donationId || task.participantId}
           onSuccess={async () => {
             await handleMethodSelect('invite_appraiser')
             setShowAppraiserModal(false)
