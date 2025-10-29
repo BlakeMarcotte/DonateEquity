@@ -9,7 +9,6 @@ import { FormModal } from '@/components/shared/FormModal'
 import { useFormSubmission } from '@/hooks/useAsyncOperation'
 import { formatPhoneNumber } from '@/lib/utils/formatters'
 import { User, Phone } from 'lucide-react'
-import ProfilePictureUpload from '@/components/profile/ProfilePictureUpload'
 
 interface CompleteProfileModalProps {
   isOpen: boolean
@@ -140,18 +139,6 @@ export default function CompleteProfileModal({
       submitText="Update Profile"
       maxWidth="sm"
     >
-      {/* Profile Picture Upload */}
-      {user && (
-        <div className="pb-6 border-b border-gray-200">
-          <ProfilePictureUpload
-            user={user}
-            currentPhotoURL={userProfile?.photoURL}
-            disabled={loading}
-            size="md"
-          />
-        </div>
-      )}
-
       <div>
         <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-2">
           <User className="inline w-4 h-4 mr-1" />

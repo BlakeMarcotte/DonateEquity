@@ -533,16 +533,18 @@ export default function NonprofitDashboardPage() {
     if (taskId === 'campaign') setCreateCampaignModalOpen(false)
 
     // Refresh data and fetch task completions from Firestore
-    // Don't call checkTaskCompletion() as it would override the manually saved status
     try {
       await refreshUserData()
       // Add a delay before fetching to allow Firestore write to propagate
       await new Promise(resolve => setTimeout(resolve, 300))
       await fetchTaskCompletions()
+      // Call checkTaskCompletion to recreate tasks array with updated statuses
+      checkTaskCompletion()
     } catch (error) {
       secureLogger.error('Error refreshing after task completion', error instanceof Error ? error : new Error(String(error)))
-      // Still try to fetch completions even if refresh fails
+      // Still try to fetch completions and check tasks even if refresh fails
       await fetchTaskCompletions()
+      checkTaskCompletion()
     }
   }
 
