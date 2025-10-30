@@ -35,7 +35,6 @@ const pages: PageInfo[] = [
   { path: '/organization', name: 'My Organization', description: 'Organization dashboard and team management', roles: ['nonprofit'] },
   { path: '/my-campaign', name: 'My Campaign', description: 'Create and manage campaigns', roles: ['nonprofit'] },
   { path: '/campaigns', name: 'All Campaigns', description: 'View all organization campaigns', roles: ['nonprofit'] },
-  { path: '/campaigns/[id]/participants/[donorId]/tasks', name: 'Participant Tasks', description: 'Manage donor tasks (dynamic)', roles: ['nonprofit'] },
   { path: '/tasks', name: 'Tasks Dashboard', description: 'Organization task management', roles: ['nonprofit'] },
   { path: '/join-team', name: 'Join Team', description: 'Accept team invitation', roles: ['nonprofit'] },
   
@@ -45,7 +44,6 @@ const pages: PageInfo[] = [
   { path: '/appraiser/invitations/[token]', name: 'Appraiser Invitation', description: 'Accept appraiser invitation (dynamic)', roles: ['appraiser'] },
   
   // Admin Pages
-  { path: '/admin/migrate-tasks', name: 'Migrate Tasks', description: 'Admin task migration tool', roles: ['admin'] },
   
   // Special Pages
   { path: '/unauthorized', name: 'Unauthorized', description: 'Access denied page', roles: ['public'] },

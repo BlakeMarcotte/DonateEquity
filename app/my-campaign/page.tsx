@@ -22,7 +22,7 @@ function MyCampaignPage() {
   const donationId = donation?.id || null
 
   // EVERYONE uses donation-based tasks
-  const { tasks, loading: tasksLoading, handleCommitmentDecision } = useDonationTasks(donationId)
+  const { tasks, loading: tasksLoading, handleCommitmentDecision, completeTask } = useDonationTasks(donationId)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
@@ -296,9 +296,9 @@ function MyCampaignPage() {
             </div>
 
             <div className="p-6">
-              {activeTab === 'tasks' && (
+              {activeTab === 'tasks' && donationId && (
                 <DonationTaskList
-                  donationId={donationId || undefined}
+                  donationId={donationId}
                   campaignId={campaign?.id}
                   showAllTasks={true}
                   // Pass required props for EquityCommitmentModal
@@ -308,6 +308,7 @@ function MyCampaignPage() {
                   // Pass tasks and handlers
                   tasks={tasks}
                   loading={tasksLoading}
+                  completeTask={completeTask}
                   handleCommitmentDecision={handleCommitmentDecision}
                 />
               )}

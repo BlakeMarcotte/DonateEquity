@@ -8,7 +8,6 @@ import { DonationTaskList } from '@/components/tasks/DonationTaskList'
 import { TaskTimeline } from '@/components/tasks/TaskTimeline'
 import { DonationFiles } from '@/components/files/DonationFiles'
 import { EquityCommitmentModal } from '@/components/tasks/EquityCommitmentModal'
-import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { useDonationTasks } from '@/hooks/useDonationTasks'
 import { Heart, CheckSquare, FileText } from 'lucide-react'
 
@@ -19,23 +18,11 @@ function MyCampaignPage() {
   const shouldRefresh = searchParams.get('refresh') === '1'
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign(shouldRefresh)
 
-  // Create participant ID for task querying (for appraisers)
-  // For appraisers, use the participant ID from the campaign (which is the donor's participant ID)
-  // For donors, construct it from campaign ID and user ID
-  const participantId = campaign?.participantId || (campaign && user ? `${campaign.id}_${user.uid}` : null)
-
-  // Donors use donation-based tasks, appraisers use participant-based tasks
-  const isDonor = customClaims?.role === 'donor'
+  // All users (donors and appraisers) use donation-based tasks now
   const donationId = donation?.id || null
 
-  // Conditionally fetch tasks based on role
-  const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision: participantHandleCommitmentDecision } = useParticipantTasks(isDonor ? null : participantId)
-  const { tasks: donationTasks, loading: donationTasksLoading, handleCommitmentDecision: donationHandleCommitmentDecision } = useDonationTasks(isDonor ? donationId : null)
-
-  // Use the appropriate tasks based on role
-  const tasks = isDonor ? donationTasks : participantTasks
-  const tasksLoading = isDonor ? donationTasksLoading : participantTasksLoading
-  const handleCommitmentDecision = isDonor ? donationHandleCommitmentDecision : participantHandleCommitmentDecision
+  // Fetch donation-based tasks for all users
+  const { tasks, loading: tasksLoading, handleCommitmentDecision, completeTask } = useDonationTasks(donationId)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
@@ -49,8 +36,8 @@ function MyCampaignPage() {
   // Handle redirect for campaign ID from URL
   useEffect(() => {
     if (campaignIdFromUrl && user && !campaignLoading && !campaign) {
-      // Redirect directly to the participant tasks page
-      router.push(`/campaigns/${campaignIdFromUrl}/participants/${user.uid}/tasks`)
+      // Redirect to donations page
+      router.push(`/my-donations`)
     }
   }, [campaignIdFromUrl, user, campaignLoading, campaign, router])
 
@@ -141,10 +128,9 @@ function MyCampaignPage() {
     return null
   }
 
-  // Only show "No Campaign Found" if we have no campaign AND no tasks AND no participantId
-  // If we have a participantId, that means we have participation, so never show "not found"
+  // Only show "No Campaign Found" if we have no campaign AND no tasks AND no donation
   // If we have tasks, show the page even without a campaign object
-  if (!campaign && tasks.length === 0 && !participantId) {
+  if (!campaign && tasks.length === 0 && !donationId) {
     // If we have a campaign ID from URL, show loading while redirecting
     if (campaignIdFromUrl) {
       return (
@@ -309,28 +295,28 @@ function MyCampaignPage() {
             </div>
 
             <div className="p-6">
-              {activeTab === 'tasks' && (
+              {activeTab === 'tasks' && donationId && (
                 <DonationTaskList
-                  participantId={isDonor ? undefined : (participantId || undefined)}
-                  donationId={isDonor ? (donationId || undefined) : undefined}
+                  donationId={donationId}
                   campaignId={campaign?.id}
                   showAllTasks={true}
                   // Pass required props for EquityCommitmentModal
                   campaignTitle={campaign?.title}
                   donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}
                   organizationName={campaign?.organizationName}
-                  // Pass tasks and handlers based on role
+                  // Pass tasks and handlers
                   tasks={tasks}
                   loading={tasksLoading}
+                  completeTask={completeTask}
                   handleCommitmentDecision={handleCommitmentDecision}
                 />
               )}
               
               {activeTab === 'files' && (
                 <>
-                  {(isDonor && donationId) || (!isDonor && participantId) ? (
+                  {donationId ? (
                     <DonationFiles
-                      donationId={isDonor ? (donationId || '') : `participants/${participantId}`}
+                      donationId={donationId}
                       title="Shared Documents"
                       showUpload={false}
                       className="border-0 shadow-none p-0"
@@ -340,7 +326,7 @@ function MyCampaignPage() {
                       <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">Shared Files</h3>
                       <p className="text-gray-600">
-                        File sharing will be available once your participation is set up.
+                        File sharing will be available once your donation is set up.
                       </p>
                     </div>
                   )}

@@ -186,58 +186,10 @@ export function useDonorCampaign(forceRefresh = false) {
             return
           }
 
-          // If no donations, check campaign_participants via API for interested donors
-          try {
-            console.log('Checking for campaign participants for user:', user.uid)
-            const response = await fetch(`/api/campaign-participants/by-user?userId=${user.uid}`)
-            console.log('Participants API response status:', response.status)
-            
-            if (response.ok) {
-              const { participants } = await response.json()
-              console.log('Found participants:', participants?.length || 0)
-              
-              if (participants && participants.length > 0) {
-                const firstParticipant = participants[0]
-                console.log('First participant campaign ID:', firstParticipant.campaignId)
-                
-                // Fetch campaign details
-                const campaignResponse = await fetch(`/api/campaigns/${firstParticipant.campaignId}`)
-                console.log('Campaign API response status:', campaignResponse.status)
-                
-                if (campaignResponse.ok) {
-                  const { campaign: campaignData } = await campaignResponse.json()
-                  console.log('Campaign data found:', campaignData.title)
-                  setCampaign({
-                    id: firstParticipant.campaignId,
-                    title: campaignData.title,
-                    organizationName: campaignData.organizationName || ''
-                  })
-                  
-                  // No donation yet, just participation
-                  setDonation(null)
-                } else {
-                  console.log('Campaign not found for participant')
-                  setCampaign(null)
-                  setDonation(null)
-                }
-              } else {
-                // No donations or participation
-                console.log('No participants found for user')
-                setCampaign(null)
-                setDonation(null)
-              }
-            } else {
-              // API error, fallback to no campaign
-              console.log('Participants API error:', response.status)
-              setCampaign(null)
-              setDonation(null)
-            }
-          } catch (apiError) {
-            console.error('Error fetching campaign participants:', apiError)
-            // Fallback to no campaign
-            setCampaign(null)
-            setDonation(null)
-          }
+          // No donations found - user has no active campaigns
+          console.log('No donations found for user')
+          setCampaign(null)
+          setDonation(null)
           setLoading(false)
         } catch (err) {
           console.error('Error fetching donor campaign:', err)

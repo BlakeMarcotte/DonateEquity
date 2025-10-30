@@ -26,10 +26,7 @@ function DonationTasksPage() {
   } | null>(null)
   const [donationLoading, setDonationLoading] = useState(true)
 
-  const { tasks, loading: tasksLoading, handleCommitmentDecision } = useDonationTasks(donationId)
-
-  // Use participantId from donation document if available, otherwise fall back to donationId
-  const effectiveId = donationData?.participantId || donationId
+  const { tasks, loading: tasksLoading, handleCommitmentDecision, completeTask } = useDonationTasks(donationId)
 
   // Fetch donation data for display
   useEffect(() => {
@@ -148,7 +145,6 @@ function DonationTasksPage() {
           <div className="p-6">
             {activeTab === 'tasks' && (
               <DonationTaskList
-                participantId={effectiveId}
                 donationId={donationId}
                 campaignId={donationData?.campaignId}
                 showAllTasks={true}
@@ -157,6 +153,7 @@ function DonationTasksPage() {
                 organizationName={donationData?.organizationName}
                 tasks={tasks}
                 loading={tasksLoading}
+                completeTask={completeTask}
                 handleCommitmentDecision={handleCommitmentDecision}
               />
             )}

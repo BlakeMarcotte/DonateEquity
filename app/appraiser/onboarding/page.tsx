@@ -168,16 +168,20 @@ export default function AppraiserOnboardingPage() {
     setLoading(false)
   }, [user, userProfile, getTaskStatus])
 
-  // Check if appraiser has campaign assignments
+  // Check if appraiser has any donations assigned to them
   const checkForCampaigns = useCallback(async () => {
     if (!user) return
 
     try {
-      const response = await fetch(`/api/campaign-participants/by-appraiser?appraiserId=${user.uid}`)
-      if (response.ok) {
-        const { participants } = await response.json()
-        setHasCampaigns(participants && participants.length > 0)
-      }
+      // Check if any donations have this user as the appraiser
+      const { collection, query, where, getDocs } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase/config')
+
+      const donationsRef = collection(db, 'donations')
+      const q = query(donationsRef, where('appraiserId', '==', user.uid))
+      const snapshot = await getDocs(q)
+
+      setHasCampaigns(!snapshot.empty)
     } catch (error) {
       secureLogger.error('Error checking for campaigns', error instanceof Error ? error : new Error(String(error)))
     }

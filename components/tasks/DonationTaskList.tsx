@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { CommitmentDecisionTask } from './CommitmentDecisionTask'
 import { useAuth } from '@/contexts/AuthContext'
 import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
@@ -16,14 +15,13 @@ import { EquityCommitmentModal } from './EquityCommitmentModal'
 
 
 interface DonationTaskListProps {
-  participantId?: string
-  donationId?: string // For donation-based tasks (donors)
+  donationId: string // Donation ID is now required
   campaignId?: string
   showAllTasks?: boolean // Show tasks for all roles (admin view)
-  // Allow passing tasks and handlers from parent
-  tasks?: Task[]
-  loading?: boolean
-  completeTask?: (taskId: string, completionData?: TaskCompletionData) => Promise<void>
+  // Tasks and handlers must be passed from parent
+  tasks: Task[]
+  loading: boolean
+  completeTask: (taskId: string, completionData?: TaskCompletionData) => Promise<void>
   handleCommitmentDecision?: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: CommitmentData) => Promise<void>
   campaignTitle?: string
   donorName?: string
@@ -31,27 +29,17 @@ interface DonationTaskListProps {
 }
 
 export function DonationTaskList({
-  participantId,
   donationId,
   showAllTasks = false,
-  tasks: externalTasks,
-  loading: externalLoading,
-  completeTask: externalCompleteTask,
+  tasks,
+  loading,
+  completeTask,
   handleCommitmentDecision,
   campaignTitle,
   donorName,
   organizationName
 }: DonationTaskListProps) {
-  // Calculate effective ID FIRST, before any hooks
-  const effectiveId = participantId || donationId
-
   const { user, customClaims } = useAuth()
-  const { tasks: participantTasks, loading: participantLoading, completeTask: participantCompleteTask } = useParticipantTasks(participantId || null)
-  
-  // Use external tasks/handlers if provided, otherwise use participant tasks
-  const tasks = externalTasks || participantTasks
-  const loading = externalLoading !== undefined ? externalLoading : participantLoading
-  const completeTask = externalCompleteTask || participantCompleteTask
   const [completingTasks, setCompletingTasks] = useState<Set<string>>(new Set())
   const [showInvitationModal, setShowInvitationModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -62,7 +50,7 @@ export function DonationTaskList({
   const [showResetModal, setShowResetModal] = useState(false)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const { uploadFile } = useParticipantFiles(effectiveId || null, null)
+  const { uploadFile } = useParticipantFiles(donationId, null)
   const fileUploadRef = useRef<{ triggerUpload: () => Promise<void>; hasFiles: () => boolean } | null>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
@@ -282,7 +270,7 @@ export function DonationTaskList({
         body: JSON.stringify({
           signerEmail: user?.email,
           signerName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          donationId: effectiveId,
+          donationId: donationId,
           documentName: 'General NDA',
           emailSubject: 'Please sign the General NDA for your donation'
         })
@@ -305,7 +293,7 @@ export function DonationTaskList({
           envelopeId: envelopeResult.envelopeId,
           recipientEmail: user?.email,
           recipientName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          donationId: effectiveId
+          donationId: donationId
         })
       })
       
@@ -358,7 +346,7 @@ export function DonationTaskList({
   
 
   const handleRefreshTasks = async () => {
-    if (refreshing || !effectiveId) return
+    if (refreshing || !donationId) return
 
     setRefreshing(true)
 
@@ -371,7 +359,7 @@ export function DonationTaskList({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ participantId: effectiveId })
+        body: JSON.stringify({ donationId: donationId })
       })
 
       if (!response.ok) {
@@ -402,51 +390,14 @@ export function DonationTaskList({
     try {
       const token = await user?.getIdToken()
 
-      let response
-
-      // Use the appropriate endpoint based on which ID we have
-      if (participantId) {
-        // Use participant-based reset (new structure)
-        response = await fetch(`/api/campaign-participants/${participantId}/reset-tasks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        })
-      } else if (donationId) {
-        // Use donation-based reset (legacy structure)
-        response = await fetch(`/api/donations/${donationId}/reset-tasks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        })
-      } else if (tasks.length > 0) {
-        // Fallback: get ID from tasks
-        if (tasks[0].participantId) {
-          response = await fetch(`/api/campaign-participants/${tasks[0].participantId}/reset-tasks`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            }
-          })
-        } else if (tasks[0].donationId) {
-          response = await fetch(`/api/donations/${tasks[0].donationId}/reset-tasks`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            }
-          })
-        } else {
-          throw new Error('No donation or participant ID available to reset tasks')
+      // Use donation-based reset endpoint
+      const response = await fetch(`/api/donations/${donationId}/reset-tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
-      } else {
-        throw new Error('No donation or participant ID available to reset tasks')
-      }
+      })
 
       if (!response.ok) {
         let errorMessage = 'Failed to reset tasks'
@@ -855,7 +806,7 @@ export function DonationTaskList({
           size="md"
         >
           <AppraiserInvitationForm
-            donationId={effectiveId || ''}
+            donationId={donationId}
             onClose={() => setShowInvitationModal(false)}
             onSuccess={handleInvitationSuccess}
           />
