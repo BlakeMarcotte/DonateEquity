@@ -406,13 +406,19 @@ export default function RegisterForm({
                 <Label htmlFor="role" className="text-gray-700 font-medium">
                   I am a *
                 </Label>
-                {preselectedRole || teamInvitation ? (
+                {preselectedRole || teamInvitation || appraiserInvitation ? (
                   // Show preselected role as disabled field
                   <div className="relative">
                     <Input
                       id="role"
                       type="text"
-                      value={teamInvitation ? 'Nonprofit' : ROLES.find(r => r.value === preselectedRole)?.label || preselectedRole || ''}
+                      value={
+                        teamInvitation
+                          ? 'Nonprofit'
+                          : appraiserInvitation
+                            ? 'Professional Appraiser'
+                            : ROLES.find(r => r.value === preselectedRole)?.label || preselectedRole || ''
+                      }
                       disabled={true}
                       className="text-base h-12 bg-gray-50 text-gray-600 cursor-not-allowed"
                     />
