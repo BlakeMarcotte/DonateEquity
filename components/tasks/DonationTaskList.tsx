@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload, RefreshCw } from 'lucide-react'
-import { AppraiserInvitationForm } from './AppraiserInvitationForm'
+import AppraiserInvitationForm from './AppraiserInvitationForm'
 import { AppraisalMethodTask } from './AppraisalMethodTask'
 import { FileUpload } from '@/components/files/FileUpload'
 import { useParticipantFiles } from '@/hooks/useParticipantFiles'
@@ -855,8 +855,8 @@ export function DonationTaskList({
           size="md"
         >
           <AppraiserInvitationForm
-            participantId={effectiveId}
-            donationId={effectiveId}
+            donationId={effectiveId || ''}
+            onClose={() => setShowInvitationModal(false)}
             onSuccess={handleInvitationSuccess}
           />
         </Modal>

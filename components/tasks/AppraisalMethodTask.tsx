@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Task } from '@/types/task'
 import { CheckCircle, User, Bot } from 'lucide-react'
-import { AppraiserInvitationForm } from './AppraiserInvitationForm'
+import AppraiserInvitationForm from './AppraiserInvitationForm'
 import { AIAppraisalForm } from './AIAppraisalForm'
 import { Modal } from '@/components/ui/modal'
 
@@ -258,8 +258,8 @@ export function AppraisalMethodTask({
         size="md"
       >
         <AppraiserInvitationForm
-          participantId={task.participantId || task.donationId}
-          donationId={task.donationId || task.participantId}
+          donationId={task.donationId || task.participantId || ''}
+          onClose={() => setShowAppraiserModal(false)}
           onSuccess={async () => {
             await handleMethodSelect('invite_appraiser')
             setShowAppraiserModal(false)

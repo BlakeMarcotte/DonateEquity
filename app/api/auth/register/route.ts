@@ -383,24 +383,27 @@ export async function POST(request: NextRequest) {
     // Handle appraiser invitation acceptance if provided
     if (appraiserInvitationToken && role === 'appraiser') {
       try {
-        secureLogger.info('Processing appraiser invitation during registration', { appraiserInvitationToken })
-        
+        secureLogger.info('Processing appraiser invitation during registration', {
+          appraiserInvitationToken,
+          userId: userRecord.uid
+        })
+
         // Find the invitation
         const invitationsQuery = adminDb.collection('appraiser_invitations')
           .where('invitationToken', '==', appraiserInvitationToken)
           .limit(1)
 
         const invitationsSnapshot = await invitationsQuery.get()
-        
+
         if (!invitationsSnapshot.empty) {
           const invitationDoc = invitationsSnapshot.docs[0]
           const invitationData = invitationDoc.data()
-          
+
           // Verify the invitation email matches registration email
           if (invitationData.appraiserEmail === email) {
             const donationId = invitationData.donationId
             const batch = adminDb.batch()
-            
+
             // Update the invitation status
             batch.update(invitationDoc.ref, {
               status: 'accepted',
@@ -408,55 +411,49 @@ export async function POST(request: NextRequest) {
               acceptedBy: userRecord.uid
             })
 
-            // Handle participant-based system
-            if (donationId.includes('_')) {
-              const participantId = donationId
-              secureLogger.info('Processing participant-based appraiser invitation', { participantId })
-              
-              // Update participant-based appraiser tasks
-              const participantTasksQuery = adminDb.collection('tasks')
-                .where('participantId', '==', participantId)
-                .where('assignedRole', '==', 'appraiser')
+            // Get donation document
+            const donationRef = adminDb.collection('donations').doc(donationId)
+            const donationDoc = await donationRef.get()
 
-              const participantTasksSnapshot = await participantTasksQuery.get()
-              
-              participantTasksSnapshot.docs.forEach(taskDoc => {
-                batch.update(taskDoc.ref, {
-                  assignedTo: userRecord.uid,
-                  updatedAt: FieldValue.serverTimestamp()
-                })
-              })
-              
-              // Update the donor participant record
-              const donorParticipantRef = adminDb.collection('campaign_participants').doc(participantId)
-              batch.update(donorParticipantRef, {
+            if (donationDoc.exists) {
+              // Update donation with appraiser ID
+              batch.update(donationRef, {
                 appraiserId: userRecord.uid,
                 appraiserEmail: email,
-                appraisalStatus: 'appraiser_assigned',
-                updatedAt: FieldValue.serverTimestamp()
+                appraiserAssignedAt: FieldValue.serverTimestamp(),
               })
-              
-              // Create separate appraiser participant record
-              const [campaignId, donorUserId] = participantId.split('_')
-              const appraiserParticipantId = `${campaignId}_${userRecord.uid}`
-              const appraiserParticipantRef = adminDb.collection('campaign_participants').doc(appraiserParticipantId)
-              
-              batch.set(appraiserParticipantRef, {
-                campaignId: campaignId,
+
+              // Update appraiser tasks to assign to this user
+              const appraiserTasksQuery = adminDb.collection('tasks')
+                .where('donationId', '==', donationId)
+                .where('assignedRole', '==', 'appraiser')
+
+              const appraiserTasksSnapshot = await appraiserTasksQuery.get()
+
+              appraiserTasksSnapshot.docs.forEach(taskDoc => {
+                batch.update(taskDoc.ref, {
+                  assignedTo: userRecord.uid,
+                })
+              })
+
+              secureLogger.info('Updated appraiser tasks during registration', {
                 userId: userRecord.uid,
-                userEmail: email,
-                role: 'appraiser',
-                status: 'active',
-                joinedAt: FieldValue.serverTimestamp(),
-                createdAt: FieldValue.serverTimestamp(),
-                updatedAt: FieldValue.serverTimestamp(),
-                linkedDonorParticipantId: participantId,
-                linkedDonorId: donorUserId
+                donationId,
+                taskCount: appraiserTasksSnapshot.size,
+              })
+            } else {
+              secureLogger.warn('Donation not found for appraiser invitation', {
+                donationId,
+                invitationId: invitationDoc.id,
               })
             }
-            
+
             await batch.commit()
-            secureLogger.info('Appraiser invitation processed successfully during registration')
+            secureLogger.info('Appraiser invitation processed successfully during registration', {
+              userId: userRecord.uid,
+              donationId,
+              invitationId: invitationDoc.id,
+            })
           } else {
             secureLogger.warn('Invitation email mismatch during registration', {
               invitationEmail: invitationData.appraiserEmail,
@@ -464,10 +461,14 @@ export async function POST(request: NextRequest) {
             })
           }
         } else {
-          secureLogger.warn('Appraiser invitation not found during registration', { appraiserInvitationToken })
+          secureLogger.warn('Appraiser invitation not found during registration', {
+            appraiserInvitationToken
+          })
         }
       } catch (invitationError) {
-        secureLogger.error('Error processing appraiser invitation during registration', invitationError)
+        secureLogger.error('Error processing appraiser invitation during registration', invitationError, {
+          userId: userRecord.uid,
+        })
         // Don't fail registration if invitation processing fails
       }
     }
