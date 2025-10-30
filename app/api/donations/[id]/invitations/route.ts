@@ -306,7 +306,7 @@ export async function POST(
 
     try {
       await resend.emails.send({
-        from: 'Donate Equity <noreply@donateequity.com>',
+        from: 'Donate Equity <noreply@bpnsolutions.com>',
         to: appraiserEmail,
         subject: emailSubject,
         html: emailHtml,

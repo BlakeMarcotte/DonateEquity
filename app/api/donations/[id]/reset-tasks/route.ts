@@ -85,35 +85,8 @@ export async function POST(
       batch.delete(doc.ref)
     })
 
-    // Recreate initial tasks with the new order (Sign NDA first, then Invite Appraiser)
+    // Recreate initial tasks with the new order (Invite Appraiser first for easier testing)
     const tasksToCreate = [
-      {
-        id: `${donationId}_sign_nda`,
-        donationId: donationId,
-        campaignId: donationData.campaignId,
-        donorId: decodedToken.uid,
-        assignedTo: decodedToken.uid,
-        assignedRole: 'donor',
-        title: 'Donor: Sign NDA',
-        description: 'Review and digitally sign the Non-Disclosure Agreement before proceeding with the donation process.',
-        type: 'docusign_signature',
-        status: 'pending',
-        priority: 'high',
-        order: 1,
-        dependencies: [],
-        metadata: {
-          documentPath: '/public/nda-general.pdf',
-          documentName: 'General NDA',
-          envelopeId: null,
-          signedAt: null,
-          signingUrl: null,
-          automatedReminders: true
-        },
-        comments: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        createdBy: decodedToken.uid
-      },
       {
         id: `${donationId}_invite_appraiser`,
         donationId: donationId,
@@ -124,13 +97,40 @@ export async function POST(
         title: 'Donor: Invite Appraiser or AI Appraisal',
         description: 'Choose your preferred appraisal method: invite a professional appraiser or use our AI-powered appraisal service.',
         type: 'invitation',
-        status: 'blocked',
+        status: 'pending',
         priority: 'high',
-        order: 2,
-        dependencies: [`${donationId}_sign_nda`],
+        order: 1,
+        dependencies: [],
         metadata: {
           invitationType: 'appraiser',
           role: 'appraiser'
+        },
+        comments: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: decodedToken.uid
+      },
+      {
+        id: `${donationId}_sign_nda`,
+        donationId: donationId,
+        campaignId: donationData.campaignId,
+        donorId: decodedToken.uid,
+        assignedTo: decodedToken.uid,
+        assignedRole: 'donor',
+        title: 'Donor: Sign NDA',
+        description: 'Review and digitally sign the Non-Disclosure Agreement before proceeding with the donation process.',
+        type: 'docusign_signature',
+        status: 'blocked',
+        priority: 'high',
+        order: 2,
+        dependencies: [`${donationId}_invite_appraiser`],
+        metadata: {
+          documentPath: '/public/nda-general.pdf',
+          documentName: 'General NDA',
+          envelopeId: null,
+          signedAt: null,
+          signingUrl: null,
+          automatedReminders: true
         },
         comments: [],
         createdAt: new Date(),
@@ -150,7 +150,7 @@ export async function POST(
         status: 'blocked',
         priority: 'high',
         order: 3,
-        dependencies: [`${donationId}_invite_appraiser`],
+        dependencies: [`${donationId}_sign_nda`],
         metadata: {
           options: [
             {
