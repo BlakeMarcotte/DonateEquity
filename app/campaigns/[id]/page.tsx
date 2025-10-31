@@ -532,7 +532,7 @@ export default function CampaignDetailPage() {
               <nav className="flex space-x-8 px-6">
                 {[
                   { id: 'tasks', name: 'Tasks', icon: CheckCircle },
-                  { id: 'donations', name: 'Campaign Donors', icon: Users },
+                  { id: 'donations', name: 'Donation Projects', icon: Users },
                   { id: 'pending', name: 'Pending Donor Invitations', icon: Clock },
                   { id: 'marketing', name: 'Marketing', icon: Share2 },
                   { id: 'team', name: 'Team', icon: Heart },
