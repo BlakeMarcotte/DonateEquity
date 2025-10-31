@@ -254,12 +254,12 @@ export function DonationTaskList({
   
   const handleDocuSignTask = async (taskId: string) => {
     if (docuSignLoading) return
-
+    
     setDocuSignLoading(true)
-
+    
     try {
       const token = await user?.getIdToken()
-
+      
       // Create DocuSign envelope
       const envelopeResponse = await fetch('/api/docusign/create-envelope', {
         method: 'POST',
@@ -275,13 +275,13 @@ export function DonationTaskList({
           emailSubject: 'Please sign the General NDA for your donation'
         })
       })
-
+      
       const envelopeResult = await envelopeResponse.json()
-
+      
       if (!envelopeResponse.ok) {
         throw new Error(envelopeResult.error || 'Failed to create DocuSign envelope')
       }
-
+      
       // Get signing URL for embedded signing
       const signingResponse = await fetch('/api/docusign/signing-url', {
         method: 'POST',
@@ -296,93 +296,47 @@ export function DonationTaskList({
           donationId: donationId
         })
       })
-
+      
       const signingResult = await signingResponse.json()
-
+      
       if (!signingResponse.ok) {
         throw new Error(signingResult.error || 'Failed to get signing URL')
       }
-
-      // Listen for completion message from popup
-      const handleMessage = async (event: MessageEvent) => {
-        // Verify the message origin for security
-        if (event.origin !== window.location.origin) return
-
-        if (event.data?.type === 'docusign-complete' && event.data?.event === 'signing_complete') {
-          // Remove the event listener
-          window.removeEventListener('message', handleMessage)
-
-          // Wait a moment for DocuSign webhook to process, then check status
-          setTimeout(async () => {
-            try {
-              const statusResponse = await fetch(`/api/docusign/check-task-status`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                  taskId: taskId,
-                  envelopeId: envelopeResult.envelopeId
-                })
-              })
-
-              if (statusResponse.ok) {
-                await statusResponse.json()
-                // Task status will be updated via Firestore listener
-              }
-            } catch {
-              // Silently fail - the monitoring service will catch it
-            }
-          }, 2000)
-        }
-      }
-
-      window.addEventListener('message', handleMessage)
-
+      
       // Open DocuSign signing interface in new window
       const signingWindow = window.open(
         signingResult.signingUrl,
         'docusign-signing',
         'width=800,height=600,scrollbars=yes,resizable=yes'
       )
-
-      // Fallback: Check if popup is closed (in case postMessage doesn't work)
-      const checkClosed = setInterval(async () => {
+      
+      // Check if signing is complete periodically
+      const checkSigning = setInterval(async () => {
         if (signingWindow?.closed) {
-          clearInterval(checkClosed)
-          window.removeEventListener('message', handleMessage)
-
+          clearInterval(checkSigning)
           // Check envelope status to see if it was signed
           try {
-            const statusResponse = await fetch(`/api/docusign/check-task-status`, {
-              method: 'POST',
+            const statusResponse = await fetch(`/api/docusign/envelope-status?envelopeId=${envelopeResult.envelopeId}`, {
               headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                taskId: taskId,
-                envelopeId: envelopeResult.envelopeId
-              })
+              }
             })
-
-            if (statusResponse.ok) {
-              await statusResponse.json()
-              // Task status will be updated via Firestore listener
+            
+            const statusResult = await statusResponse.json()
+            
+            if (statusResponse.ok && statusResult.status === 'completed') {
+              // Mark task as completed
+              await completeTask(taskId)
             }
           } catch {
-            // Silently fail - the monitoring service will catch it
+            // Error checking envelope status
           }
         }
       }, 2000)
-
+      
       // Clean up interval after 5 minutes
-      setTimeout(() => {
-        clearInterval(checkClosed)
-        window.removeEventListener('message', handleMessage)
-      }, 300000)
-
+      setTimeout(() => clearInterval(checkSigning), 300000)
+      
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to initiate document signing')
     } finally {
