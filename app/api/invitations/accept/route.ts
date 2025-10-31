@@ -280,35 +280,7 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date(),
           createdBy: decodedToken.uid
         },
-        // Task 3: Appraiser Sign NDA
-        {
-          id: `${donationId}_appraiser_sign_nda`,
-          donationId: donationId,
-          campaignId: invitationData.campaignId,
-          donorId: decodedToken.uid,
-          assignedTo: null,
-          assignedRole: 'appraiser',
-          title: 'Appraiser: Sign NDA',
-          description: 'Review and digitally sign the Non-Disclosure Agreement to access donor information.',
-          type: 'docusign_signature',
-          status: 'blocked',
-          priority: 'high',
-          order: 3,
-          dependencies: [`${donationId}_nonprofit_sign_nda`],
-          metadata: {
-            documentPath: '/public/nda-appraiser.pdf',
-            documentName: 'Appraiser NDA',
-            envelopeId: null,
-            signedAt: null,
-            signingUrl: null,
-            automatedReminders: true
-          },
-          comments: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: decodedToken.uid
-        },
-        // Task 4: Donor Invite Appraiser
+        // Task 3: Donor Invite Appraiser
         {
           id: `${donationId}_invite_appraiser`,
           donationId: donationId,
@@ -321,11 +293,39 @@ export async function POST(request: NextRequest) {
           type: 'invitation',
           status: 'blocked',
           priority: 'high',
-          order: 4,
-          dependencies: [`${donationId}_appraiser_sign_nda`],
+          order: 3,
+          dependencies: [`${donationId}_nonprofit_sign_nda`],
           metadata: {
             invitationType: 'appraiser',
             role: 'appraiser'
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 4: Appraiser Sign NDA
+        {
+          id: `${donationId}_appraiser_sign_nda`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: null,
+          assignedRole: 'appraiser',
+          title: 'Appraiser: Sign NDA',
+          description: 'Review and digitally sign the Non-Disclosure Agreement to access donor information.',
+          type: 'docusign_signature',
+          status: 'blocked',
+          priority: 'high',
+          order: 4,
+          dependencies: [`${donationId}_invite_appraiser`],
+          metadata: {
+            documentPath: '/public/nda-appraiser.pdf',
+            documentName: 'Appraiser NDA',
+            envelopeId: null,
+            signedAt: null,
+            signingUrl: null,
+            automatedReminders: true
           },
           comments: [],
           createdAt: new Date(),
