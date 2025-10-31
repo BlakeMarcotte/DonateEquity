@@ -346,7 +346,7 @@ export async function POST(request: NextRequest) {
           status: 'blocked',
           priority: 'high',
           order: 5,
-          dependencies: [`${donationId}_invite_appraiser`],
+          dependencies: [`${donationId}_appraiser_sign_nda`],
           metadata: {
             documentTypes: ['company_info', 'financial_statements'],
             uploadRole: 'donor',
