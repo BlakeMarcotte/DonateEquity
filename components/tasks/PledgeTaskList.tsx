@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload, RefreshCw, FileText } from 'lucide-react'
-import { AppraiserInvitationForm } from './AppraiserInvitationForm'
+import AppraiserInvitationForm from './AppraiserInvitationForm'
 import { AppraisalMethodTask } from './AppraisalMethodTask'
 import { FileUpload } from '@/components/files/FileUpload'
 import { useParticipantFiles } from '@/hooks/useParticipantFiles'
@@ -913,8 +913,8 @@ export function PledgeTaskList({
         size="md"
       >
         <AppraiserInvitationForm
-          participantId={participantId}
-          donationId={participantId} // For backward compatibility
+          donationId={participantId || ''}
+          onClose={() => setShowInvitationModal(false)}
           onSuccess={handleInvitationSuccess}
         />
       </Modal>

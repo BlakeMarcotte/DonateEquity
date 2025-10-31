@@ -3,7 +3,7 @@ import { verifyAuth } from '@/lib/auth/verify-auth'
 import { adminDb } from '@/lib/firebase/admin'
 import { docuSignClient } from '@/lib/docusign/simple-client'
 import { FieldValue } from 'firebase-admin/firestore'
-import { uploadDonationBufferAdmin } from '@/lib/firebase/storage-admin'
+import { uploadDonationBufferAdmin, uploadParticipantBufferAdmin } from '@/lib/firebase/storage-admin'
 import { secureLogger } from '@/lib/logging/secure-logger'
 
 /**
@@ -168,10 +168,28 @@ async function checkDocuSignTaskCompletion(taskDoc: FirebaseFirestore.QueryDocum
     let signedDocumentUrl = null
     try {
       const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(envelopeId)
-      
-      if (task.participantId) {
+
+      const participantId = task.participantId
+      const donationId = task.donationId
+
+      // Use new role-based storage for donation tasks
+      if (donationId && task.assignedRole) {
+        const role = task.assignedRole === 'nonprofit_admin' ? 'nonprofit' : task.assignedRole as 'donor' | 'nonprofit' | 'appraiser'
         const uploadResult = await uploadDonationBufferAdmin(
-          `participants/${task.participantId}`,
+          donationId,
+          role,
+          documentBuffer,
+          `signed-document-${envelopeId}.pdf`,
+          'application/pdf',
+          task.assignedTo || undefined,
+          undefined
+        )
+        signedDocumentUrl = uploadResult.url
+      }
+      // Fallback to legacy participant-based storage
+      else if (participantId) {
+        const uploadResult = await uploadParticipantBufferAdmin(
+          participantId,
           'signed-documents',
           documentBuffer,
           `signed-nda-${envelopeId}.pdf`,
@@ -239,16 +257,19 @@ async function checkDocuSignTaskCompletion(taskDoc: FirebaseFirestore.QueryDocum
 async function processDependentTasksForMonitoring(completedTask: FirebaseFirestore.DocumentData, completedTaskId: string) {
   try {
     const participantId = completedTask.participantId
-    
-    if (!participantId) {
-      secureLogger.warn('No participant ID for dependency processing', { taskId: completedTaskId })
+    const donationId = completedTask.donationId
+    const effectiveId = participantId || donationId
+
+    if (!effectiveId) {
+      secureLogger.warn('No participant ID or donation ID for dependency processing', { taskId: completedTaskId })
       return
     }
 
-    // Find dependent tasks
+    // Find dependent tasks - query by the correct field
+    const queryField = participantId ? 'participantId' : 'donationId'
     const dependentTasksQuery = await adminDb
       .collection('tasks')
-      .where('participantId', '==', participantId)
+      .where(queryField, '==', effectiveId)
       .where('dependencies', 'array-contains', completedTaskId)
       .get()
 
@@ -267,7 +288,7 @@ async function processDependentTasksForMonitoring(completedTask: FirebaseFiresto
       
       if (depTask.status === 'blocked') {
         // Validate all dependencies before unblocking
-        const allDependenciesCompleted = await validateDependenciesForMonitoring(depTask, participantId)
+        const allDependenciesCompleted = await validateDependenciesForMonitoring(depTask, effectiveId, queryField)
         
         if (allDependenciesCompleted) {
           await adminDb.collection('tasks').doc(depTaskDoc.id).update({
@@ -296,7 +317,7 @@ async function processDependentTasksForMonitoring(completedTask: FirebaseFiresto
   }
 }
 
-async function validateDependenciesForMonitoring(task: FirebaseFirestore.DocumentData, participantId: string): Promise<boolean> {
+async function validateDependenciesForMonitoring(task: FirebaseFirestore.DocumentData, effectiveId: string, queryField: 'participantId' | 'donationId'): Promise<boolean> {
   if (!task.dependencies || task.dependencies.length === 0) {
     return true
   }
@@ -304,7 +325,7 @@ async function validateDependenciesForMonitoring(task: FirebaseFirestore.Documen
   try {
     const allTasksQuery = await adminDb
       .collection('tasks')
-      .where('participantId', '==', participantId)
+      .where(queryField, '==', effectiveId)
       .get()
     
     const taskStatusMap = new Map<string, string>()

@@ -96,6 +96,29 @@ service firebase.storage {
       );
     }
     
+    // Donation-specific documents - ROLE-BASED STRUCTURE
+    // Path: donations/{donationId}/{role}/{fileName}
+    // Roles: donor, nonprofit, appraiser
+    match /donations/{donationId}/{role}/{fileName} {
+      allow read: if isDonationParticipant(donationId);
+      allow write: if (
+        isDonationParticipant(donationId) &&
+        isValidFileSize(25 * 1024 * 1024) && // 25MB limit
+        isValidFileType([
+          'application/pdf',
+          'image/jpeg',
+          'image/png',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+          'text/plain',
+          'text/csv'
+        ])
+      );
+      allow delete: if isDonationParticipant(donationId);
+    }
+
     // Donation-specific documents - OLD STRUCTURE (for backward compatibility)
     match /donations/{donationId}/{folder}/{fileName} {
       allow read: if isDonationParticipant(donationId);
@@ -104,7 +127,7 @@ service firebase.storage {
         isValidFileSize(25 * 1024 * 1024) && // 25MB limit
         isValidFileType([
           'application/pdf',
-          'image/jpeg', 
+          'image/jpeg',
           'image/png',
           'application/msword',
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

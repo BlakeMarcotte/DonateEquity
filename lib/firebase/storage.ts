@@ -28,40 +28,48 @@ export interface FileUploadResult {
 
 /**
  * Upload a buffer to Firebase Storage for a specific donation (server-side)
+ * Uses role-based path structure: donations/{donationId}/{role}/{fileName}
  */
 export async function uploadDonationBuffer(
   donationId: string,
-  folder: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general',
+  role: 'donor' | 'nonprofit' | 'appraiser',
   buffer: Buffer,
   fileName: string,
-  contentType: string = 'application/pdf'
+  contentType: string = 'application/pdf',
+  uploadedBy?: string,
+  uploaderName?: string
 ): Promise<FileUploadResult> {
   const fullFileName = `${Date.now()}_${fileName}`
-  const filePath = `donations/${donationId}/${folder}/${fullFileName}`
+  const filePath = `donations/${donationId}/${role}/${fullFileName}`
   const storageRef = ref(storage, filePath)
 
   try {
     secureLogger.info('Uploading buffer to Firebase Storage', {
       filePath,
       bufferSize: buffer.length,
-      contentType
+      contentType,
+      role
     })
-    
+
     // Upload the buffer directly
     const snapshot = await uploadBytesResumable(storageRef, buffer, {
       contentType,
       customMetadata: {
-        uploadedBy: 'system',
+        uploadedBy: uploadedBy || 'system',
+        uploadedByRole: role,
+        uploadedAt: new Date().toISOString(),
+        uploaderName: uploaderName || 'System',
         source: 'docusign'
       }
     })
-    
+
     const downloadURL = await getDownloadURL(snapshot.ref)
     secureLogger.info('Buffer upload completed successfully', {
       filePath,
-      fileName
+      fileName,
+      role
     })
-    
+
     return {
       url: downloadURL,
       path: filePath,
@@ -74,7 +82,8 @@ export async function uploadDonationBuffer(
     secureLogger.error('Buffer upload failed', error, {
       filePath,
       fileName,
-      contentType
+      contentType,
+      role
     })
     throw error
   }
@@ -157,14 +166,21 @@ export async function uploadParticipantFile(
   })
 }
 
+/**
+ * Upload a file to Firebase Storage for a specific donation
+ * Uses role-based path structure: donations/{donationId}/{role}/{fileName}
+ */
 export async function uploadDonationFile(
   donationId: string,
-  folder: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general',
+  role: 'donor' | 'nonprofit' | 'appraiser',
   file: File,
+  uploadedBy: string,
+  uploaderName: string,
+  taskId: string,
   onProgress?: (progress: UploadProgress) => void
 ): Promise<FileUploadResult> {
   const fileName = `${Date.now()}_${file.name}`
-  const filePath = `donations/${donationId}/${folder}/${fileName}`
+  const filePath = `donations/${donationId}/${role}/${fileName}`
   const storageRef = ref(storage, filePath)
 
   return new Promise((resolve, reject) => {
@@ -172,10 +188,21 @@ export async function uploadDonationFile(
       filePath,
       fileName: file.name,
       fileSize: file.size,
-      fileType: file.type
+      fileType: file.type,
+      role,
+      uploadedBy,
+      taskId
     })
-    
-    const uploadTask = uploadBytesResumable(storageRef, file)
+
+    const uploadTask = uploadBytesResumable(storageRef, file, {
+      customMetadata: {
+        uploadedBy,
+        uploadedByRole: role,
+        uploadedAt: new Date().toISOString(),
+        uploaderName,
+        taskId
+      }
+    })
 
     uploadTask.on(
       'state_changed',
@@ -192,7 +219,8 @@ export async function uploadDonationFile(
         secureLogger.error('File upload failed', error, {
           filePath,
           fileName: file.name,
-          errorCode: error.code
+          errorCode: error.code,
+          role
         })
         reject(error)
       },
@@ -201,7 +229,8 @@ export async function uploadDonationFile(
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
           secureLogger.info('File upload completed successfully', {
             filePath,
-            fileName: file.name
+            fileName: file.name,
+            role
           })
           resolve({
             url: downloadURL,
@@ -225,25 +254,26 @@ export async function uploadDonationFile(
 
 /**
  * List all files in a donation folder
+ * Supports role-based paths: donations/{donationId}/{role}
  */
 export async function listDonationFiles(
   donationId: string,
-  folder?: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general'
+  role?: 'donor' | 'nonprofit' | 'appraiser'
 ) {
-  const folderPath = folder 
-    ? `donations/${donationId}/${folder}`
+  const folderPath = role
+    ? `donations/${donationId}/${role}`
     : `donations/${donationId}`
-  
+
   const storageRef = ref(storage, folderPath)
-  
+
   try {
     const result = await listAll(storageRef)
-    
+
     const files = await Promise.all(
       result.items.map(async (itemRef) => {
         const metadata = await getMetadata(itemRef)
         const url = await getDownloadURL(itemRef)
-        
+
         return {
           name: itemRef.name,
           fullPath: itemRef.fullPath,
@@ -261,7 +291,7 @@ export async function listDonationFiles(
   } catch (error) {
     secureLogger.error('Error listing donation files', error, {
       donationId,
-      folder,
+      role,
       folderPath
     })
     throw error
@@ -269,11 +299,37 @@ export async function listDonationFiles(
 }
 
 /**
+ * List all files from multiple roles in a donation
+ */
+export async function listDonationFilesByRoles(
+  donationId: string,
+  roles: Array<'donor' | 'nonprofit' | 'appraiser'>
+) {
+  const allFiles = []
+
+  for (const role of roles) {
+    try {
+      const roleFiles = await listDonationFiles(donationId, role)
+      const filesWithRole = roleFiles.map(file => ({
+        ...file,
+        role
+      }))
+      allFiles.push(...filesWithRole)
+    } catch (_error) {
+      // Role folder might not exist yet, which is fine
+      secureLogger.info('No files found for role', { donationId, role })
+    }
+  }
+
+  return allFiles
+}
+
+/**
  * List files for a participant (supports both participant-based and donation-based storage)
  */
 export async function listParticipantFiles(
   participantId: string,
-  donationId?: string,
+  _donationId?: string,
   folder?: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general'
 ) {
   const allFiles = []
@@ -353,31 +409,11 @@ export async function listParticipantFiles(
       })
     }
   }
-  
-  // Also try donation-based storage path for backward compatibility
-  if (donationId) {
-    try {
-      const donationFiles = await listDonationFiles(donationId, folder)
-      const donationFilesWithSource = donationFiles.map(file => ({
-        ...file,
-        source: 'donation' as const
-      }))
-      allFiles.push(...donationFilesWithSource)
-      secureLogger.info('Found donation-based files', { 
-        donationId, 
-        folder, 
-        count: donationFiles.length 
-      })
-    } catch (error) {
-      secureLogger.info('No donation-based files found', { 
-        donationId, 
-        folder, 
-        error: (error as Error).message 
-      })
-    }
-  }
-  
-  // Remove duplicates based on file name (prefer participant-based files)
+
+  // Note: Legacy donation-based folder storage is no longer checked here
+  // The new system uses role-based paths (donations/{id}/{role}/)
+
+  // Remove duplicates based on file name
   const uniqueFiles = allFiles.reduce((acc, file) => {
     const existingIndex = acc.findIndex(existing => existing.name === file.name)
     if (existingIndex >= 0) {
@@ -503,11 +539,136 @@ export function getFileExtension(filename: string): string {
  */
 export function getFileIcon(contentType: string | undefined): string {
   if (!contentType) return '📄'
-  
+
   if (contentType.includes('pdf')) return '📋'
   if (contentType.includes('image')) return '🖼️'
   if (contentType.includes('word') || contentType.includes('document')) return '📝'
   if (contentType.includes('text')) return '📄'
-  
+
   return '📁'
+}
+
+/**
+ * Upload a profile picture for a user
+ */
+export async function uploadProfilePicture(
+  userId: string,
+  file: File,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<FileUploadResult> {
+  // Validate file type
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error('Only JPEG, PNG, and WebP images are allowed for profile pictures')
+  }
+
+  // Validate file size (5MB max)
+  const maxSize = 5 * 1024 * 1024
+  if (file.size > maxSize) {
+    throw new Error('Profile picture must be less than 5MB')
+  }
+
+  const fileName = `profile_${Date.now()}.${file.type.split('/')[1]}`
+  const filePath = `users/${userId}/profile/${fileName}`
+  const storageRef = ref(storage, filePath)
+
+  return new Promise((resolve, reject) => {
+    secureLogger.info('Starting profile picture upload', {
+      filePath,
+      fileName,
+      fileSize: file.size,
+      fileType: file.type,
+      userId
+    })
+
+    const uploadTask = uploadBytesResumable(storageRef, file, {
+      contentType: file.type,
+      customMetadata: {
+        uploadedBy: userId,
+        uploadType: 'profile_picture'
+      }
+    })
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+        onProgress?.({
+          bytesTransferred: snapshot.bytesTransferred,
+          totalBytes: snapshot.totalBytes,
+          progress,
+          state: snapshot.state as UploadProgress['state']
+        })
+      },
+      (error) => {
+        secureLogger.error('Profile picture upload failed', error, {
+          filePath,
+          fileName,
+          userId,
+          errorCode: error.code
+        })
+        reject(error)
+      },
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+          secureLogger.info('Profile picture upload completed', {
+            filePath,
+            fileName,
+            userId
+          })
+          resolve({
+            url: downloadURL,
+            path: filePath,
+            name: fileName,
+            size: file.size,
+            type: file.type,
+            uploadedAt: new Date()
+          })
+        } catch (error) {
+          secureLogger.error('Error getting download URL for profile picture', error, {
+            filePath,
+            fileName,
+            userId
+          })
+          reject(error)
+        }
+      }
+    )
+  })
+}
+
+/**
+ * Delete a user's profile picture
+ */
+export async function deleteProfilePicture(userId: string, photoURL: string): Promise<void> {
+  try {
+    // Extract the path from the photoURL
+    const urlObj = new URL(photoURL)
+    const pathMatch = urlObj.pathname.match(/\/o\/(.+)\?/)
+    if (!pathMatch) {
+      throw new Error('Invalid photo URL format')
+    }
+
+    const filePath = decodeURIComponent(pathMatch[1])
+
+    // Verify it's a profile picture path
+    if (!filePath.startsWith(`users/${userId}/profile/`)) {
+      throw new Error('Invalid profile picture path')
+    }
+
+    const storageRef = ref(storage, filePath)
+    await deleteObject(storageRef)
+
+    secureLogger.info('Profile picture deleted', {
+      userId,
+      filePath
+    })
+  } catch (error) {
+    secureLogger.error('Error deleting profile picture', error, {
+      userId,
+      photoURL
+    })
+    throw error
+  }
 }

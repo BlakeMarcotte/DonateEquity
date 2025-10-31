@@ -8,7 +8,7 @@ import { DonationTaskList } from '@/components/tasks/DonationTaskList'
 import { TaskTimeline } from '@/components/tasks/TaskTimeline'
 import { DonationFiles } from '@/components/files/DonationFiles'
 import { EquityCommitmentModal } from '@/components/tasks/EquityCommitmentModal'
-import { useParticipantTasks } from '@/hooks/useParticipantTasks'
+import { useDonationTasks } from '@/hooks/useDonationTasks'
 import { Heart, CheckSquare, FileText } from 'lucide-react'
 
 function MyCampaignPage() {
@@ -18,16 +18,11 @@ function MyCampaignPage() {
   const shouldRefresh = searchParams.get('refresh') === '1'
   const { campaign, donation, loading: campaignLoading } = useDonorCampaign(shouldRefresh)
 
-  // Create participant ID for task querying
-  // For appraisers, use the participant ID from the campaign (which is the donor's participant ID)
-  // For donors, construct it from campaign ID and user ID
-  const participantId = campaign?.participantId || (campaign && user ? `${campaign.id}_${user.uid}` : null)
+  // DONATION-BASED ARCHITECTURE FOR EVERYONE
+  const donationId = donation?.id || null
 
-  const { tasks: participantTasks, loading: participantTasksLoading, handleCommitmentDecision } = useParticipantTasks(participantId)
-
-  // Use participant tasks exclusively
-  const tasks = participantTasks
-  const tasksLoading = participantTasksLoading
+  // EVERYONE uses donation-based tasks
+  const { tasks, loading: tasksLoading, handleCommitmentDecision, completeTask } = useDonationTasks(donationId)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'tasks' | 'files'>('tasks')
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
@@ -80,7 +75,8 @@ function MyCampaignPage() {
 
   // CRITICAL FIX: If we have a user but haven't loaded campaign data yet, keep showing loading
   // This prevents the flash when campaignLoading=false but campaign state hasn't updated yet
-  const waitingForInitialCampaignLoad = isAuthFullyLoaded && user && !hasEverHadCampaign.current && !campaign
+  // BUT: Also check campaignLoading - if it's false and no campaign, stop waiting (user has no campaigns)
+  const waitingForInitialCampaignLoad = isAuthFullyLoaded && user && !hasEverHadCampaign.current && !campaign && campaignLoading
 
   const showLoadingScreen = !isAuthFullyLoaded || isLoadingData || waitingForInitialCampaignLoad
 
@@ -132,10 +128,10 @@ function MyCampaignPage() {
     return null
   }
 
-  // Only show "No Campaign Found" if we have no campaign AND no tasks AND no participantId
-  // If we have a participantId, that means we have participation, so never show "not found"
+  // Only show "No Campaign Found" if we have no campaign AND no tasks AND no donationId
+  // If we have a donationId, that means we have a donation, so never show "not found"
   // If we have tasks, show the page even without a campaign object
-  if (!campaign && tasks.length === 0 && !participantId) {
+  if (!campaign && tasks.length === 0 && !donationId) {
     // If we have a campaign ID from URL, show loading while redirecting
     if (campaignIdFromUrl) {
       return (
@@ -143,6 +139,19 @@ function MyCampaignPage() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading your campaign...</p>
+          </div>
+        </div>
+      )
+    }
+
+    // If user is an appraiser without campaigns, redirect to onboarding
+    if (customClaims?.role === 'appraiser') {
+      router.push('/appraiser/onboarding')
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Redirecting to onboarding...</p>
           </div>
         </div>
       )
@@ -287,27 +296,28 @@ function MyCampaignPage() {
             </div>
 
             <div className="p-6">
-              {activeTab === 'tasks' && (
+              {activeTab === 'tasks' && donationId && (
                 <DonationTaskList
-                  participantId={participantId || undefined}
+                  donationId={donationId}
                   campaignId={campaign?.id}
                   showAllTasks={true}
                   // Pass required props for EquityCommitmentModal
                   campaignTitle={campaign?.title}
                   donorName={user?.displayName || user?.email?.split('@')[0] || 'User'}
                   organizationName={campaign?.organizationName}
-                  // Always pass participant tasks and handlers
+                  // Pass tasks and handlers
                   tasks={tasks}
                   loading={tasksLoading}
+                  completeTask={completeTask}
                   handleCommitmentDecision={handleCommitmentDecision}
                 />
               )}
               
               {activeTab === 'files' && (
                 <>
-                  {participantId ? (
-                    <DonationFiles 
-                      donationId={`participants/${participantId}`}
+                  {donationId ? (
+                    <DonationFiles
+                      donationId={donationId}
                       title="Shared Documents"
                       showUpload={false}
                       className="border-0 shadow-none p-0"

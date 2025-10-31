@@ -6,24 +6,25 @@ export interface Donation {
   donorName: string
   donorEmail: string
   nonprofitAdminId: string
+  participantId: string // Link to campaign_participants collection
   amount: number
   donationType: 'equity' | 'cash'
   status: 'pending' | 'processing' | 'completed' | 'cancelled'
   message?: string
   isAnonymous: boolean
-  
+
   // Equity-specific fields
   commitmentDetails?: EquityCommitmentDetails
   requiresAppraisal: boolean
   appraiserId?: string | null
   appraiserEmail?: string | null
   appraisalStatus: 'not_required' | 'pending' | 'in_progress' | 'completed' | 'appraiser_assigned'
-  
+
   // Timestamps
   createdAt: Date
   updatedAt: Date
   completedAt?: Date | null
-  
+
   // Organization context
   organizationId: string
   organizationName: string

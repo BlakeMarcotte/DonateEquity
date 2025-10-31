@@ -14,9 +14,10 @@ export default function AppraiserDashboard() {
       return
     }
 
-    // Always redirect authenticated users to my-campaign
+    // Redirect authenticated appraisers to onboarding
+    // (they'll be redirected to my-campaign if they have assignments)
     if (!loading && user) {
-      router.push('/my-campaign')
+      router.push('/appraiser/onboarding')
       return
     }
   }, [user, loading, router])

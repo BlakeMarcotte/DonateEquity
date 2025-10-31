@@ -35,13 +35,13 @@ const FOLDER_LABELS = {
   'signed-documents': 'Signed Documents'
 } as const
 
-export function DonationFiles({ 
-  donationId, 
+export function DonationFiles({
+  donationId,
   title = 'Shared Files',
   showUpload = true,
-  className = '' 
+  className = ''
 }: DonationFilesProps) {
-  const { customClaims } = useAuth()
+  const { user, customClaims } = useAuth()
   
   // Check if donationId is actually a participant path
   const isParticipantPath = donationId?.startsWith('participants/')
@@ -51,21 +51,18 @@ export function DonationFiles({
   // Use appropriate hook based on path type
   const donationHook = useDonationFiles(actualDonationId)
   const participantHook = useParticipantFiles(participantId, actualDonationId)
-  
-  // Select the appropriate hook results
-  const { 
-    files, 
-    loading, 
-    error, 
-    uploads,
-    uploadFile, 
-    deleteFile, 
-    loadFiles,
-    getFilesByFolder,
-    getAllFolders,
-    getTotalSize,
-    getFileCount
-  } = isParticipantPath ? participantHook : donationHook
+
+  // Select the appropriate hook results with proper typing
+  const files = isParticipantPath ? participantHook.files : donationHook.files
+  const loading = isParticipantPath ? participantHook.loading : donationHook.loading
+  const error = isParticipantPath ? participantHook.error : donationHook.error
+  const uploads = isParticipantPath ? participantHook.uploads : donationHook.uploads
+  const deleteFile = isParticipantPath ? participantHook.deleteFile : donationHook.deleteFile
+  const loadFiles = isParticipantPath ? participantHook.loadFiles : donationHook.loadFiles
+  const getFilesByFolder = isParticipantPath ? participantHook.getFilesByFolder : donationHook.getFilesByFolder
+  const getAllFolders = isParticipantPath ? participantHook.getAllFolders : donationHook.getAllFolders
+  const getTotalSize = isParticipantPath ? participantHook.getTotalSize : donationHook.getTotalSize
+  const getFileCount = isParticipantPath ? participantHook.getFileCount : donationHook.getFileCount
 
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedFolder, setSelectedFolder] = useState<string>('all')
@@ -75,7 +72,16 @@ export function DonationFiles({
 
   const handleUpload = async (file: File, folder: string) => {
     try {
-      await uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
+      // For donation files, we need to pass additional parameters
+      if (!isParticipantPath && user) {
+        // Map folder to role for new system
+        const role = folder as 'donor' | 'nonprofit' | 'appraiser'
+        // Use a generic taskId for manual uploads not associated with a specific task
+        await donationHook.uploadFile(file, role, user.uid, user.displayName || user.email || 'Unknown User', 'manual-upload')
+      } else {
+        // For participant files, use old signature
+        await participantHook.uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
+      }
     } catch (error) {
       // Upload failed
       throw error

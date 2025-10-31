@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import { docuSignClient } from '@/lib/docusign/simple-client'
-import { uploadDonationBufferAdmin } from '@/lib/firebase/storage-admin'
+import { uploadDonationBufferAdmin, uploadParticipantBufferAdmin } from '@/lib/firebase/storage-admin'
 import { secureLogger } from '@/lib/logging/secure-logger'
 import { verifyAuth } from '@/lib/auth/verify-auth'
 
@@ -68,26 +68,33 @@ export async function POST(request: NextRequest) {
       // If envelope is completed and task is not, update the task
       if (envelopeStatus.status === 'completed' && task?.status !== 'completed') {
         let signedDocumentUrl = null
-        
+
         // Try to download and store the signed document
         try {
           const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(taskEnvelopeId)
-          
+
           const participantId = task?.participantId
           const donationId = task?.donationId
-          
-          if (participantId) {
-            const uploadResult = await uploadDonationBufferAdmin(
-              `participants/${participantId}`,
-              'signed-documents',
-              documentBuffer,
-              `signed-nda-${taskEnvelopeId}.pdf`,
-              'application/pdf'
-            )
-            signedDocumentUrl = uploadResult.url
-          } else if (donationId) {
+
+          // Use new role-based storage for donation tasks
+          if (donationId && task?.assignedRole) {
+            const role = task.assignedRole === 'nonprofit_admin' ? 'nonprofit' : task.assignedRole as 'donor' | 'nonprofit' | 'appraiser'
             const uploadResult = await uploadDonationBufferAdmin(
               donationId,
+              role,
+              documentBuffer,
+              `signed-document-${taskEnvelopeId}.pdf`,
+              'application/pdf',
+              task.assignedTo || undefined,
+              undefined,
+              task.id
+            )
+            signedDocumentUrl = uploadResult.url
+          }
+          // Fallback to legacy participant-based storage
+          else if (participantId) {
+            const uploadResult = await uploadParticipantBufferAdmin(
+              participantId,
               'signed-documents',
               documentBuffer,
               `signed-nda-${taskEnvelopeId}.pdf`,

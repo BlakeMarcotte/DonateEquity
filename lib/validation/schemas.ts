@@ -38,7 +38,6 @@ export const campaignSchema = z.object({
   description: z.string().min(10, 'Description must be at least 10 characters').max(5000, 'Description too long'),
   goal: z.number().min(1000, 'Goal must be at least $1,000').max(100000000, 'Goal too high'),
   endDate: z.string().datetime('Invalid end date format'),
-  category: z.enum(['Technology', 'Education', 'Healthcare', 'Environment', 'Arts & Culture', 'Community', 'Social Impact', 'Research', 'Emergency Relief']),
   visibility: z.enum(['public', 'private', 'unlisted']),
   organizationId: z.string().min(1, 'Organization ID required')
 })

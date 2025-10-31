@@ -59,6 +59,15 @@ export async function POST(
       )
     }
 
+    // Get the effective ID (supports both participantId and donationId)
+    const effectiveId = taskData.participantId || taskData.donationId
+    if (!effectiveId) {
+      return NextResponse.json(
+        { error: 'Task missing participantId or donationId' },
+        { status: 400 }
+      )
+    }
+
     const batch = adminDb.batch()
 
     // Complete the commitment decision task
@@ -79,7 +88,11 @@ export async function POST(
     batch.update(taskRef, updateData as { [key: string]: FieldValue | Partial<unknown> | undefined })
 
     if (decision === 'commit_now') {
-      // Create donation record with commitment data
+      // Update or create donation record with the SAME ID as effectiveId
+      // This ensures tasks remain associated with the same ID
+      const donationRef = adminDb.collection('donations').doc(effectiveId)
+      const donationDoc = await donationRef.get()
+
       const donationData = {
         campaignId: taskData.campaignId,
         donorId: taskData.donorId,
@@ -89,54 +102,68 @@ export async function POST(
         commitmentType: commitmentData?.type || 'dollar',
         status: 'committed',
         requiresAppraisal: true,
-        participantId: taskData.participantId,
-        createdAt: new Date(),
+        participantId: effectiveId,
+        updatedAt: new Date(),
         metadata: {
           commitmentData,
           source: 'commitment_decision_task'
         }
       }
 
-      const donationRef = adminDb.collection('donations').doc()
-      batch.set(donationRef, donationData)
+      if (donationDoc.exists) {
+        // Update existing donation
+        batch.update(donationRef, donationData)
+      } else {
+        // Create new donation with the same ID
+        batch.set(donationRef, {
+          ...donationData,
+          createdAt: new Date()
+        })
+      }
 
       // When committing now, unblock the next task in the workflow (Invite Appraiser)
+      // Query by the same field type as the current task
+      const queryField = taskData.participantId ? 'participantId' : 'donationId'
       const tasksSnapshot = await adminDb
         .collection('tasks')
-        .where('participantId', '==', taskData.participantId)
+        .where(queryField, '==', effectiveId)
         .where('dependencies', 'array-contains', taskId)
         .get()
 
-      // Unblock dependent tasks and add donation ID
+      // Unblock dependent tasks (no need to update ID since we're using the same one)
       tasksSnapshot.docs.forEach((taskDoc) => {
         const nextTaskRef = adminDb.collection('tasks').doc(taskDoc.id)
         batch.update(nextTaskRef, {
           status: 'pending',
-          donationId: donationRef.id,
           updatedAt: new Date()
         })
       })
-      
-      // Update participant status to committed
-      const participantRef = adminDb.collection('campaign_participants').doc(taskData.participantId)
-      batch.update(participantRef, {
-        status: 'committed',
-        'metadata.commitmentTiming': 'now',
-        'metadata.donationId': donationRef.id,
-        updatedAt: new Date()
-      })
+
+      // Update participant status to committed (only if participant record exists)
+      if (taskData.participantId) {
+        const participantRef = adminDb.collection('campaign_participants').doc(effectiveId)
+        const participantDoc = await participantRef.get()
+        if (participantDoc.exists) {
+          batch.update(participantRef, {
+            status: 'committed',
+            'metadata.commitmentTiming': 'now',
+            'metadata.donationId': effectiveId, // Same ID
+            updatedAt: new Date()
+          })
+        }
+      }
     } else {
       // Decision is 'commit_after_appraisal'
       // Create the conditional "Donor: Makes Equity Commitment" task to be completed after appraisal
-      const conditionalCommitmentTaskId = `${taskData.participantId}_make_equity_commitment`
-      
+      const conditionalCommitmentTaskId = `${effectiveId}_make_equity_commitment`
+
       // Find the "Donor: Approve Documents" task to set as dependency
-      const donorApproveTaskId = `${taskData.participantId}_donor_approve`
-      
+      const donorApproveTaskId = `${effectiveId}_donor_approve`
+
       // Create the conditional commitment task
       const conditionalCommitmentTask = {
         id: conditionalCommitmentTaskId,
-        participantId: taskData.participantId,
+        participantId: effectiveId,
         campaignId: taskData.campaignId,
         donorId: taskData.donorId,
         assignedTo: taskData.donorId,
@@ -171,22 +198,24 @@ export async function POST(
         updatedAt: new Date(),
         createdBy: taskData.donorId
       }
-      
+
       const conditionalCommitmentTaskRef = adminDb.collection('tasks').doc(conditionalCommitmentTaskId)
       batch.set(conditionalCommitmentTaskRef, conditionalCommitmentTask)
-      
+
       // Update the "Nonprofit: Approve Documents" task to depend on the new conditional commitment task
-      const nonprofitApproveTaskId = `${taskData.participantId}_nonprofit_approve`
+      const nonprofitApproveTaskId = `${effectiveId}_nonprofit_approve`
       const nonprofitApproveTaskRef = adminDb.collection('tasks').doc(nonprofitApproveTaskId)
       batch.update(nonprofitApproveTaskRef, {
         dependencies: [conditionalCommitmentTaskId], // Now depends on the commitment instead of donor approval
         updatedAt: new Date()
       })
-      
+
       // Also unblock the next task (Invite Appraiser) so the appraisal process can begin
+      // Query by the same field type as the current task
+      const queryField = taskData.participantId ? 'participantId' : 'donationId'
       const tasksSnapshot = await adminDb
         .collection('tasks')
-        .where('participantId', '==', taskData.participantId)
+        .where(queryField, '==', effectiveId)
         .where('dependencies', 'array-contains', taskId)
         .get()
 
@@ -198,14 +227,19 @@ export async function POST(
           updatedAt: new Date()
         })
       })
-      
-      // Mark participant as awaiting appraisal
-      const participantRef = adminDb.collection('campaign_participants').doc(taskData.participantId)
-      batch.update(participantRef, {
-        status: 'awaiting_appraisal',
-        'metadata.commitmentTiming': 'after_appraisal',
-        updatedAt: new Date()
-      })
+
+      // Mark participant as awaiting appraisal (only if participant record exists)
+      if (taskData.participantId) {
+        const participantRef = adminDb.collection('campaign_participants').doc(effectiveId)
+        const participantDoc = await participantRef.get()
+        if (participantDoc.exists) {
+          batch.update(participantRef, {
+            status: 'awaiting_appraisal',
+            'metadata.commitmentTiming': 'after_appraisal',
+            updatedAt: new Date()
+          })
+        }
+      }
     }
 
     await batch.commit()
