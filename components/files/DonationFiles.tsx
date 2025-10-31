@@ -51,21 +51,18 @@ export function DonationFiles({
   // Use appropriate hook based on path type
   const donationHook = useDonationFiles(actualDonationId)
   const participantHook = useParticipantFiles(participantId, actualDonationId)
-  
-  // Select the appropriate hook results
-  const { 
-    files, 
-    loading, 
-    error, 
-    uploads,
-    uploadFile, 
-    deleteFile, 
-    loadFiles,
-    getFilesByFolder,
-    getAllFolders,
-    getTotalSize,
-    getFileCount
-  } = isParticipantPath ? participantHook : donationHook
+
+  // Select the appropriate hook results with proper typing
+  const files = isParticipantPath ? participantHook.files : donationHook.files
+  const loading = isParticipantPath ? participantHook.loading : donationHook.loading
+  const error = isParticipantPath ? participantHook.error : donationHook.error
+  const uploads = isParticipantPath ? participantHook.uploads : donationHook.uploads
+  const deleteFile = isParticipantPath ? participantHook.deleteFile : donationHook.deleteFile
+  const loadFiles = isParticipantPath ? participantHook.loadFiles : donationHook.loadFiles
+  const getFilesByFolder = isParticipantPath ? participantHook.getFilesByFolder : donationHook.getFilesByFolder
+  const getAllFolders = isParticipantPath ? participantHook.getAllFolders : donationHook.getAllFolders
+  const getTotalSize = isParticipantPath ? participantHook.getTotalSize : donationHook.getTotalSize
+  const getFileCount = isParticipantPath ? participantHook.getFileCount : donationHook.getFileCount
 
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedFolder, setSelectedFolder] = useState<string>('all')
@@ -79,10 +76,10 @@ export function DonationFiles({
       if (!isParticipantPath && user) {
         // Map folder to role for new system
         const role = folder as 'donor' | 'nonprofit' | 'appraiser'
-        await uploadFile(file, role, user.uid, user.displayName || user.email || 'Unknown User')
+        await donationHook.uploadFile(file, role, user.uid, user.displayName || user.email || 'Unknown User')
       } else {
         // For participant files, use old signature
-        await uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
+        await participantHook.uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
       }
     } catch (error) {
       // Upload failed
