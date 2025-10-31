@@ -28,7 +28,7 @@ export function DocumentReviewTask({
   const filesByRole = reviewRoles.reduce((acc, role) => {
     acc[role] = getFilesByRole(role)
     return acc
-  }, {} as Record<string, typeof files>)
+  }, {} as Record<string, ReturnType<typeof getFilesByRole>>)
 
   const getRoleName = (role: string) => {
     switch (role) {

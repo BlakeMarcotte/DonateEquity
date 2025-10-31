@@ -326,7 +326,7 @@ export async function listDonationFilesByRoles(
  */
 export async function listParticipantFiles(
   participantId: string,
-  donationId?: string,
+  _donationId?: string,
   folder?: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general'
 ) {
   const allFiles = []
@@ -406,31 +406,11 @@ export async function listParticipantFiles(
       })
     }
   }
-  
-  // Also try donation-based storage path for backward compatibility
-  if (donationId) {
-    try {
-      const donationFiles = await listDonationFiles(donationId, folder)
-      const donationFilesWithSource = donationFiles.map(file => ({
-        ...file,
-        source: 'donation' as const
-      }))
-      allFiles.push(...donationFilesWithSource)
-      secureLogger.info('Found donation-based files', { 
-        donationId, 
-        folder, 
-        count: donationFiles.length 
-      })
-    } catch (error) {
-      secureLogger.info('No donation-based files found', { 
-        donationId, 
-        folder, 
-        error: (error as Error).message 
-      })
-    }
-  }
-  
-  // Remove duplicates based on file name (prefer participant-based files)
+
+  // Note: Legacy donation-based folder storage is no longer checked here
+  // The new system uses role-based paths (donations/{id}/{role}/)
+
+  // Remove duplicates based on file name
   const uniqueFiles = allFiles.reduce((acc, file) => {
     const existingIndex = acc.findIndex(existing => existing.name === file.name)
     if (existingIndex >= 0) {

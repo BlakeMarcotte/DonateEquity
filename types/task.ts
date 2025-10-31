@@ -27,11 +27,18 @@ export interface Task {
     // DocuSign specific fields
     documentPath?: string
     documentName?: string
+    docuSignEnvelopeId?: string | null
     envelopeId?: string | null
     signedAt?: string | null
     signingUrl?: string | null
+    docuSignStatus?: string | null
+    docuSignCompletedAt?: string | null
+    signedDocumentUrl?: string | null
     // Document upload specific fields
     uploadFolders?: string[]
+    uploadRole?: 'donor' | 'nonprofit' | 'appraiser' // Role-based upload for new system
+    // Document review specific fields
+    reviewRoles?: Array<'donor' | 'nonprofit' | 'appraiser'> // Roles whose files to review
     // Invitation specific fields
     invitationSent?: boolean
     appraiserEmail?: string | null
