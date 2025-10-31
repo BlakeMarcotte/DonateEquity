@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  uploadDonationFile, 
-  listDonationFiles, 
+import {
+  uploadDonationFile,
+  listDonationFilesByRoles,
   deleteDonationFile,
   validateFile,
   UploadProgress,
@@ -19,7 +19,7 @@ export interface DonationFile {
   timeCreated?: string
   updated?: string
   customMetadata?: { [key: string]: string }
-  folder: string
+  role?: 'donor' | 'nonprofit' | 'appraiser'
 }
 
 export interface FileUpload {
@@ -53,22 +53,9 @@ export function useDonationFiles(donationId: string | null) {
     setError(null)
 
     try {
-      // Load files from all folders
-      const folders = ['legal', 'financial', 'appraisals', 'signed-documents', 'general'] as const
-      const allFiles: DonationFile[] = []
-
-      for (const folder of folders) {
-        try {
-          const folderFiles = await listDonationFiles(donationId, folder)
-          const filesWithFolder = folderFiles.map(file => ({
-            ...file,
-            folder
-          }))
-          allFiles.push(...filesWithFolder)
-        } catch (err) {
-          // Folder might not exist yet, which is fine
-        }
-      }
+      // Load files from all role-based folders
+      const roles: Array<'donor' | 'nonprofit' | 'appraiser'> = ['donor', 'nonprofit', 'appraiser']
+      const allFiles = await listDonationFilesByRoles(donationId, roles)
 
       // Sort by upload date (newest first)
       allFiles.sort((a, b) => {
@@ -77,7 +64,7 @@ export function useDonationFiles(donationId: string | null) {
         return dateB - dateA
       })
 
-      setFiles(allFiles)
+      setFiles(allFiles as DonationFile[])
     } catch (err) {
       // Error loading donation files
       setError('Failed to load files')
@@ -88,7 +75,9 @@ export function useDonationFiles(donationId: string | null) {
 
   const uploadFile = async (
     file: File,
-    folder: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general' = 'general'
+    role: 'donor' | 'nonprofit' | 'appraiser',
+    uploadedBy: string,
+    uploaderName: string
   ) => {
     if (!donationId) {
       throw new Error('No donation ID provided')
@@ -101,25 +90,27 @@ export function useDonationFiles(donationId: string | null) {
     }
 
     const uploadId = `${Date.now()}_${file.name}`
-    
+
     // Initialize upload tracking
-    const uploadData: FileUpload = { 
-      file, 
-      progress: { 
-        bytesTransferred: 0, 
-        totalBytes: file.size, 
-        progress: 0, 
-        state: 'running' 
-      } 
+    const uploadData: FileUpload = {
+      file,
+      progress: {
+        bytesTransferred: 0,
+        totalBytes: file.size,
+        progress: 0,
+        state: 'running'
+      }
     }
-    
+
     setUploads(prev => new Map(prev).set(uploadId, uploadData))
 
     try {
       const result = await uploadDonationFile(
         donationId,
-        folder,
+        role,
         file,
+        uploadedBy,
+        uploaderName,
         (progress) => {
           setUploads(prev => {
             const newMap = new Map(prev)
@@ -192,13 +183,13 @@ export function useDonationFiles(donationId: string | null) {
     }
   }
 
-  const getFilesByFolder = (folder: string) => {
-    return files.filter(file => file.folder === folder)
+  const getFilesByRole = (role: 'donor' | 'nonprofit' | 'appraiser') => {
+    return files.filter(file => file.role === role)
   }
 
-  const getAllFolders = () => {
-    const folders = new Set(files.map(file => file.folder))
-    return Array.from(folders)
+  const getAllRoles = () => {
+    const roles = new Set(files.map(file => file.role).filter(Boolean))
+    return Array.from(roles) as Array<'donor' | 'nonprofit' | 'appraiser'>
   }
 
   const getTotalSize = () => {
@@ -217,8 +208,8 @@ export function useDonationFiles(donationId: string | null) {
     uploadFile,
     deleteFile,
     loadFiles,
-    getFilesByFolder,
-    getAllFolders,
+    getFilesByRole,
+    getAllRoles,
     getTotalSize,
     getFileCount
   }

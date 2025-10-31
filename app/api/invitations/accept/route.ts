@@ -222,10 +222,11 @@ export async function POST(request: NextRequest) {
 
       batch.set(donationRef, donationData)
 
-      // Create initial tasks for the donation workflow with donationId field
+      // Create initial tasks for the donation workflow with donationId field (12 tasks total)
       const tasksToCreate = [
+        // Task 1: Donor Sign NDA
         {
-          id: `${donationId}_sign_nda`,
+          id: `${donationId}_donor_sign_nda`,
           donationId: donationId,
           campaignId: invitationData.campaignId,
           donorId: decodedToken.uid,
@@ -251,6 +252,63 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date(),
           createdBy: decodedToken.uid
         },
+        // Task 2: NonProfit Sign NDA
+        {
+          id: `${donationId}_nonprofit_sign_nda`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: campaignData.createdBy,
+          assignedRole: 'nonprofit_admin',
+          title: 'NonProfit: Sign NDA',
+          description: 'Review and digitally sign the Non-Disclosure Agreement for this donation.',
+          type: 'docusign_signature',
+          status: 'blocked',
+          priority: 'high',
+          order: 2,
+          dependencies: [`${donationId}_donor_sign_nda`],
+          metadata: {
+            documentPath: '/public/nda-general.pdf',
+            documentName: 'General NDA',
+            envelopeId: null,
+            signedAt: null,
+            signingUrl: null,
+            automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 3: Appraiser Sign NDA
+        {
+          id: `${donationId}_appraiser_sign_nda`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: null,
+          assignedRole: 'appraiser',
+          title: 'Appraiser: Sign NDA',
+          description: 'Review and digitally sign the Non-Disclosure Agreement to access donor information.',
+          type: 'docusign_signature',
+          status: 'blocked',
+          priority: 'high',
+          order: 3,
+          dependencies: [`${donationId}_nonprofit_sign_nda`],
+          metadata: {
+            documentPath: '/public/nda-appraiser.pdf',
+            documentName: 'Appraiser NDA',
+            envelopeId: null,
+            signedAt: null,
+            signingUrl: null,
+            automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 4: Donor Invite Appraiser
         {
           id: `${donationId}_invite_appraiser`,
           donationId: donationId,
@@ -263,8 +321,8 @@ export async function POST(request: NextRequest) {
           type: 'invitation',
           status: 'blocked',
           priority: 'high',
-          order: 2,
-          dependencies: [`${donationId}_sign_nda`],
+          order: 4,
+          dependencies: [`${donationId}_appraiser_sign_nda`],
           metadata: {
             invitationType: 'appraiser',
             role: 'appraiser'
@@ -274,6 +332,107 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date(),
           createdBy: decodedToken.uid
         },
+        // Task 5: Donor Upload Company Information
+        {
+          id: `${donationId}_donor_upload_company_info`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: decodedToken.uid,
+          assignedRole: 'donor',
+          title: 'Donor: Upload Company Information',
+          description: 'Upload your company information and financial documents for the appraisal process.',
+          type: 'document_upload',
+          status: 'blocked',
+          priority: 'high',
+          order: 5,
+          dependencies: [`${donationId}_invite_appraiser`],
+          metadata: {
+            documentTypes: ['company_info', 'financial_statements'],
+            uploadRole: 'donor',
+            requiresApproval: false
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 6: NonProfit Upload Document
+        {
+          id: `${donationId}_nonprofit_upload`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: campaignData.createdBy,
+          assignedRole: 'nonprofit_admin',
+          title: 'NonProfit: Upload Documents',
+          description: 'Upload donation agreements and nonprofit documentation.',
+          type: 'document_upload',
+          status: 'blocked',
+          priority: 'high',
+          order: 6,
+          dependencies: [`${donationId}_donor_upload_company_info`],
+          metadata: {
+            documentTypes: ['donation_agreement', 'nonprofit_docs'],
+            uploadRole: 'nonprofit',
+            requiresApproval: false
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 7: Appraiser Upload Documents
+        {
+          id: `${donationId}_appraiser_upload`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: null,
+          assignedRole: 'appraiser',
+          title: 'Appraiser: Upload Documents',
+          description: 'Upload appraisal documents and valuation reports.',
+          type: 'document_upload',
+          status: 'blocked',
+          priority: 'high',
+          order: 7,
+          dependencies: [`${donationId}_nonprofit_upload`],
+          metadata: {
+            documentTypes: ['appraisal_report', 'valuation_documents'],
+            uploadRole: 'appraiser',
+            requiresApproval: false
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 8: Donor Review Documents
+        {
+          id: `${donationId}_donor_review`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: decodedToken.uid,
+          assignedRole: 'donor',
+          title: 'Donor: Review Documents',
+          description: 'Review documents uploaded by the nonprofit and appraiser.',
+          type: 'document_review',
+          status: 'blocked',
+          priority: 'high',
+          order: 8,
+          dependencies: [`${donationId}_appraiser_upload`],
+          metadata: {
+            reviewRoles: ['nonprofit', 'appraiser'],
+            approvalRequired: true,
+            automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 9: Donor Commitment Decision
         {
           id: `${donationId}_commitment_decision`,
           donationId: donationId,
@@ -286,8 +445,8 @@ export async function POST(request: NextRequest) {
           type: 'commitment_decision',
           status: 'blocked',
           priority: 'high',
-          order: 3,
-          dependencies: [`${donationId}_invite_appraiser`],
+          order: 9,
+          dependencies: [`${donationId}_donor_review`],
           metadata: {
             options: [
               {
@@ -309,48 +468,24 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date(),
           createdBy: decodedToken.uid
         },
+        // Task 10: Donor Sign Document
         {
-          id: `${donationId}_company_info`,
+          id: `${donationId}_donor_sign_document`,
           donationId: donationId,
           campaignId: invitationData.campaignId,
           donorId: decodedToken.uid,
           assignedTo: decodedToken.uid,
           assignedRole: 'donor',
-          title: 'Donor: Upload Company Information (File Upload)',
-          description: 'Upload your company information and financial documents for the appraisal process.',
-          type: 'document_upload',
-          status: 'blocked',
-          priority: 'high',
-          order: 4,
-          dependencies: [`${donationId}_commitment_decision`],
-          metadata: {
-            documentTypes: ['company_info', 'financial_statements'],
-            documentPath: `donations/${donationId}/financial/`,
-            requiresApproval: false,
-            uploadFolders: ['legal', 'financial']
-          },
-          comments: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: decodedToken.uid
-        },
-        {
-          id: `${donationId}_appraiser_sign_nda`,
-          donationId: donationId,
-          campaignId: invitationData.campaignId,
-          donorId: decodedToken.uid,
-          assignedTo: null,
-          assignedRole: 'appraiser',
-          title: 'Appraiser: Sign NDA',
-          description: 'Review and digitally sign the Non-Disclosure Agreement to access donor information.',
+          title: 'Donor: Sign Donation Agreement',
+          description: 'Review and digitally sign the final donation agreement.',
           type: 'docusign_signature',
           status: 'blocked',
           priority: 'high',
-          order: 5,
-          dependencies: [`${donationId}_company_info`],
+          order: 10,
+          dependencies: [`${donationId}_commitment_decision`],
           metadata: {
-            documentPath: '/public/nda-appraiser.pdf',
-            documentName: 'Appraiser NDA',
+            documentPath: '/public/nda-general.pdf',
+            documentName: 'Donation Agreement',
             envelopeId: null,
             signedAt: null,
             signingUrl: null,
@@ -361,47 +496,23 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date(),
           createdBy: decodedToken.uid
         },
+        // Task 11: NonProfit Review Documents
         {
-          id: `${donationId}_appraiser_upload`,
+          id: `${donationId}_nonprofit_review`,
           donationId: donationId,
           campaignId: invitationData.campaignId,
           donorId: decodedToken.uid,
-          assignedTo: null,
-          assignedRole: 'appraiser',
-          title: 'Appraiser: Upload Documents (File Upload)',
-          description: 'Upload appraisal documents and valuation reports.',
-          type: 'document_upload',
-          status: 'blocked',
-          priority: 'high',
-          order: 6,
-          dependencies: [`${donationId}_appraiser_sign_nda`],
-          metadata: {
-            documentTypes: ['appraisal_report', 'valuation_documents'],
-            documentPath: `donations/${donationId}/appraisals/`,
-            requiresApproval: false,
-            uploadFolders: ['appraisals']
-          },
-          comments: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: decodedToken.uid
-        },
-        {
-          id: `${donationId}_donor_approve`,
-          donationId: donationId,
-          campaignId: invitationData.campaignId,
-          donorId: decodedToken.uid,
-          assignedTo: decodedToken.uid,
-          assignedRole: 'donor',
-          title: 'Donor: Approve Documents',
-          description: 'Review and approve the appraisal documents and valuation reports.',
+          assignedTo: campaignData.createdBy,
+          assignedRole: 'nonprofit_admin',
+          title: 'NonProfit: Review Documents',
+          description: 'Review documents uploaded by the nonprofit and appraiser.',
           type: 'document_review',
           status: 'blocked',
-          priority: 'medium',
-          order: 7,
-          dependencies: [`${donationId}_appraiser_upload`],
+          priority: 'high',
+          order: 11,
+          dependencies: [`${donationId}_donor_sign_document`],
           metadata: {
-            documentIds: [],
+            reviewRoles: ['nonprofit', 'appraiser'],
             approvalRequired: true,
             automatedReminders: true
           },
@@ -410,49 +521,28 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date(),
           createdBy: decodedToken.uid
         },
+        // Task 12: NonProfit Sign Document
         {
-          id: `${donationId}_nonprofit_approve`,
+          id: `${donationId}_nonprofit_sign_document`,
           donationId: donationId,
           campaignId: invitationData.campaignId,
           donorId: decodedToken.uid,
           assignedTo: campaignData.createdBy,
           assignedRole: 'nonprofit_admin',
-          title: 'Nonprofit: Approve Documents',
-          description: 'Review and approve all donation documentation and appraisal reports.',
-          type: 'document_review',
+          title: 'NonProfit: Sign Donation Agreement',
+          description: 'Review and digitally sign the final donation agreement.',
+          type: 'docusign_signature',
           status: 'blocked',
           priority: 'high',
-          order: 8,
-          dependencies: [`${donationId}_donor_approve`],
+          order: 12,
+          dependencies: [`${donationId}_nonprofit_review`],
           metadata: {
-            documentIds: [],
-            approvalRequired: true,
+            documentPath: '/public/nda-general.pdf',
+            documentName: 'Donation Agreement',
+            envelopeId: null,
+            signedAt: null,
+            signingUrl: null,
             automatedReminders: true
-          },
-          comments: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: decodedToken.uid
-        },
-        {
-          id: `${donationId}_nonprofit_upload`,
-          donationId: donationId,
-          campaignId: invitationData.campaignId,
-          donorId: decodedToken.uid,
-          assignedTo: campaignData.createdBy,
-          assignedRole: 'nonprofit_admin',
-          title: 'Nonprofit: Upload Documents (File Upload)',
-          description: 'Upload final donation receipt and acknowledgement documents.',
-          type: 'document_upload',
-          status: 'blocked',
-          priority: 'medium',
-          order: 9,
-          dependencies: [`${donationId}_nonprofit_approve`],
-          metadata: {
-            documentTypes: ['donation_receipt', 'acknowledgement'],
-            documentPath: `donations/${donationId}/signed-documents/`,
-            requiresApproval: false,
-            uploadFolders: ['signed-documents']
           },
           comments: [],
           createdAt: new Date(),

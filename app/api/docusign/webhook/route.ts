@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import { docuSignClient } from '@/lib/docusign/simple-client'
-import { uploadDonationBufferAdmin } from '@/lib/firebase/storage-admin'
+import { uploadDonationBufferAdmin, uploadParticipantBufferAdmin } from '@/lib/firebase/storage-admin'
 import { secureLogger } from '@/lib/logging/secure-logger'
 
 // Enhanced task completion with robust error handling and fallback mechanisms
@@ -39,25 +39,50 @@ async function processTaskCompletion(taskDoc: FirebaseFirestore.QueryDocumentSna
         })
         
         const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(envelopeId)
+        const donationId = task.donationId
         const participantId = task.participantId
-        
-        if (participantId) {
+
+        // Use new role-based storage for donation tasks
+        if (donationId && task.assignedRole) {
+          const role = task.assignedRole === 'nonprofit_admin' ? 'nonprofit' : task.assignedRole as 'donor' | 'nonprofit' | 'appraiser'
           const uploadResult = await uploadDonationBufferAdmin(
-            `participants/${participantId}`,
+            donationId,
+            role,
+            documentBuffer,
+            `signed-document-${envelopeId}.pdf`,
+            'application/pdf',
+            task.assignedTo || undefined,
+            undefined
+          )
+          signedDocumentUrl = uploadResult.url
+          secureLogger.info('Document uploaded successfully (role-based)', {
+            taskId,
+            envelopeId,
+            donationId,
+            role,
+            url: signedDocumentUrl
+          })
+          break
+        }
+        // Fallback to legacy participant-based storage
+        else if (participantId) {
+          const uploadResult = await uploadParticipantBufferAdmin(
+            participantId,
             'signed-documents',
             documentBuffer,
             `signed-nda-${envelopeId}.pdf`,
             'application/pdf'
           )
           signedDocumentUrl = uploadResult.url
-          secureLogger.info('Document uploaded successfully', { 
-            taskId, 
-            envelopeId, 
-            url: signedDocumentUrl 
+          secureLogger.info('Document uploaded successfully (legacy path)', {
+            taskId,
+            envelopeId,
+            participantId,
+            url: signedDocumentUrl
           })
           break
         } else {
-          secureLogger.warn('No participantId found for document upload', { taskId })
+          secureLogger.warn('No donationId or participantId found for document upload', { taskId })
           break
         }
       } catch (downloadError) {

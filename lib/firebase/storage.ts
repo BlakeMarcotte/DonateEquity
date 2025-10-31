@@ -28,40 +28,48 @@ export interface FileUploadResult {
 
 /**
  * Upload a buffer to Firebase Storage for a specific donation (server-side)
+ * Uses role-based path structure: donations/{donationId}/{role}/{fileName}
  */
 export async function uploadDonationBuffer(
   donationId: string,
-  folder: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general',
+  role: 'donor' | 'nonprofit' | 'appraiser',
   buffer: Buffer,
   fileName: string,
-  contentType: string = 'application/pdf'
+  contentType: string = 'application/pdf',
+  uploadedBy?: string,
+  uploaderName?: string
 ): Promise<FileUploadResult> {
   const fullFileName = `${Date.now()}_${fileName}`
-  const filePath = `donations/${donationId}/${folder}/${fullFileName}`
+  const filePath = `donations/${donationId}/${role}/${fullFileName}`
   const storageRef = ref(storage, filePath)
 
   try {
     secureLogger.info('Uploading buffer to Firebase Storage', {
       filePath,
       bufferSize: buffer.length,
-      contentType
+      contentType,
+      role
     })
-    
+
     // Upload the buffer directly
     const snapshot = await uploadBytesResumable(storageRef, buffer, {
       contentType,
       customMetadata: {
-        uploadedBy: 'system',
+        uploadedBy: uploadedBy || 'system',
+        uploadedByRole: role,
+        uploadedAt: new Date().toISOString(),
+        uploaderName: uploaderName || 'System',
         source: 'docusign'
       }
     })
-    
+
     const downloadURL = await getDownloadURL(snapshot.ref)
     secureLogger.info('Buffer upload completed successfully', {
       filePath,
-      fileName
+      fileName,
+      role
     })
-    
+
     return {
       url: downloadURL,
       path: filePath,
@@ -74,7 +82,8 @@ export async function uploadDonationBuffer(
     secureLogger.error('Buffer upload failed', error, {
       filePath,
       fileName,
-      contentType
+      contentType,
+      role
     })
     throw error
   }
@@ -157,14 +166,20 @@ export async function uploadParticipantFile(
   })
 }
 
+/**
+ * Upload a file to Firebase Storage for a specific donation
+ * Uses role-based path structure: donations/{donationId}/{role}/{fileName}
+ */
 export async function uploadDonationFile(
   donationId: string,
-  folder: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general',
+  role: 'donor' | 'nonprofit' | 'appraiser',
   file: File,
+  uploadedBy: string,
+  uploaderName: string,
   onProgress?: (progress: UploadProgress) => void
 ): Promise<FileUploadResult> {
   const fileName = `${Date.now()}_${file.name}`
-  const filePath = `donations/${donationId}/${folder}/${fileName}`
+  const filePath = `donations/${donationId}/${role}/${fileName}`
   const storageRef = ref(storage, filePath)
 
   return new Promise((resolve, reject) => {
@@ -172,10 +187,19 @@ export async function uploadDonationFile(
       filePath,
       fileName: file.name,
       fileSize: file.size,
-      fileType: file.type
+      fileType: file.type,
+      role,
+      uploadedBy
     })
-    
-    const uploadTask = uploadBytesResumable(storageRef, file)
+
+    const uploadTask = uploadBytesResumable(storageRef, file, {
+      customMetadata: {
+        uploadedBy,
+        uploadedByRole: role,
+        uploadedAt: new Date().toISOString(),
+        uploaderName
+      }
+    })
 
     uploadTask.on(
       'state_changed',
@@ -192,7 +216,8 @@ export async function uploadDonationFile(
         secureLogger.error('File upload failed', error, {
           filePath,
           fileName: file.name,
-          errorCode: error.code
+          errorCode: error.code,
+          role
         })
         reject(error)
       },
@@ -201,7 +226,8 @@ export async function uploadDonationFile(
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
           secureLogger.info('File upload completed successfully', {
             filePath,
-            fileName: file.name
+            fileName: file.name,
+            role
           })
           resolve({
             url: downloadURL,
@@ -225,25 +251,26 @@ export async function uploadDonationFile(
 
 /**
  * List all files in a donation folder
+ * Supports role-based paths: donations/{donationId}/{role}
  */
 export async function listDonationFiles(
   donationId: string,
-  folder?: 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general'
+  role?: 'donor' | 'nonprofit' | 'appraiser'
 ) {
-  const folderPath = folder 
-    ? `donations/${donationId}/${folder}`
+  const folderPath = role
+    ? `donations/${donationId}/${role}`
     : `donations/${donationId}`
-  
+
   const storageRef = ref(storage, folderPath)
-  
+
   try {
     const result = await listAll(storageRef)
-    
+
     const files = await Promise.all(
       result.items.map(async (itemRef) => {
         const metadata = await getMetadata(itemRef)
         const url = await getDownloadURL(itemRef)
-        
+
         return {
           name: itemRef.name,
           fullPath: itemRef.fullPath,
@@ -261,11 +288,37 @@ export async function listDonationFiles(
   } catch (error) {
     secureLogger.error('Error listing donation files', error, {
       donationId,
-      folder,
+      role,
       folderPath
     })
     throw error
   }
+}
+
+/**
+ * List all files from multiple roles in a donation
+ */
+export async function listDonationFilesByRoles(
+  donationId: string,
+  roles: Array<'donor' | 'nonprofit' | 'appraiser'>
+) {
+  const allFiles = []
+
+  for (const role of roles) {
+    try {
+      const roleFiles = await listDonationFiles(donationId, role)
+      const filesWithRole = roleFiles.map(file => ({
+        ...file,
+        role
+      }))
+      allFiles.push(...filesWithRole)
+    } catch (error) {
+      // Role folder might not exist yet, which is fine
+      secureLogger.info('No files found for role', { donationId, role })
+    }
+  }
+
+  return allFiles
 }
 
 /**

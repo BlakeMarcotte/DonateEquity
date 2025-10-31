@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { CommitmentDecisionTask } from './CommitmentDecisionTask'
+import { DocumentReviewTask } from './DocumentReviewTask'
 import { useAuth } from '@/contexts/AuthContext'
 import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
 import { Button } from '@/components/ui/button'
@@ -9,7 +10,7 @@ import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, 
 import AppraiserInvitationForm from './AppraiserInvitationForm'
 import { AppraisalMethodTask } from './AppraisalMethodTask'
 import { FileUpload } from '@/components/files/FileUpload'
-import { useParticipantFiles } from '@/hooks/useParticipantFiles'
+import { useDonationFiles } from '@/hooks/useDonationFiles'
 import { Modal } from '@/components/ui/modal'
 import { EquityCommitmentModal } from './EquityCommitmentModal'
 
@@ -50,7 +51,7 @@ export function DonationTaskList({
   const [showResetModal, setShowResetModal] = useState(false)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const { uploadFile } = useParticipantFiles(donationId, null)
+  const { uploadFile } = useDonationFiles(donationId)
   const fileUploadRef = useRef<{ triggerUpload: () => Promise<void>; hasFiles: () => boolean } | null>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
@@ -208,15 +209,29 @@ export function DonationTaskList({
   
   const handleUploadSuccess = async (file: File, folder: string) => {
     try {
-      await uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
+      if (!currentUploadTask || !user) {
+        throw new Error('Missing task or user information')
+      }
+
+      // Determine role from task metadata
+      const role = currentUploadTask.metadata?.uploadRole as 'donor' | 'nonprofit' | 'appraiser' | undefined
+      if (!role) {
+        throw new Error('Task missing uploadRole metadata')
+      }
+
+      await uploadFile(
+        file,
+        role,
+        user.uid,
+        user.displayName || user.email || 'Unknown User'
+      )
+
       // After all files are uploaded, close modal and mark task complete
       setShowUploadModal(false)
       setCurrentUploadTask(null)
       setHasFilesSelected(false)
       // Mark the upload task as completed
-      if (currentUploadTask) {
-        await completeTask(currentUploadTask.id)
-      }
+      await completeTask(currentUploadTask.id)
     } catch (error) {
       // Error will be handled by the upload component
       throw error
@@ -617,6 +632,60 @@ export function DonationTaskList({
                   organizationName={organizationName}
                   stepNumber={index + 1}
                 />
+              </div>
+            )
+          }
+
+          // Special rendering for document review tasks
+          if (task.type === 'document_review' && canCompleteTask(task)) {
+            return (
+              <div key={task.id} className="group">
+                <div className={`p-4 rounded-xl transition-all duration-300 ${getStatusColor(task.status)}`}>
+                  <div className="flex items-start space-x-3 mb-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white mb-2 shadow-md">
+                        {index + 1}
+                      </div>
+                      <div className="p-1 rounded-full bg-white/80 shadow-sm">
+                        {getStatusIcon(task.status)}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <h4 className="text-base font-bold text-gray-900">
+                          {task.title}
+                        </h4>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm ${
+                          task.assignedRole === 'donor' ? 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800' :
+                          task.assignedRole === 'nonprofit_admin' ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-800' :
+                          'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800'
+                        }`}>
+                          {getRoleDisplayName(task.assignedRole).replace(' Tasks', '')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-2 leading-relaxed">
+                        {task.description}
+                      </p>
+                    </div>
+                  </div>
+                  <DocumentReviewTask
+                    task={task}
+                    donationId={donationId}
+                    onApprove={async () => {
+                      setCompletingTasks(prev => new Set(prev).add(task.id))
+                      try {
+                        await completeTask(task.id)
+                      } finally {
+                        setCompletingTasks(prev => {
+                          const newSet = new Set(prev)
+                          newSet.delete(task.id)
+                          return newSet
+                        })
+                      }
+                    }}
+                    isCompleting={completingTasks.has(task.id)}
+                  />
+                </div>
               </div>
             )
           }
