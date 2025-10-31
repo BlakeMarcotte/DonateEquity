@@ -312,7 +312,7 @@ export async function listDonationFilesByRoles(
         role
       }))
       allFiles.push(...filesWithRole)
-    } catch (error) {
+    } catch (_error) {
       // Role folder might not exist yet, which is fine
       secureLogger.info('No files found for role', { donationId, role })
     }

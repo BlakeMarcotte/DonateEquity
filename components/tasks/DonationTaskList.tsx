@@ -207,7 +207,7 @@ export function DonationTaskList({
     // The useDonationTasks hook should automatically refresh and show the task as completed
   }
   
-  const handleUploadSuccess = async (file: File, folder: string) => {
+  const handleUploadSuccess = async (file: File, _folder: string) => {
     try {
       if (!currentUploadTask || !user) {
         throw new Error('Missing task or user information')

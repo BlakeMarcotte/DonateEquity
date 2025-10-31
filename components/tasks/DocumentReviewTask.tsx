@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import { Task } from '@/types/task'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Download, FileText, FolderOpen } from 'lucide-react'
+import { CheckCircle, Download, FolderOpen } from 'lucide-react'
 import { useDonationFiles } from '@/hooks/useDonationFiles'
 import { formatFileSize, getFileIcon } from '@/lib/firebase/storage'
 
@@ -20,8 +19,7 @@ export function DocumentReviewTask({
   onApprove,
   isCompleting
 }: DocumentReviewTaskProps) {
-  const { files, loading, getFilesByRole } = useDonationFiles(donationId)
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
+  const { loading, getFilesByRole } = useDonationFiles(donationId)
 
   // Get roles to review from task metadata
   const reviewRoles = (task.metadata?.reviewRoles || []) as Array<'donor' | 'nonprofit' | 'appraiser'>
