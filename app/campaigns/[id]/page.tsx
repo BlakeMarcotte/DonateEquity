@@ -279,149 +279,25 @@ export default function CampaignDetailPage() {
   const fetchParticipants = useCallback(async (donationData: Donation[] = donations) => {
     if (!params.id) return
 
-    // Looking for campaign participants
-
     try {
-      // First test basic access
-      // Testing basic collection access
-      try {
-        const testQuery = query(
-          collection(db, 'campaign_participants'),
-          limit(1)
-        )
-        await getDocs(testQuery)
-        // Basic access test successful
-      } catch (basicError) {
-        console.error('fetchParticipants: Basic access test failed:', basicError)
-        const basicErr = basicError as { code?: string; message?: string }
-        console.error('fetchParticipants: Error code:', basicErr?.code)
-        console.error('fetchParticipants: Error message:', basicErr?.message)
-      }
-
-      // Fetch campaign_participants for this campaign (donors only)
-      let participantsQuery = query(
-        collection(db, 'campaign_participants'),
-        where('campaignId', '==', params.id),
-        where('userRole', '==', 'donor'),
-        orderBy('joinedAt', 'desc')
-      )
-
-      // Executing query with where + orderBy
-      let snapshot
-      
-      try {
-        snapshot = await getDocs(participantsQuery)
-      } catch (indexError) {
-        console.error('fetchParticipants: OrderBy failed, trying without...', indexError)
-        console.error('fetchParticipants: Error details:', {
-          code: (indexError as { code?: string })?.code,
-          message: (indexError as Error)?.message,
-          name: (indexError as Error)?.name
-        })
-        
-        // Fallback without orderBy
-        participantsQuery = query(
-          collection(db, 'campaign_participants'),
-          where('campaignId', '==', params.id),
-          where('userRole', '==', 'donor')
-        )
-        
-        // Trying simple where query
-        snapshot = await getDocs(participantsQuery)
-      }
-      
-      // Found campaign_participants
-      
-      const participantData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        joinedAt: doc.data().joinedAt?.toDate() || new Date(),
-      })) as Array<{
-        id: string
-        userId: string
-        invitedEmail: string
-        inviterName: string
-        status: string
-        joinedAt: Date
-        [key: string]: unknown
-      }>
-
-      // Fetch user data for all participants to get proper names
-      const userIds = participantData.map(p => p.userId).filter(Boolean)
-      const userDataMap = new Map()
-      
-      // Processing participant data
-      
-      if (userIds.length > 0) {
-        try {
-          // Fetching user data
-          const usersQuery = query(
-            collection(db, 'users'),
-            where('__name__', 'in', userIds)
-          )
-          const usersSnapshot = await getDocs(usersQuery)
-          // Found user documents
-          
-          usersSnapshot.docs.forEach(doc => {
-            const userData = doc.data()
-            // Processing user
-            userDataMap.set(doc.id, {
-              name: userData.displayName || userData.firstName + ' ' + userData.lastName || userData.email?.split('@')[0] || 'User',
-              email: userData.email
-            })
-          })
-          // User data map processed
-        } catch (userError) {
-          console.error('fetchParticipants: Error fetching user data:', userError)
+      // Build participants directly from donations - no need for campaign_participants collection
+      const fullParticipants: CampaignParticipant[] = donationData.map(donation => {
+        return {
+          userId: donation.donorId,
+          donorName: donation.donorName || 'Unknown Donor',
+          donorEmail: donation.donorEmail || 'Unknown Email',
+          participantId: donation.id, // Use donation ID as participant ID
+          joinedAt: donation.createdAt,
+          status: 'active' as const,
+          hasDonation: true,
+          donation: donation,
+          taskProgress: {
+            total: 0,
+            completed: 0
+          }
         }
-      }
+      })
 
-      // Create full participant objects with donation info if available
-      const fullParticipants: CampaignParticipant[] = participantData
-        .filter(participant => {
-          // Filter out participants with missing or invalid userId
-          if (!participant.userId) {
-            console.log('fetchParticipants: Filtering out participant with no userId:', participant.id)
-            return false
-          }
-          
-          // Check if we found user data for this participant
-          const userData = userDataMap.get(participant.userId)
-          if (!userData) {
-            console.log('fetchParticipants: No user data found for userId:', participant.userId, 'participant:', participant.id, '- filtering out')
-            return false // Filter out participants with no valid user data
-          }
-          
-          return true
-        })
-        .map(participant => {
-          // Map from your database fields to our interface
-          const userId = participant.userId
-          const donation = donationData.find(d => d.donorId === userId)
-          const userData = userDataMap.get(userId)
-          
-          console.log('fetchParticipants: Creating participant for userId:', userId, 'userData:', userData)
-          
-          // Determine status based on participant record and donation existence
-          const participantStatus = donation ? 'completed' : 'active'
-          
-          return {
-            userId: userId,
-            donorName: userData?.name || participant.invitedEmail?.split('@')[0] || 'Unknown User',
-            donorEmail: userData?.email || participant.invitedEmail || 'Unknown Email',
-            participantId: participant.id, // Use document ID as participantId
-            joinedAt: participant.joinedAt,
-            status: participantStatus as "active" | "completed",
-            hasDonation: !!donation,
-            donation: donation,
-            taskProgress: {
-              total: 0,
-              completed: 0
-            }
-          }
-        })
-
-      // Created participants
       setParticipants(fullParticipants)
     } catch (error) {
       console.error('fetchParticipants: Error fetching participants:', error)
