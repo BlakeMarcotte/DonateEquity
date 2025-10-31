@@ -186,7 +186,7 @@ export default function OrganizationSelectionPage() {
                 const idToken = await currentUser.getIdToken()
 
                 // Accept the appraiser invitation
-                const response = await fetch(`/api/appraiser/invitations/${basicData.appraiserInvitationToken}/accept`, {
+                const response = await fetch(`/api/invitations/${basicData.appraiserInvitationToken}/accept`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
