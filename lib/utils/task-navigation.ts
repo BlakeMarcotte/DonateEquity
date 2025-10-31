@@ -1,6 +1,3 @@
-import { db } from '@/lib/firebase/config'
-import { doc, getDoc } from 'firebase/firestore'
-
 /**
  * Helper function to get the correct task page URL based on available information
  * Prioritizes participant-based URLs over donation-based URLs
