@@ -86,7 +86,8 @@ export async function POST(request: NextRequest) {
               `signed-document-${taskEnvelopeId}.pdf`,
               'application/pdf',
               task.assignedTo || undefined,
-              undefined
+              undefined,
+              task.id
             )
             signedDocumentUrl = uploadResult.url
           }

@@ -424,6 +424,7 @@ export async function POST(request: NextRequest) {
           dependencies: [`${donationId}_appraiser_upload`],
           metadata: {
             reviewRoles: ['nonprofit', 'appraiser'],
+            reviewTaskIds: [`${donationId}_nonprofit_upload`, `${donationId}_appraiser_upload`],
             approvalRequired: true,
             automatedReminders: true
           },
@@ -505,14 +506,15 @@ export async function POST(request: NextRequest) {
           assignedTo: campaignData.createdBy,
           assignedRole: 'nonprofit_admin',
           title: 'NonProfit: Review Documents',
-          description: 'Review documents uploaded by the nonprofit and appraiser.',
+          description: 'Review documents uploaded by the donor and appraiser.',
           type: 'document_review',
           status: 'blocked',
           priority: 'high',
           order: 11,
           dependencies: [`${donationId}_donor_sign_document`],
           metadata: {
-            reviewRoles: ['nonprofit', 'appraiser'],
+            reviewRoles: ['donor', 'appraiser'],
+            reviewTaskIds: [`${donationId}_donor_upload_company_info`, `${donationId}_appraiser_upload`],
             approvalRequired: true,
             automatedReminders: true
           },

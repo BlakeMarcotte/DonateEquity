@@ -176,6 +176,7 @@ export async function uploadDonationFile(
   file: File,
   uploadedBy: string,
   uploaderName: string,
+  taskId: string,
   onProgress?: (progress: UploadProgress) => void
 ): Promise<FileUploadResult> {
   const fileName = `${Date.now()}_${file.name}`
@@ -189,7 +190,8 @@ export async function uploadDonationFile(
       fileSize: file.size,
       fileType: file.type,
       role,
-      uploadedBy
+      uploadedBy,
+      taskId
     })
 
     const uploadTask = uploadBytesResumable(storageRef, file, {
@@ -197,7 +199,8 @@ export async function uploadDonationFile(
         uploadedBy,
         uploadedByRole: role,
         uploadedAt: new Date().toISOString(),
-        uploaderName
+        uploaderName,
+        taskId
       }
     })
 

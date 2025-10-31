@@ -76,7 +76,8 @@ export function DonationFiles({
       if (!isParticipantPath && user) {
         // Map folder to role for new system
         const role = folder as 'donor' | 'nonprofit' | 'appraiser'
-        await donationHook.uploadFile(file, role, user.uid, user.displayName || user.email || 'Unknown User')
+        // Use a generic taskId for manual uploads not associated with a specific task
+        await donationHook.uploadFile(file, role, user.uid, user.displayName || user.email || 'Unknown User', 'manual-upload')
       } else {
         // For participant files, use old signature
         await participantHook.uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')

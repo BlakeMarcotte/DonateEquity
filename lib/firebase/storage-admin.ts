@@ -21,7 +21,8 @@ export async function uploadDonationBufferAdmin(
   fileName: string,
   contentType: string = 'application/pdf',
   uploadedBy?: string,
-  uploaderName?: string
+  uploaderName?: string,
+  taskId?: string
 ): Promise<ServerFileUploadResult> {
   const storage = getAdminStorage()
   const bucket = storage.bucket()
@@ -35,7 +36,8 @@ export async function uploadDonationBufferAdmin(
       bufferSize: buffer.length,
       contentType,
       fileName,
-      role
+      role,
+      taskId
     })
 
     // Create a file reference
@@ -51,7 +53,8 @@ export async function uploadDonationBufferAdmin(
           uploadedAt: new Date().toISOString(),
           uploaderName: uploaderName || 'System',
           source: 'docusign',
-          originalFileName: fileName
+          originalFileName: fileName,
+          ...(taskId && { taskId })
         }
       }
     })

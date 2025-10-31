@@ -223,7 +223,8 @@ export function DonationTaskList({
         file,
         role,
         user.uid,
-        user.displayName || user.email || 'Unknown User'
+        user.displayName || user.email || 'Unknown User',
+        currentUploadTask.id
       )
 
       // After all files are uploaded, close modal and mark task complete
@@ -267,7 +268,7 @@ export function DonationTaskList({
     }
   }
   
-  const handleDocuSignTask = async (taskId: string) => {
+  const handleDocuSignTask = async (_taskId: string) => {
     if (docuSignLoading) return
     
     setDocuSignLoading(true)
@@ -345,10 +346,8 @@ export function DonationTaskList({
           const statusResult = await statusResponse.json()
 
           if (statusResponse.ok && statusResult.status === 'completed') {
-            // Refresh tasks to show updated status (webhook should have completed the task)
-            if (onRefresh) {
-              await onRefresh()
-            }
+            // Tasks will auto-refresh via Firestore listener when webhook completes the task
+            // No manual refresh needed
           }
         } catch (error) {
           console.error('Error checking envelope status:', error)
@@ -362,10 +361,7 @@ export function DonationTaskList({
         if (signingWindow?.closed) {
           clearInterval(checkSigning)
           window.removeEventListener('message', handleSigningComplete)
-          // Trigger refresh as fallback
-          if (onRefresh) {
-            onRefresh()
-          }
+          // Tasks will auto-refresh via Firestore listener
         }
       }, 2000)
 

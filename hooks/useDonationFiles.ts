@@ -77,7 +77,8 @@ export function useDonationFiles(donationId: string | null) {
     file: File,
     role: 'donor' | 'nonprofit' | 'appraiser',
     uploadedBy: string,
-    uploaderName: string
+    uploaderName: string,
+    taskId: string
   ) => {
     if (!donationId) {
       throw new Error('No donation ID provided')
@@ -111,6 +112,7 @@ export function useDonationFiles(donationId: string | null) {
         file,
         uploadedBy,
         uploaderName,
+        taskId,
         (progress) => {
           setUploads(prev => {
             const newMap = new Map(prev)
@@ -187,6 +189,16 @@ export function useDonationFiles(donationId: string | null) {
     return files.filter(file => file.role === role)
   }
 
+  const getFilesByTaskId = (taskId: string) => {
+    return files.filter(file => file.customMetadata?.taskId === taskId)
+  }
+
+  const getFilesByTaskIds = (taskIds: string[]) => {
+    return files.filter(file =>
+      file.customMetadata?.taskId && taskIds.includes(file.customMetadata.taskId)
+    )
+  }
+
   const getAllRoles = () => {
     const roles = new Set(files.map(file => file.role).filter(Boolean))
     return Array.from(roles) as Array<'donor' | 'nonprofit' | 'appraiser'>
@@ -218,6 +230,8 @@ export function useDonationFiles(donationId: string | null) {
     deleteFile,
     loadFiles,
     getFilesByRole,
+    getFilesByTaskId,
+    getFilesByTaskIds,
     getAllRoles,
     getFilesByFolder, // Backward compatibility
     getAllFolders, // Backward compatibility

@@ -19,16 +19,20 @@ export function DocumentReviewTask({
   onApprove,
   isCompleting
 }: DocumentReviewTaskProps) {
-  const { loading, getFilesByRole } = useDonationFiles(donationId)
+  const { loading, getFilesByTaskIds } = useDonationFiles(donationId)
 
-  // Get roles to review from task metadata
+  // Get task IDs and roles to review from task metadata
+  const reviewTaskIds = task.metadata?.reviewTaskIds || []
   const reviewRoles = (task.metadata?.reviewRoles || []) as Array<'donor' | 'nonprofit' | 'appraiser'>
+
+  // Get files filtered by the specific task IDs
+  const filteredFiles = getFilesByTaskIds(reviewTaskIds)
 
   // Group files by role
   const filesByRole = reviewRoles.reduce((acc, role) => {
-    acc[role] = getFilesByRole(role)
+    acc[role] = filteredFiles.filter(file => file.role === role)
     return acc
-  }, {} as Record<string, ReturnType<typeof getFilesByRole>>)
+  }, {} as Record<string, typeof filteredFiles>)
 
   const getRoleName = (role: string) => {
     switch (role) {

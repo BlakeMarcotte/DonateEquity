@@ -52,7 +52,8 @@ async function processTaskCompletion(taskDoc: FirebaseFirestore.QueryDocumentSna
             `signed-document-${envelopeId}.pdf`,
             'application/pdf',
             task.assignedTo || undefined,
-            undefined
+            undefined,
+            taskId
           )
           signedDocumentUrl = uploadResult.url
           secureLogger.info('Document uploaded successfully (role-based)', {

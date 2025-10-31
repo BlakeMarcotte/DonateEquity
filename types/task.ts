@@ -39,6 +39,7 @@ export interface Task {
     uploadRole?: 'donor' | 'nonprofit' | 'appraiser' // Role-based upload for new system
     // Document review specific fields
     reviewRoles?: Array<'donor' | 'nonprofit' | 'appraiser'> // Roles whose files to review
+    reviewTaskIds?: string[] // Specific task IDs whose uploaded files to review
     // Invitation specific fields
     invitationSent?: boolean
     appraiserEmail?: string | null
