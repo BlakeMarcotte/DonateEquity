@@ -49,6 +49,7 @@ export function DonationTaskList({
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
   const [currentCommitmentTask, setCurrentCommitmentTask] = useState<Task | null>(null)
   const [showResetModal, setShowResetModal] = useState(false)
+  const [showDemoResetModal, setShowDemoResetModal] = useState(false)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const { uploadFile } = useDonationFiles(donationId)
@@ -405,6 +406,48 @@ export function DonationTaskList({
     }
   }
 
+  const handleDemoReset = () => {
+    if (resettingTasks) return
+    setShowDemoResetModal(true)
+  }
+
+  const confirmDemoReset = async () => {
+    setShowDemoResetModal(false)
+    setResettingTasks(true)
+
+    try {
+      const token = await user?.getIdToken()
+
+      // Use donation-based demo reset endpoint
+      const response = await fetch(`/api/donations/${donationId}/reset-tasks-demo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to reset tasks for demo'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          // If response is not JSON (like HTML), use status text
+          errorMessage = `Server error: ${response.status} ${response.statusText}`
+        }
+        throw new Error(errorMessage)
+      }
+
+      await response.json()
+
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to reset tasks for demo')
+    } finally {
+      setResettingTasks(false)
+    }
+  }
+
   const getStatusIcon = (status: Task['status']) => {
     switch (status) {
       case 'completed':
@@ -544,6 +587,28 @@ export function DonationTaskList({
               </>
             )}
           </Button>
+          {/* Demo Reset button - only show for donors */}
+          {customClaims?.role === 'donor' && (
+            <Button
+              onClick={handleDemoReset}
+              disabled={resettingTasks}
+              variant="outline"
+              size="sm"
+              className="text-green-600 border-green-200 hover:bg-green-50 rounded-xl transition-all duration-200"
+            >
+              {resettingTasks ? (
+                <>
+                  <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full" />
+                  Resetting...
+                </>
+              ) : (
+                <>
+                  <FileSignature className="h-4 w-4 mr-2" />
+                  Demo Reset
+                </>
+              )}
+            </Button>
+          )}
           {/* Reset button - only show for donors */}
           {customClaims?.role === 'donor' && (
             <Button
@@ -906,6 +971,49 @@ export function DonationTaskList({
         donorName={donorName || 'Anonymous Donor'}
         organizationName={organizationName || 'Organization'}
       />
+
+      {/* Demo Reset Confirmation Modal */}
+      <Modal
+        isOpen={showDemoResetModal}
+        onClose={() => setShowDemoResetModal(false)}
+        title="Demo Reset - Steps 5-8"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            This will reset tasks with <strong>Steps 1-4 completed</strong>, so you can demo Steps 5-8.
+          </p>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-sm text-green-800">
+              <strong>✓ Completed:</strong> Tasks 1-4 (NDAs & Invitations)<br />
+              <strong>→ Ready:</strong> Task 5 (Upload Company Info)
+            </p>
+          </div>
+          <div className="flex gap-3 justify-end pt-4">
+            <Button
+              onClick={() => setShowDemoResetModal(false)}
+              variant="outline"
+              disabled={resettingTasks}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDemoReset}
+              disabled={resettingTasks}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {resettingTasks ? (
+                <>
+                  <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  Resetting...
+                </>
+              ) : (
+                'Demo Reset'
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Reset Tasks Confirmation Modal */}
       <Modal
