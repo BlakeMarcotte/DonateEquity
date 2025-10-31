@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Create return URL for after signing - redirect to donation project tasks page
+    // Create return URL for after signing - redirect to a page that closes the popup
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://donate-equity.vercel.app'
-    const returnUrl = `${baseUrl}/donations/${donationId}/tasks?signed=true&event=signing_complete`
+    const returnUrl = `${baseUrl}/docusign-return?event=signing_complete`
 
     // Get recipient view URL for embedded signing
     const viewUrl = await docuSignClient.getRecipientView({
