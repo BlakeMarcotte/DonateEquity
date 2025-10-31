@@ -29,6 +29,7 @@ import {
   X,
   DollarSign
 } from 'lucide-react'
+import { formatCurrencyInput, cleanCurrencyInput } from '@/lib/utils/formatters'
 
 
 // Main component wrapper with Suspense
@@ -413,6 +414,11 @@ function CreateCampaignModal({
   })
   const [saving, setSaving] = useState(false)
 
+  const handleGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyInput(e.target.value)
+    setFormData(prev => ({ ...prev, goal: formatted }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!organizationId || !userId) return
@@ -430,10 +436,11 @@ function CreateCampaignModal({
         console.error('Error fetching organization:', orgError)
       }
 
+      const cleanedGoal = cleanCurrencyInput(formData.goal)
       const campaignData = {
         title: formData.title,
         description: formData.description,
-        goal: parseInt(formData.goal),
+        goal: parseInt(cleanedGoal),
         currentAmount: 0,
         donorCount: 0,
         status: formData.status,
@@ -507,16 +514,15 @@ function CreateCampaignModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Funding Goal ($)
+                Funding Goal
               </label>
               <input
-                type="number"
+                type="text"
                 required
-                min="1"
                 value={formData.goal}
-                onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
+                onChange={handleGoalChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="100000"
+                placeholder="$100,000"
               />
             </div>
 
@@ -587,20 +593,26 @@ function EditCampaignModal({
   const [formData, setFormData] = useState({
     title: campaign.title,
     description: campaign.description,
-    goal: campaign.goal.toString(),
+    goal: formatCurrencyInput(campaign.goal.toString()),
     status: campaign.status,
   })
   const [saving, setSaving] = useState(false)
 
+  const handleGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyInput(e.target.value)
+    setFormData(prev => ({ ...prev, goal: formatted }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    
+
     try {
+      const cleanedGoal = cleanCurrencyInput(formData.goal)
       await updateDoc(doc(db, 'campaigns', campaign.id), {
         title: formData.title,
         description: formData.description,
-        goal: parseInt(formData.goal),
+        goal: parseInt(cleanedGoal),
         status: formData.status,
         updatedAt: Timestamp.now(),
       })
@@ -654,15 +666,15 @@ function EditCampaignModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Funding Goal ($)
+                Funding Goal
               </label>
               <input
-                type="number"
+                type="text"
                 required
-                min="1"
                 value={formData.goal}
-                onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
+                onChange={handleGoalChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="$100,000"
               />
             </div>
 

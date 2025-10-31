@@ -12,7 +12,6 @@ import {
   where,
   orderBy,
   getDocs,
-  limit,
   updateDoc,
   Timestamp
 } from 'firebase/firestore'
