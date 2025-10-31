@@ -156,7 +156,6 @@ export function getPreviewCampaigns(): Campaign[] {
       organizationId: 'preview-org-1',
       organizationName: 'Future Builders Foundation',
       status: 'active',
-      category: 'Education',
       images: {
         hero: '',
         gallery: [],
@@ -181,7 +180,6 @@ export function getPreviewCampaigns(): Campaign[] {
       organizationId: 'preview-org-2',
       organizationName: 'Green Tomorrow',
       status: 'active',
-      category: 'Environment',
       images: {
         hero: '',
         gallery: [],
@@ -206,7 +204,6 @@ export function getPreviewCampaigns(): Campaign[] {
       organizationId: 'preview-org-3',
       organizationName: 'Health First Alliance',
       status: 'active',
-      category: 'Healthcare',
       images: {
         hero: '',
         gallery: [],
@@ -235,6 +232,7 @@ export function getPreviewDonations(): Donation[] {
       donorName: 'John Donor',
       donorEmail: 'donor@preview.com',
       nonprofitAdminId: 'preview-nonprofit-user',
+      participantId: 'preview-campaign-1_preview-donor-user',
       amount: 50000,
       donationType: 'equity',
       status: 'completed',
@@ -260,6 +258,7 @@ export function getPreviewDonations(): Donation[] {
       donorName: 'John Donor',
       donorEmail: 'donor@preview.com',
       nonprofitAdminId: 'preview-nonprofit-2',
+      participantId: 'preview-campaign-2_preview-donor-user',
       amount: 75000,
       donationType: 'equity',
       status: 'processing',
@@ -285,6 +284,7 @@ export function getPreviewDonations(): Donation[] {
       donorName: 'John Donor',
       donorEmail: 'donor@preview.com',
       nonprofitAdminId: 'preview-nonprofit-3',
+      participantId: 'preview-campaign-3_preview-donor-user',
       amount: 25000,
       donationType: 'equity',
       status: 'pending',

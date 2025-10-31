@@ -86,34 +86,55 @@ export async function POST(request: NextRequest) {
       console.log('No organizationId found for user:', decodedToken.uid)
     }
 
+    // Create or get campaign participant document
+    const participantId = `${campaignId}_${decodedToken.uid}`
+    const participantRef = adminDb.collection('campaign_participants').doc(participantId)
+    const participantDoc = await participantRef.get()
+
+    if (!participantDoc.exists) {
+      // Create new participant if doesn't exist
+      await participantRef.set({
+        campaignId,
+        userId: decodedToken.uid,
+        userEmail: userProfile?.email || '',
+        userName: userProfile?.displayName || 'Unknown User',
+        role: 'donor',
+        status: 'active',
+        joinedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      })
+    }
+
     // Create donation document - all donations are equity commitments
     const donationData = {
       campaignId,
+      campaignTitle: campaignData.title || '',
       donorId: decodedToken.uid,
       donorName: userProfile?.displayName || 'Unknown Donor',
       donorEmail: userProfile?.email || '',
       nonprofitAdminId: campaignData.createdBy,
+      participantId, // Link to campaign_participants
       amount: donationAmount,
       donationType: 'equity',
       status: 'pending', // All equity donations start as pending
       message: message || '',
-      
+
       // Simplified commitment details - just organization info
       commitmentDetails: {
         donorOrganizationId: donorOrganizationId,
         donorOrganizationName: donorOrganizationName,
         estimatedValue: donationAmount
       },
-      
+
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
       completedAt: null,
-      
+
       // All equity donations require appraisal
       requiresAppraisal: true,
       appraiserId: null,
       appraisalStatus: 'pending',
-      
+
       // Metadata
       organizationId: campaignData.organizationId,
       organizationName: campaignData.organizationName
@@ -132,11 +153,12 @@ export async function POST(request: NextRequest) {
       updatedAt: FieldValue.serverTimestamp()
     })
 
-    console.log('Donation created successfully - tasks will be created via participant workflow')
+    console.log('Donation and participant created successfully - tasks will be created via participant workflow')
 
     return NextResponse.json({
       success: true,
       donationId: donationRef.id,
+      participantId, // Return the participantId for reference
       message: 'Equity commitment created successfully! An appraiser will be assigned to process your donation.',
       donation: {
         id: donationRef.id,

@@ -13,12 +13,6 @@ import { signIn } from '@/lib/firebase/auth'
 import { auth } from '@/lib/firebase/config'
 import { useAuth } from '@/contexts/AuthContext'
 
-interface Organization {
-  id: string
-  name: string
-  type: 'nonprofit' | 'appraiser' | 'donor'
-}
-
 interface AppraiserInvitation {
   id: string
   donationId: string
@@ -77,7 +71,6 @@ export default function RegisterForm({
   appraiserInvitationToken,
   emailParam
 }: RegisterFormProps) {
-  const [step, setStep] = useState<'basic' | 'organization'>('basic')
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -85,14 +78,9 @@ export default function RegisterForm({
     displayName: '',
     role: (preselectedRole || '') as UserRole | '',
     subrole: 'admin' as NonprofitSubrole,
-    organizationId: '',
-    organizationName: '',
-    joinExistingOrg: false,
   })
-  const [organizations, setOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [loadingOrgs, setLoadingOrgs] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
@@ -132,93 +120,62 @@ export default function RegisterForm({
     }
   }, [invitation, teamInvitation, appraiserInvitation, emailParam])
 
-  const fetchOrganizations = async (type: 'nonprofit' | 'appraiser' | 'donor') => {
-    setLoadingOrgs(true)
-    try {
-      const response = await fetch(`/api/organizations?type=${type}&limit=50`)
-      const data = await response.json()
-      
-      if (data.success) {
-        setOrganizations(data.organizations)
-      }
-    } catch (error) {
-      console.error('Error fetching organizations:', error)
-    } finally {
-      setLoadingOrgs(false)
-    }
-  }
-
-  useEffect(() => {
-    if (formData.role === 'nonprofit_admin' || formData.role === 'appraiser') {
-      const orgType = formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraiser'
-      fetchOrganizations(orgType)
-    } else if (formData.role === 'donor') {
-      // Fetch donor organizations
-      fetchOrganizations('donor')
-    } else {
-      setOrganizations([])
-    }
-  }, [formData.role])
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target
-    const inputValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
-    
+    const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: inputValue,
-      // Reset organization fields when role changes
-      ...(name === 'role' && { organizationId: '', organizationName: '', joinExistingOrg: false }),
+      [name]: value,
     }))
   }
 
   const handleNext = () => {
     setError('')
-    
-    if (step === 'basic') {
-      if (!formData.email || !formData.password || !formData.displayName || !formData.role) {
-        setError('Please fill in all required fields')
-        return
-      }
-      
-      if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match')
-        return
-      }
-      
-      if (formData.password.length < 6) {
-        setError('Password must be at least 6 characters')
-        return
-      }
-      
-      // Skip organization step for team invitations
-      if (teamInvitation) {
-        handleSubmit()
-      } else {
-        // All roles now require organization setup
-        setStep('organization')
-      }
-    } else if (step === 'organization') {
-      if (formData.joinExistingOrg && !formData.organizationId) {
-        setError('Please select an organization or uncheck to create a new one')
-        return
-      }
-      
-      if (!formData.joinExistingOrg && !formData.organizationName) {
-        setError('Please enter an organization name')
-        return
-      }
-      
+
+    if (!formData.email || !formData.password || !formData.displayName || !formData.role) {
+      setError('Please fill in all required fields')
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
+    // Skip organization step for team invitations and complete registration
+    if (teamInvitation) {
       handleSubmit()
+    } else {
+      // Save basic data to sessionStorage and redirect to organization page
+      const basicData = {
+        email: formData.email,
+        password: formData.password,
+        displayName: formData.displayName,
+        role: formData.role,
+        subrole: formData.role === 'nonprofit_admin' ? formData.subrole : undefined,
+        phoneNumber: undefined,
+        teamInviteToken: teamInviteToken || undefined,
+        appraiserInvitationToken: appraiserInvitationToken || undefined,
+      }
+      sessionStorage.setItem('basicSignupData', JSON.stringify(basicData))
+
+      // Also save invitation data if present so organization page can accept it after registration
+      if (invitation) {
+        sessionStorage.setItem('pendingInvitation', JSON.stringify({
+          id: invitation.id,
+          token: invitation.invitationToken,
+          campaignId: invitation.campaignId
+        }))
+      }
+
+      router.push('/auth/register/organization')
     }
   }
 
-  const handleBack = () => {
-    setError('')
-    if (step === 'organization') {
-      setStep('basic')
-    }
-  }
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -237,8 +194,6 @@ export default function RegisterForm({
           displayName: formData.displayName,
           role: formData.role,
           subrole: formData.role === 'nonprofit_admin' ? formData.subrole : undefined,
-          organizationId: formData.joinExistingOrg ? formData.organizationId || undefined : undefined,
-          organizationName: formData.joinExistingOrg ? undefined : formData.organizationName,
           teamInviteToken: teamInviteToken || undefined,
           appraiserInvitationToken: appraiserInvitationToken || undefined,
         }),
@@ -253,13 +208,18 @@ export default function RegisterForm({
           await refreshUserData()
 
           // If user registered via invitation, accept the invitation
+          let invitationAccepted = false
+          let acceptedCampaignId = null
+          let acceptedDonationId = null
+
+          // Handle campaign invitation acceptance
           if (invitation) {
             try {
               // Get the user's auth token
               const currentUser = auth.currentUser
               if (currentUser) {
                 const idToken = await currentUser.getIdToken()
-                
+
                 // Call the API to accept the invitation
                 const response = await fetch('/api/invitations/accept', {
                   method: 'POST',
@@ -272,8 +232,23 @@ export default function RegisterForm({
                     invitationToken: invitation.invitationToken
                   })
                 })
-                
-                if (!response.ok) {
+
+                if (response.ok) {
+                  const result = await response.json()
+                  invitationAccepted = true
+                  acceptedCampaignId = result.data?.campaignId
+                  acceptedDonationId = result.data?.donationId
+
+                  // Refresh token if role was just set
+                  if (result.requiresTokenRefresh) {
+                    await currentUser.getIdToken(true)
+                  }
+
+                  console.log('Invitation accepted successfully', {
+                    campaignId: acceptedCampaignId,
+                    donationId: acceptedDonationId
+                  })
+                } else {
                   const error = await response.json()
                   console.error('Error accepting invitation:', error)
                 }
@@ -283,7 +258,11 @@ export default function RegisterForm({
               // Continue with registration flow even if invitation acceptance fails
             }
           }
-          
+
+          // NOTE: Do NOT accept appraiser invitation here!
+          // Appraisers always go to the organization page next, which will handle accepting the invitation.
+          // Accepting it here would cause a double-accept problem.
+
           if (onSuccess) {
             onSuccess()
           } else {
@@ -293,19 +272,29 @@ export default function RegisterForm({
             } else if (redirectTo) {
               router.push(redirectTo)
             } else {
-              // Default role-based redirects
-              switch (formData.role) {
-                case 'donor':
-                  router.push('/my-campaign')
-                  break
-                case 'appraiser':
-                  router.push('/my-campaign')
-                  break
-                case 'nonprofit_admin':
-                  router.push('/tasks')
-                  break
-                default:
-                  router.push('/dashboard')
+              // If invitation was accepted, redirect to the campaign/donation page
+              // Add a small delay to ensure Firestore write has propagated
+              if (invitationAccepted && acceptedDonationId) {
+                await new Promise(resolve => setTimeout(resolve, 500))
+                router.push(`/donations/${acceptedDonationId}/tasks?refresh=1`)
+              } else if (invitationAccepted && acceptedCampaignId) {
+                await new Promise(resolve => setTimeout(resolve, 500))
+                router.push(`/my-campaign?campaignId=${acceptedCampaignId}&refresh=1`)
+              } else {
+                // Default role-based redirects
+                switch (formData.role) {
+                  case 'donor':
+                    router.push('/my-campaign?refresh=1')
+                    break
+                  case 'appraiser':
+                    router.push('/my-campaign')
+                    break
+                  case 'nonprofit_admin':
+                    router.push('/tasks')
+                    break
+                  default:
+                    router.push('/dashboard')
+                }
               }
             }
           }
@@ -325,11 +314,10 @@ export default function RegisterForm({
     }
   }
 
-  if (step === 'basic') {
-    return (
-      <Card className="border-0 shadow-none p-0">
-        <CardContent className="p-0">
-          <div className="space-y-6">
+  return (
+    <Card className="border-0 shadow-none p-0">
+      <CardContent className="p-0">
+        <div className="space-y-6">
             {/* Invitation Banner */}
             {invitation && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -418,13 +406,19 @@ export default function RegisterForm({
                 <Label htmlFor="role" className="text-gray-700 font-medium">
                   I am a *
                 </Label>
-                {preselectedRole || teamInvitation ? (
+                {preselectedRole || teamInvitation || appraiserInvitation ? (
                   // Show preselected role as disabled field
                   <div className="relative">
                     <Input
                       id="role"
                       type="text"
-                      value={teamInvitation ? 'Nonprofit' : ROLES.find(r => r.value === preselectedRole)?.label || preselectedRole || ''}
+                      value={
+                        teamInvitation
+                          ? 'Nonprofit'
+                          : appraiserInvitation
+                            ? 'Professional Appraiser'
+                            : ROLES.find(r => r.value === preselectedRole)?.label || preselectedRole || ''
+                      }
                       disabled={true}
                       className="text-base h-12 bg-gray-50 text-gray-600 cursor-not-allowed"
                     />
@@ -610,136 +604,4 @@ export default function RegisterForm({
         </CardContent>
       </Card>
     )
-  }
-
-  // Organization step
-  return (
-    <Card className="border-0 shadow-none p-0">
-      <CardContent className="p-0">
-        <div className="space-y-6">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Organization Details
-            </h3>
-            <p className="text-sm text-gray-600">
-              {formData.role === 'donor'
-                ? 'Tell us about your company'
-                : `Tell us about your ${formData.role === 'nonprofit_admin' ? 'nonprofit organization' : 'appraisal firm'}`
-              }
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            {/* Toggle for joining existing organization */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex items-center gap-3 mb-4">
-                <input
-                  id="joinExistingOrg"
-                  name="joinExistingOrg"
-                  type="checkbox"
-                  checked={formData.joinExistingOrg}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  disabled={loading}
-                />
-                <Label htmlFor="joinExistingOrg" className="text-gray-700 font-medium">
-                  Join an existing organization
-                </Label>
-              </div>
-              <p className="text-sm text-gray-600 ml-7">
-                Check this if you want to join an organization that&apos;s already registered
-              </p>
-            </div>
-
-            {formData.joinExistingOrg ? (
-              <div className="space-y-2">
-                <Label htmlFor="organizationId" className="text-gray-700 font-medium">
-                  Select Your Organization *
-                </Label>
-                <div className="relative">
-                  <select
-                    id="organizationId"
-                    name="organizationId"
-                    required
-                    value={formData.organizationId}
-                    onChange={handleInputChange}
-                    className={`w-full h-12 px-4 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200 appearance-none bg-white pr-10 ${error ? 'form-error' : ''}`}
-                    disabled={loading || loadingOrgs}
-                  >
-                    <option value="">
-                      {loadingOrgs ? 'Loading organizations...' : `Select your ${
-                        formData.role === 'donor' ? 'organization or foundation' :
-                        formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraisal firm'
-                      }`}
-                    </option>
-                    {organizations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="organizationName" className="text-gray-700 font-medium">
-                  New Organization Name *
-                </Label>
-                <Input
-                  id="organizationName"
-                  name="organizationName"
-                  type="text"
-                  required
-                  value={formData.organizationName}
-                  onChange={handleInputChange}
-                  placeholder={`Enter your new ${
-                    formData.role === 'donor' ? 'organization or foundation' :
-                    formData.role === 'nonprofit_admin' ? 'nonprofit' : 'appraisal firm'
-                  } name`}
-                  disabled={loading}
-                  className={`text-base h-12 ${error ? 'form-error' : ''}`}
-                />
-              </div>
-            )}
-
-            {/* Error Message */}
-            {error && (
-              <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            {/* Navigation Buttons */}
-            <div className="flex gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleBack}
-                disabled={loading}
-                className="flex-1 h-12 text-base"
-              >
-                Back
-              </Button>
-              <Button
-                type="button"
-                onClick={handleNext}
-                disabled={loading}
-                className="flex-1 h-12 text-base font-semibold"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Creating Account...
-                  </>
-                ) : (
-                  'Create Account'
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
 }

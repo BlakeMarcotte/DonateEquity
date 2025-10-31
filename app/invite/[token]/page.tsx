@@ -135,7 +135,9 @@ export default function InvitationPage() {
       if (response === 'accepted') {
         // Use the API endpoint for accepting
         const idToken = await user.getIdToken()
-        
+
+        console.log('Calling invitation accept API with token:', params.token)
+
         const apiResponse = await fetch('/api/invitations/accept', {
           method: 'POST',
           headers: {
@@ -146,39 +148,43 @@ export default function InvitationPage() {
             invitationToken: params.token
           })
         })
-        
+
+        console.log('API response status:', apiResponse.status)
+        console.log('API response ok:', apiResponse.ok)
+
         if (apiResponse.ok) {
           const acceptanceResult = await apiResponse.json()
           setInvitation(prev => prev ? { ...prev, status: response } : null)
           setResponded(true)
-          
+
           // Log the response for debugging
           secureLogger.info('Campaign invitation accepted', {
             campaignId: acceptanceResult.data?.campaignId,
-            hasParticipantId: !!acceptanceResult.data?.participantId,
-            hasDonorId: !!acceptanceResult.data?.donorId
+            donationId: acceptanceResult.data?.donationId,
+            hasDonorId: !!acceptanceResult.data?.donorId,
+            requiresTokenRefresh: acceptanceResult.requiresTokenRefresh
           })
-          
-          // Redirect to participant-based task page if we have the participant data
+
+          // If role was just set, refresh the user's token to get updated claims
+          if (acceptanceResult.requiresTokenRefresh && user) {
+            try {
+              await user.getIdToken(true) // Force refresh
+              secureLogger.info('Token refreshed after role assignment')
+            } catch (tokenError) {
+              secureLogger.error('Failed to refresh token', tokenError as Error)
+            }
+          }
+
+          // Redirect to donation tasks page if we have the donation data
           setTimeout(() => {
-            // Check both data.participantId and data.donorId since API returns donorId
-            if (acceptanceResult.data?.campaignId && (acceptanceResult.data?.participantId || acceptanceResult.data?.donorId)) {
-              const campaignId = acceptanceResult.data.campaignId
-              const donorId = acceptanceResult.data.donorId || user?.uid
-              router.push(`/campaigns/${campaignId}/participants/${donorId}/tasks?refresh=1`)
+            if (acceptanceResult.data?.donationId) {
+              const donationId = acceptanceResult.data.donationId
+              router.push(`/donations/${donationId}/tasks?refresh=1`)
+            } else if (acceptanceResult.data?.campaignId) {
+              // Fallback to my-campaign if donation data is not available
+              router.push(`/my-campaign?campaignId=${acceptanceResult.data.campaignId}&refresh=1`)
             } else {
-              // Fallback to my-campaign if participant data is not available
-              secureLogger.warn('Missing participant data for direct redirect, using fallback', {
-                hasParticipantId: !!acceptanceResult.data?.participantId,
-                hasDonorId: !!acceptanceResult.data?.donorId,
-                hasCampaignId: !!acceptanceResult.data?.campaignId
-              })
-              // Pass campaign ID and refresh flag as query params to help with immediate loading
-              if (acceptanceResult.data?.campaignId) {
-                router.push(`/my-campaign?campaignId=${acceptanceResult.data.campaignId}&refresh=1`)
-              } else {
-                router.push('/my-campaign?refresh=1')
-              }
+              router.push('/my-campaign?refresh=1')
             }
           }, 2000)
         } else {

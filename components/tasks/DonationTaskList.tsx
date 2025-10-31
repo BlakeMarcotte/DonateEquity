@@ -1,53 +1,46 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useParticipantTasks } from '@/hooks/useParticipantTasks'
 import { CommitmentDecisionTask } from './CommitmentDecisionTask'
+import { DocumentReviewTask } from './DocumentReviewTask'
 import { useAuth } from '@/contexts/AuthContext'
 import { Task, TaskCompletionData, CommitmentData } from '@/types/task'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Clock, AlertCircle, Lock, Mail, RotateCcw, FileSignature, Upload, RefreshCw } from 'lucide-react'
-import { AppraiserInvitationForm } from './AppraiserInvitationForm'
+import AppraiserInvitationForm from './AppraiserInvitationForm'
 import { AppraisalMethodTask } from './AppraisalMethodTask'
 import { FileUpload } from '@/components/files/FileUpload'
-import { useParticipantFiles } from '@/hooks/useParticipantFiles'
+import { useDonationFiles } from '@/hooks/useDonationFiles'
 import { Modal } from '@/components/ui/modal'
 import { EquityCommitmentModal } from './EquityCommitmentModal'
 
 
 interface DonationTaskListProps {
-  participantId?: string
+  donationId: string // Donation ID is now required
   campaignId?: string
   showAllTasks?: boolean // Show tasks for all roles (admin view)
-  // Allow passing tasks and handlers from parent
-  tasks?: Task[]
-  loading?: boolean
-  completeTask?: (taskId: string, completionData?: TaskCompletionData) => Promise<void>
+  // Tasks and handlers must be passed from parent
+  tasks: Task[]
+  loading: boolean
+  completeTask: (taskId: string, completionData?: TaskCompletionData) => Promise<void>
   handleCommitmentDecision?: (taskId: string, decision: 'commit_now' | 'commit_after_appraisal', commitmentData?: CommitmentData) => Promise<void>
   campaignTitle?: string
   donorName?: string
   organizationName?: string
 }
 
-export function DonationTaskList({ 
-  participantId, 
- 
+export function DonationTaskList({
+  donationId,
   showAllTasks = false,
-  tasks: externalTasks,
-  loading: externalLoading,
-  completeTask: externalCompleteTask,
+  tasks,
+  loading,
+  completeTask,
   handleCommitmentDecision,
   campaignTitle,
   donorName,
   organizationName
 }: DonationTaskListProps) {
   const { user, customClaims } = useAuth()
-  const { tasks: participantTasks, loading: participantLoading, completeTask: participantCompleteTask } = useParticipantTasks(participantId || null)
-  
-  // Use external tasks/handlers if provided, otherwise use participant tasks
-  const tasks = externalTasks || participantTasks
-  const loading = externalLoading !== undefined ? externalLoading : participantLoading
-  const completeTask = externalCompleteTask || participantCompleteTask
   const [completingTasks, setCompletingTasks] = useState<Set<string>>(new Set())
   const [showInvitationModal, setShowInvitationModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -55,9 +48,11 @@ export function DonationTaskList({
   const [resettingTasks, setResettingTasks] = useState(false)
   const [showCommitmentModal, setShowCommitmentModal] = useState(false)
   const [currentCommitmentTask, setCurrentCommitmentTask] = useState<Task | null>(null)
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [showDemoResetModal, setShowDemoResetModal] = useState(false)
   const [docuSignLoading, setDocuSignLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const { uploadFile } = useParticipantFiles(participantId || null, null)
+  const { uploadFile } = useDonationFiles(donationId)
   const fileUploadRef = useRef<{ triggerUpload: () => Promise<void>; hasFiles: () => boolean } | null>(null)
   const [hasFilesSelected, setHasFilesSelected] = useState(false)
 
@@ -131,14 +126,18 @@ export function DonationTaskList({
   }
 
   // Filter tasks based on user role if not showing all tasks
-  const filteredTasks = showAllTasks 
-    ? tasks 
+  const filteredTasks = showAllTasks
+    ? tasks
     : tasks.filter(task => {
         // For appraisers, show tasks assigned to their role (including null assignedTo)
         if ((customClaims?.role as string) === 'appraiser') {
-          return (task.assignedRole as string) === 'appraiser' || 
+          return (task.assignedRole as string) === 'appraiser' ||
                  task.assignedTo === user?.uid ||
                  (task.assignedTo?.startsWith?.('mock-') && (task.assignedRole as string) === 'appraiser')
+        }
+        // For donors, show all tasks so they can see the entire workflow (donor, appraiser, nonprofit)
+        if ((customClaims?.role as string) === 'donor') {
+          return true
         }
         // For other roles, check direct assignment or role match
         return task.assignedTo === user?.uid || task.assignedRole === customClaims?.role
@@ -209,17 +208,32 @@ export function DonationTaskList({
     // The useDonationTasks hook should automatically refresh and show the task as completed
   }
   
-  const handleUploadSuccess = async (file: File, folder: string) => {
+  const handleUploadSuccess = async (file: File, _folder: string) => {
     try {
-      await uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
+      if (!currentUploadTask || !user) {
+        throw new Error('Missing task or user information')
+      }
+
+      // Determine role from task metadata
+      const role = currentUploadTask.metadata?.uploadRole as 'donor' | 'nonprofit' | 'appraiser' | undefined
+      if (!role) {
+        throw new Error('Task missing uploadRole metadata')
+      }
+
+      await uploadFile(
+        file,
+        role,
+        user.uid,
+        user.displayName || user.email || 'Unknown User',
+        currentUploadTask.id
+      )
+
       // After all files are uploaded, close modal and mark task complete
       setShowUploadModal(false)
       setCurrentUploadTask(null)
       setHasFilesSelected(false)
       // Mark the upload task as completed
-      if (currentUploadTask) {
-        await completeTask(currentUploadTask.id)
-      }
+      await completeTask(currentUploadTask.id)
     } catch (error) {
       // Error will be handled by the upload component
       throw error
@@ -255,7 +269,7 @@ export function DonationTaskList({
     }
   }
   
-  const handleDocuSignTask = async (taskId: string) => {
+  const handleDocuSignTask = async (_taskId: string) => {
     if (docuSignLoading) return
     
     setDocuSignLoading(true)
@@ -273,7 +287,7 @@ export function DonationTaskList({
         body: JSON.stringify({
           signerEmail: user?.email,
           signerName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          donationId: participantId, // Use participantId as donationId for backward compatibility
+          donationId: donationId,
           documentName: 'General NDA',
           emailSubject: 'Please sign the General NDA for your donation'
         })
@@ -296,7 +310,7 @@ export function DonationTaskList({
           envelopeId: envelopeResult.envelopeId,
           recipientEmail: user?.email,
           recipientName: user?.displayName || user?.email?.split('@')[0] || 'User',
-          donationId: participantId // Use participantId as donationId for backward compatibility
+          donationId: donationId
         })
       })
       
@@ -305,40 +319,9 @@ export function DonationTaskList({
       if (!signingResponse.ok) {
         throw new Error(signingResult.error || 'Failed to get signing URL')
       }
-      
-      // Open DocuSign signing interface in new window
-      const signingWindow = window.open(
-        signingResult.signingUrl,
-        'docusign-signing',
-        'width=800,height=600,scrollbars=yes,resizable=yes'
-      )
-      
-      // Check if signing is complete periodically
-      const checkSigning = setInterval(async () => {
-        if (signingWindow?.closed) {
-          clearInterval(checkSigning)
-          // Check envelope status to see if it was signed
-          try {
-            const statusResponse = await fetch(`/api/docusign/envelope-status?envelopeId=${envelopeResult.envelopeId}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            })
-            
-            const statusResult = await statusResponse.json()
-            
-            if (statusResponse.ok && statusResult.status === 'completed') {
-              // Mark task as completed
-              await completeTask(taskId)
-            }
-          } catch {
-            // Error checking envelope status
-          }
-        }
-      }, 2000)
-      
-      // Clean up interval after 5 minutes
-      setTimeout(() => clearInterval(checkSigning), 300000)
+
+      // Redirect to DocuSign signing interface
+      window.location.href = signingResult.signingUrl
       
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to initiate document signing')
@@ -349,20 +332,20 @@ export function DonationTaskList({
   
 
   const handleRefreshTasks = async () => {
-    if (refreshing || !participantId) return
-    
+    if (refreshing || !donationId) return
+
     setRefreshing(true)
-    
+
     try {
       const token = await user?.getIdToken()
-      
+
       const response = await fetch('/api/tasks/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ participantId })
+        body: JSON.stringify({ donationId: donationId })
       })
 
       if (!response.ok) {
@@ -381,40 +364,26 @@ export function DonationTaskList({
     }
   }
 
-  const handleResetTasks = async () => {
+  const handleResetTasks = () => {
     if (resettingTasks) return
-    
-    if (!confirm('Are you sure you want to reset all tasks? This will delete all current progress and start the workflow from the beginning.')) {
-      return
-    }
+    setShowResetModal(true)
+  }
 
+  const confirmResetTasks = async () => {
+    setShowResetModal(false)
     setResettingTasks(true)
-    
+
     try {
       const token = await user?.getIdToken()
-      
-      let response
-      if (participantId) {
-        // Reset participant tasks
-        response = await fetch(`/api/campaign-participants/${participantId}/reset-tasks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        })
-      } else if (tasks.length > 0 && tasks[0].participantId) {
-        // Fallback: get participantId from tasks
-        response = await fetch(`/api/campaign-participants/${tasks[0].participantId}/reset-tasks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        })
-      } else {
-        throw new Error('No participant ID available to reset tasks')
-      }
+
+      // Use donation-based reset endpoint
+      const response = await fetch(`/api/donations/${donationId}/reset-tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
 
       if (!response.ok) {
         let errorMessage = 'Failed to reset tasks'
@@ -429,9 +398,51 @@ export function DonationTaskList({
       }
 
       await response.json()
-      
+
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to reset tasks')
+    } finally {
+      setResettingTasks(false)
+    }
+  }
+
+  const handleDemoReset = () => {
+    if (resettingTasks) return
+    setShowDemoResetModal(true)
+  }
+
+  const confirmDemoReset = async () => {
+    setShowDemoResetModal(false)
+    setResettingTasks(true)
+
+    try {
+      const token = await user?.getIdToken()
+
+      // Use donation-based demo reset endpoint
+      const response = await fetch(`/api/donations/${donationId}/reset-tasks-demo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to reset tasks for demo'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          // If response is not JSON (like HTML), use status text
+          errorMessage = `Server error: ${response.status} ${response.statusText}`
+        }
+        throw new Error(errorMessage)
+      }
+
+      await response.json()
+
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to reset tasks for demo')
     } finally {
       setResettingTasks(false)
     }
@@ -576,6 +587,28 @@ export function DonationTaskList({
               </>
             )}
           </Button>
+          {/* Demo Reset button - only show for donors */}
+          {customClaims?.role === 'donor' && (
+            <Button
+              onClick={handleDemoReset}
+              disabled={resettingTasks}
+              variant="outline"
+              size="sm"
+              className="text-green-600 border-green-200 hover:bg-green-50 rounded-xl transition-all duration-200"
+            >
+              {resettingTasks ? (
+                <>
+                  <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full" />
+                  Resetting...
+                </>
+              ) : (
+                <>
+                  <FileSignature className="h-4 w-4 mr-2" />
+                  Demo Reset
+                </>
+              )}
+            </Button>
+          )}
           {/* Reset button - only show for donors */}
           {customClaims?.role === 'donor' && (
             <Button
@@ -634,6 +667,60 @@ export function DonationTaskList({
                   organizationName={organizationName}
                   stepNumber={index + 1}
                 />
+              </div>
+            )
+          }
+
+          // Special rendering for document review tasks
+          if (task.type === 'document_review' && canCompleteTask(task)) {
+            return (
+              <div key={task.id} className="group">
+                <div className={`p-4 rounded-xl transition-all duration-300 ${getStatusColor(task.status)}`}>
+                  <div className="flex items-start space-x-3 mb-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white mb-2 shadow-md">
+                        {index + 1}
+                      </div>
+                      <div className="p-1 rounded-full bg-white/80 shadow-sm">
+                        {getStatusIcon(task.status)}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <h4 className="text-base font-bold text-gray-900">
+                          {task.title}
+                        </h4>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm ${
+                          task.assignedRole === 'donor' ? 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800' :
+                          task.assignedRole === 'nonprofit_admin' ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-800' :
+                          'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800'
+                        }`}>
+                          {getRoleDisplayName(task.assignedRole).replace(' Tasks', '')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-2 leading-relaxed">
+                        {task.description}
+                      </p>
+                    </div>
+                  </div>
+                  <DocumentReviewTask
+                    task={task}
+                    donationId={donationId}
+                    onApprove={async () => {
+                      setCompletingTasks(prev => new Set(prev).add(task.id))
+                      try {
+                        await completeTask(task.id)
+                      } finally {
+                        setCompletingTasks(prev => {
+                          const newSet = new Set(prev)
+                          newSet.delete(task.id)
+                          return newSet
+                        })
+                      }
+                    }}
+                    isCompleting={completingTasks.has(task.id)}
+                  />
+                </div>
               </div>
             )
           }
@@ -815,18 +902,20 @@ export function DonationTaskList({
       </div>
 
       {/* Invitation Modal */}
-      <Modal
-        isOpen={showInvitationModal}
-        onClose={() => setShowInvitationModal(false)}
-        title="Invite Appraiser to Platform"
-        size="md"
-      >
-        <AppraiserInvitationForm
-          participantId={participantId}
-          donationId={participantId} // For backward compatibility
-          onSuccess={handleInvitationSuccess}
-        />
-      </Modal>
+      {showInvitationModal && (
+        <Modal
+          isOpen={showInvitationModal}
+          onClose={() => setShowInvitationModal(false)}
+          title="Invite Appraiser to Platform"
+          size="md"
+        >
+          <AppraiserInvitationForm
+            donationId={donationId}
+            onClose={() => setShowInvitationModal(false)}
+            onSuccess={handleInvitationSuccess}
+          />
+        </Modal>
+      )}
       
       {/* Upload Modal */}
       <Modal
@@ -882,7 +971,87 @@ export function DonationTaskList({
         donorName={donorName || 'Anonymous Donor'}
         organizationName={organizationName || 'Organization'}
       />
-      
+
+      {/* Demo Reset Confirmation Modal */}
+      <Modal
+        isOpen={showDemoResetModal}
+        onClose={() => setShowDemoResetModal(false)}
+        title="Demo Reset - Steps 5-8"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            This will reset tasks with <strong>Steps 1-4 completed</strong>, so you can demo Steps 5-8.
+          </p>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-sm text-green-800">
+              <strong>✓ Completed:</strong> Tasks 1-4 (NDAs & Invitations)<br />
+              <strong>→ Ready:</strong> Task 5 (Upload Company Info)
+            </p>
+          </div>
+          <div className="flex gap-3 justify-end pt-4">
+            <Button
+              onClick={() => setShowDemoResetModal(false)}
+              variant="outline"
+              disabled={resettingTasks}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDemoReset}
+              disabled={resettingTasks}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {resettingTasks ? (
+                <>
+                  <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  Resetting...
+                </>
+              ) : (
+                'Demo Reset'
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reset Tasks Confirmation Modal */}
+      <Modal
+        isOpen={showResetModal}
+        onClose={() => setShowResetModal(false)}
+        title="Reset Task List"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Are you sure you want to reset the task list?
+          </p>
+          <div className="flex gap-3 justify-end pt-4">
+            <Button
+              onClick={() => setShowResetModal(false)}
+              variant="outline"
+              disabled={resettingTasks}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmResetTasks}
+              disabled={resettingTasks}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {resettingTasks ? (
+                <>
+                  <div className="animate-spin -ml-1 mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  Resetting...
+                </>
+              ) : (
+                'Reset'
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   )
 }

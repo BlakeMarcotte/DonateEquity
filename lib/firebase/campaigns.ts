@@ -14,7 +14,6 @@ import { db } from './config'
 import { Campaign } from '@/types/campaign'
 
 export interface CampaignFilters {
-  category?: string
   status?: Campaign['status']
   minGoal?: number
   maxGoal?: number
@@ -70,10 +69,6 @@ export async function getPublicCampaigns(options: CampaignQueryOptions = {}) {
     })
 
     // Apply other filters
-    if (filters.category) {
-      filteredCampaigns = filteredCampaigns.filter(c => c.category === filters.category)
-    }
-
     if (filters.organizationId) {
       filteredCampaigns = filteredCampaigns.filter(c => c.organizationId === filters.organizationId)
     }
@@ -166,32 +161,6 @@ export async function getCampaignById(campaignId: string): Promise<Campaign | nu
   }
 }
 
-/**
- * Get unique campaign categories for filter options
- */
-export async function getCampaignCategories(): Promise<string[]> {
-  try {
-    const q = query(
-      collection(db, 'campaigns'),
-      where('status', '==', 'active')
-    )
-
-    const snapshot = await getDocs(q)
-    const categories = new Set<string>()
-
-    snapshot.forEach((doc) => {
-      const data = doc.data()
-      if (data.category) {
-        categories.add(data.category)
-      }
-    })
-
-    return Array.from(categories).sort()
-  } catch (error) {
-    console.error('Error fetching campaign categories:', error)
-    return []
-  }
-}
 
 /**
  * Get featured campaigns for homepage/dashboard

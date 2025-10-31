@@ -4,6 +4,7 @@ import { verifyAuthToken } from '@/lib/auth/middleware'
 import { withSecurity } from '@/lib/security/api-middleware'
 import { organizationSchema } from '@/lib/validation/schemas'
 import { secureLogger } from '@/lib/logging/secure-logger'
+import { generateInviteCode } from '@/lib/utils/inviteCode'
 import { z } from 'zod'
 
 const createOrganizationSchema = organizationSchema.extend({
@@ -67,6 +68,28 @@ const handleCreateOrganization = async (
 
     // Create organization
     const orgRef = adminDb.collection('organizations').doc()
+
+    // Generate invite codes based on organization type
+    const now = new Date()
+    const inviteCodes: Record<string, string> = {}
+    const inviteCodesGeneratedAt: Record<string, Date> = {}
+
+    if (type === 'nonprofit') {
+      // Nonprofits get admin and member codes
+      inviteCodes.admin = generateInviteCode()
+      inviteCodes.member = generateInviteCode()
+      inviteCodesGeneratedAt.admin = now
+      inviteCodesGeneratedAt.member = now
+    } else if (type === 'appraiser') {
+      // Appraisers get appraiser code
+      inviteCodes.appraiser = generateInviteCode()
+      inviteCodesGeneratedAt.appraiser = now
+    } else if (type === 'donor') {
+      // Donors get donor code
+      inviteCodes.donor = generateInviteCode()
+      inviteCodesGeneratedAt.donor = now
+    }
+
     const organizationData = {
       id: orgRef.id,
       name,
@@ -81,8 +104,10 @@ const handleCreateOrganization = async (
       memberIds: [userId],
       isActive: true,
       isVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      inviteCodes,
+      inviteCodesGeneratedAt,
+      createdAt: now,
+      updatedAt: now,
     }
 
     await orgRef.set(organizationData)

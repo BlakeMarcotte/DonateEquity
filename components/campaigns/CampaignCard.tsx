@@ -85,13 +85,6 @@ export default function CampaignCard({ campaign, className = '' }: CampaignCardP
               <Target className="w-12 h-12 text-blue-400" />
             </div>
           )}
-          
-          {/* Category Badge */}
-          <div className="absolute top-3 left-3">
-            <Badge variant="default" className="bg-white/90 shadow-sm">
-              {campaign.category}
-            </Badge>
-          </div>
 
           {/* Action Buttons */}
           <div className="absolute top-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">

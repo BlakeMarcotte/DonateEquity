@@ -4,7 +4,9 @@ import { adminAuth, adminDb } from '@/lib/firebase/admin'
 export async function POST(request: NextRequest) {
   try {
     console.log('=== Invitation Accept API Called ===')
-    
+    console.log('Request URL:', request.url)
+    console.log('Request method:', request.method)
+
     // Verify authentication
     const authHeader = request.headers.get('authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -96,9 +98,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Set user role to donor if they don't have a role yet
+    const currentRole = decodedToken.role
+    if (!currentRole || currentRole === 'donor') {
+      try {
+        // Update custom claims
+        await adminAuth.setCustomUserClaims(decodedToken.uid, {
+          ...decodedToken,
+          role: 'donor'
+        })
+
+        // Update user profile document
+        await adminDb.collection('users').doc(decodedToken.uid).update({
+          role: 'donor',
+          updatedAt: new Date()
+        })
+
+        console.log('Set user role to donor:', decodedToken.uid)
+      } catch (roleError) {
+        console.error('Error setting user role to donor:', roleError)
+        // Don't fail the invitation if role setting fails
+      }
+    }
+
     // Update the invitation and create campaign participant record
     const batch = adminDb.batch()
-    
+    let donationId = ''
+
     try {
       // Update the invitation
       batch.update(invitationDoc.ref, {
@@ -108,57 +134,446 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date()
       })
 
-      // Create campaign participant record to track donor interest
-      const participantRef = adminDb.collection('campaign_participants').doc(`${invitationData.campaignId}_${decodedToken.uid}`)
-      batch.set(participantRef, {
+      // Get campaign details for donation creation
+      const campaignRef = adminDb.collection('campaigns').doc(invitationData.campaignId)
+      const campaignDoc = await campaignRef.get()
+
+      if (!campaignDoc.exists) {
+        return NextResponse.json(
+          { error: 'Campaign not found' },
+          { status: 404 }
+        )
+      }
+
+      const campaignData = campaignDoc.data()
+      if (!campaignData) {
+        return NextResponse.json(
+          { error: 'Campaign data not found' },
+          { status: 404 }
+        )
+      }
+
+      // Create a donation record instead of just a participant record
+      // This represents the donor's commitment to the campaign
+      const donationRef = adminDb.collection('donations').doc()
+      donationId = donationRef.id
+
+      // Get donor's organization info if available
+      let donorOrganizationName = 'Individual Donor'
+      let donorOrganizationId = null
+
+      if (userData?.organizationId) {
+        donorOrganizationId = userData.organizationId
+        try {
+          const orgDoc = await adminDb.collection('organizations').doc(donorOrganizationId).get()
+          if (orgDoc.exists) {
+            donorOrganizationName = orgDoc.data()?.name || 'Unknown Organization'
+          }
+        } catch (orgError) {
+          console.error('Error fetching donor organization:', orgError)
+        }
+      }
+
+      const donationData = {
         campaignId: invitationData.campaignId,
-        userId: decodedToken.uid,
-        userRole: 'donor',
-        status: 'active', // active -> completed
-        joinedAt: new Date(),
-        joinedVia: 'invitation',
+        campaignTitle: campaignData.title,
+        donorId: decodedToken.uid,
+        donorName: userData?.displayName || userEmail || 'Unknown Donor',
+        donorEmail: userEmail || '',
+        nonprofitAdminId: campaignData.createdBy,
+        amount: 0, // Initial amount, to be set later
+        donationType: 'equity',
+        status: 'pending', // Pending until donor provides commitment details
+        message: invitationData.message || '',
+        isAnonymous: false,
+
+        // Equity-specific fields
+        commitmentDetails: {
+          donorOrganizationId: donorOrganizationId,
+          donorOrganizationName: donorOrganizationName,
+          estimatedValue: 0
+        },
+        requiresAppraisal: true,
+        appraiserId: null,
+        appraiserEmail: null,
+        appraisalStatus: 'pending', // Pending appraisal assignment
+
+        // Timestamps
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        completedAt: null,
+
+        // Organization context
+        organizationId: campaignData.organizationId,
+        organizationName: campaignData.organizationName,
+
+        // Metadata
         invitationId: invitationDoc.id,
         inviterUserId: invitationData.inviterUserId,
-        metadata: {
-          invitedEmail: invitationData.invitedEmail,
-          inviterName: invitationData.inviterName
-        },
-        createdAt: new Date(),
-        updatedAt: new Date()
+        invitedVia: 'invitation'
+      }
+
+      console.log('Creating donation record:', {
+        donationId: donationRef.id,
+        campaignId: invitationData.campaignId,
+        donorId: decodedToken.uid,
+        status: 'pending'
       })
+
+      batch.set(donationRef, donationData)
+
+      // Create initial tasks for the donation workflow with donationId field (12 tasks total)
+      const tasksToCreate = [
+        // Task 1: Donor Sign NDA
+        {
+          id: `${donationId}_donor_sign_nda`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: decodedToken.uid,
+          assignedRole: 'donor',
+          title: 'Donor: Sign NDA',
+          description: 'Review and digitally sign the Non-Disclosure Agreement before proceeding with the donation process.',
+          type: 'docusign_signature',
+          status: 'pending',
+          priority: 'high',
+          order: 1,
+          dependencies: [],
+          metadata: {
+            documentPath: '/public/nda-general.pdf',
+            documentName: 'General NDA',
+            envelopeId: null,
+            signedAt: null,
+            signingUrl: null,
+            automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 2: NonProfit Sign NDA
+        {
+          id: `${donationId}_nonprofit_sign_nda`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: campaignData.createdBy,
+          assignedRole: 'nonprofit_admin',
+          title: 'NonProfit: Sign NDA',
+          description: 'Review and digitally sign the Non-Disclosure Agreement for this donation.',
+          type: 'docusign_signature',
+          status: 'blocked',
+          priority: 'high',
+          order: 2,
+          dependencies: [`${donationId}_donor_sign_nda`],
+          metadata: {
+            documentPath: '/public/nda-general.pdf',
+            documentName: 'General NDA',
+            envelopeId: null,
+            signedAt: null,
+            signingUrl: null,
+            automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 3: Donor Invite Appraiser
+        {
+          id: `${donationId}_invite_appraiser`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: decodedToken.uid,
+          assignedRole: 'donor',
+          title: 'Donor: Invite Appraiser or AI Appraisal',
+          description: 'Choose your preferred appraisal method: invite a professional appraiser or use our AI-powered appraisal service.',
+          type: 'invitation',
+          status: 'blocked',
+          priority: 'high',
+          order: 3,
+          dependencies: [`${donationId}_nonprofit_sign_nda`],
+          metadata: {
+            invitationType: 'appraiser',
+            role: 'appraiser'
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 4: Appraiser Sign NDA
+        {
+          id: `${donationId}_appraiser_sign_nda`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: null,
+          assignedRole: 'appraiser',
+          title: 'Appraiser: Sign NDA',
+          description: 'Review and digitally sign the Non-Disclosure Agreement to access donor information.',
+          type: 'docusign_signature',
+          status: 'blocked',
+          priority: 'high',
+          order: 4,
+          dependencies: [`${donationId}_invite_appraiser`],
+          metadata: {
+            documentPath: '/public/nda-appraiser.pdf',
+            documentName: 'Appraiser NDA',
+            envelopeId: null,
+            signedAt: null,
+            signingUrl: null,
+            automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 5: Donor Upload Company Information
+        {
+          id: `${donationId}_donor_upload_company_info`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: decodedToken.uid,
+          assignedRole: 'donor',
+          title: 'Donor: Upload Company Information',
+          description: 'Upload your company information and financial documents for the appraisal process.',
+          type: 'document_upload',
+          status: 'blocked',
+          priority: 'high',
+          order: 5,
+          dependencies: [`${donationId}_appraiser_sign_nda`],
+          metadata: {
+            documentTypes: ['company_info', 'financial_statements'],
+            uploadRole: 'donor',
+            requiresApproval: false
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 6: NonProfit Upload Document
+        {
+          id: `${donationId}_nonprofit_upload`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: campaignData.createdBy,
+          assignedRole: 'nonprofit_admin',
+          title: 'NonProfit: Upload Documents',
+          description: 'Upload donation agreements and nonprofit documentation.',
+          type: 'document_upload',
+          status: 'blocked',
+          priority: 'high',
+          order: 6,
+          dependencies: [`${donationId}_donor_upload_company_info`],
+          metadata: {
+            documentTypes: ['donation_agreement', 'nonprofit_docs'],
+            uploadRole: 'nonprofit',
+            requiresApproval: false
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 7: Appraiser Upload Documents
+        {
+          id: `${donationId}_appraiser_upload`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: null,
+          assignedRole: 'appraiser',
+          title: 'Appraiser: Upload Documents',
+          description: 'Upload appraisal documents and valuation reports.',
+          type: 'document_upload',
+          status: 'blocked',
+          priority: 'high',
+          order: 7,
+          dependencies: [`${donationId}_nonprofit_upload`],
+          metadata: {
+            documentTypes: ['appraisal_report', 'valuation_documents'],
+            uploadRole: 'appraiser',
+            requiresApproval: false
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 8: Donor Review Documents
+        {
+          id: `${donationId}_donor_review`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: decodedToken.uid,
+          assignedRole: 'donor',
+          title: 'Donor: Review Documents',
+          description: 'Review documents uploaded by the nonprofit and appraiser.',
+          type: 'document_review',
+          status: 'blocked',
+          priority: 'high',
+          order: 8,
+          dependencies: [`${donationId}_appraiser_upload`],
+          metadata: {
+            reviewRoles: ['nonprofit', 'appraiser'],
+            reviewTaskIds: [`${donationId}_nonprofit_upload`, `${donationId}_appraiser_upload`],
+            approvalRequired: true,
+            automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 9: Donor Commitment Decision
+        {
+          id: `${donationId}_commitment_decision`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: decodedToken.uid,
+          assignedRole: 'donor',
+          title: 'Donor: Commitment',
+          description: 'Choose when you want to make your donation commitment: now or after appraisal.',
+          type: 'commitment_decision',
+          status: 'blocked',
+          priority: 'high',
+          order: 9,
+          dependencies: [`${donationId}_donor_review`],
+          metadata: {
+            options: [
+              {
+                id: 'commit_now',
+                label: 'Make Commitment Now',
+                description: 'I\'m ready to commit to a donation amount now and proceed with the workflow.'
+              },
+              {
+                id: 'commit_after_appraisal',
+                label: 'Make Commitment After Appraisal',
+                description: 'I want to see the appraisal results before making my commitment decision.'
+              }
+            ],
+            campaignTitle: campaignData.title,
+            organizationName: campaignData.organizationName
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 10: Donor Sign Document
+        {
+          id: `${donationId}_donor_sign_document`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: decodedToken.uid,
+          assignedRole: 'donor',
+          title: 'Donor: Sign Donation Agreement',
+          description: 'Review and digitally sign the final donation agreement.',
+          type: 'docusign_signature',
+          status: 'blocked',
+          priority: 'high',
+          order: 10,
+          dependencies: [`${donationId}_commitment_decision`],
+          metadata: {
+            documentPath: '/public/nda-general.pdf',
+            documentName: 'Donation Agreement',
+            envelopeId: null,
+            signedAt: null,
+            signingUrl: null,
+            automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 11: NonProfit Review Documents
+        {
+          id: `${donationId}_nonprofit_review`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: campaignData.createdBy,
+          assignedRole: 'nonprofit_admin',
+          title: 'NonProfit: Review Documents',
+          description: 'Review documents uploaded by the donor and appraiser.',
+          type: 'document_review',
+          status: 'blocked',
+          priority: 'high',
+          order: 11,
+          dependencies: [`${donationId}_donor_sign_document`],
+          metadata: {
+            reviewRoles: ['donor', 'appraiser'],
+            reviewTaskIds: [`${donationId}_donor_upload_company_info`, `${donationId}_appraiser_upload`],
+            approvalRequired: true,
+            automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        },
+        // Task 12: NonProfit Sign Document
+        {
+          id: `${donationId}_nonprofit_sign_document`,
+          donationId: donationId,
+          campaignId: invitationData.campaignId,
+          donorId: decodedToken.uid,
+          assignedTo: campaignData.createdBy,
+          assignedRole: 'nonprofit_admin',
+          title: 'NonProfit: Sign Donation Agreement',
+          description: 'Review and digitally sign the final donation agreement.',
+          type: 'docusign_signature',
+          status: 'blocked',
+          priority: 'high',
+          order: 12,
+          dependencies: [`${donationId}_nonprofit_review`],
+          metadata: {
+            documentPath: '/public/nda-general.pdf',
+            documentName: 'Donation Agreement',
+            envelopeId: null,
+            signedAt: null,
+            signingUrl: null,
+            automatedReminders: true
+          },
+          comments: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: decodedToken.uid
+        }
+      ]
+
+      // Add all tasks to the batch
+      for (const task of tasksToCreate) {
+        const taskRef = adminDb.collection('tasks').doc(task.id)
+        batch.set(taskRef, task)
+      }
 
       // Execute batch
       await batch.commit()
-      console.log('Successfully updated invitation and created participant record:', invitationDoc.id)
+      console.log('Successfully updated invitation and created donation record with tasks:', {
+        invitationId: invitationDoc.id,
+        donationId: donationRef.id,
+        userId: decodedToken.uid,
+        tasksCreated: tasksToCreate.length
+      })
 
-      // Create the full 9-step task workflow for the participant
-      try {
-        const participantId = `${invitationData.campaignId}_${decodedToken.uid}`
-        
-        // Use the task creation API endpoint to create the full workflow
-        const createTasksUrl = `${request.url.split('/api/')[0]}/api/campaign-participants/create-tasks`
-        const taskCreationResponse = await fetch(createTasksUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authHeader.split('Bearer ')[1]}`
-          },
-          body: JSON.stringify({
-            campaignId: invitationData.campaignId,
-            participantId: participantId
-          })
-        })
-
-        if (taskCreationResponse.ok) {
-          const taskResult = await taskCreationResponse.json()
-          console.log('Successfully created full task workflow for participant:', participantId, 'Tasks:', taskResult.tasksCreated)
-        } else {
-          const taskError = await taskCreationResponse.text()
-          console.error('Failed to create full task workflow:', taskError)
-        }
-      } catch (taskError) {
-        console.error('Error creating initial tasks:', taskError)
-        // Don't fail the invitation acceptance if task creation fails
+      // Verify donation was created
+      const verifyDonation = await donationRef.get()
+      if (verifyDonation.exists) {
+        console.log('Verified donation record exists:', verifyDonation.data())
+      } else {
+        console.error('WARNING: Donation record was not created!')
       }
     } catch (updateError) {
       console.error('Error updating invitation or creating participant record:', updateError)
@@ -171,9 +586,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Invitation accepted successfully',
+      requiresTokenRefresh: !currentRole, // Let client know to refresh token if role was just set
       data: {
         campaignId: invitationData.campaignId,
-        participantId: `${invitationData.campaignId}_${decodedToken.uid}`,
+        donationId: donationId,
         donorId: decodedToken.uid
       }
     })

@@ -11,18 +11,20 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.split('Bearer ')[1]
     await adminAuth.verifyIdToken(token)
-    
-    const { participantId } = await request.json()
 
-    if (!participantId) {
+    const { participantId, donationId } = await request.json()
+    const effectiveId = participantId || donationId
+
+    if (!effectiveId) {
       return NextResponse.json(
-        { error: 'Participant ID is required' },
+        { error: 'Participant ID or Donation ID is required' },
         { status: 400 }
       )
     }
 
-    // Get all tasks for this participant
-    const tasksQuery = adminDb.collection('tasks').where('participantId', '==', participantId)
+    // Get all tasks for this participant or donation
+    const queryField = participantId ? 'participantId' : 'donationId'
+    const tasksQuery = adminDb.collection('tasks').where(queryField, '==', effectiveId)
     const tasksSnapshot = await tasksQuery.get()
     
     const tasks = tasksSnapshot.docs.map(doc => ({
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
       completedAt: doc.data().completedAt?.toDate?.().toISOString() || null,
     }))
 
-    console.log(`Refreshed ${tasks.length} tasks for participant ${participantId}`)
+    console.log(`Refreshed ${tasks.length} tasks for ${queryField} ${effectiveId}`)
 
     return NextResponse.json({
       success: true,

@@ -12,8 +12,8 @@ import {
   where,
   orderBy,
   getDocs,
-  limit
-
+  updateDoc,
+  Timestamp
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import { createCampaignInvitation, getCampaignInvitations } from '@/lib/firebase/invitations'
@@ -39,7 +39,9 @@ import {
   Clock,
   UserPlus,
   X,
-  Send
+  Send,
+  CheckCircle2,
+  ChevronDown
 } from 'lucide-react'
 
 
@@ -59,6 +61,13 @@ interface CampaignParticipant {
   }
 }
 
+interface CampaignTask {
+  id: string
+  title: string
+  description: string
+  status: 'not_started' | 'in_progress' | 'complete'
+}
+
 export default function CampaignDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -69,9 +78,89 @@ export default function CampaignDetailPage() {
   const [, setInvitations] = useState<unknown[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<CampaignInvitation[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'donations' | 'marketing' | 'team' | 'pending'>('donations')
+  const [activeTab, setActiveTab] = useState<'tasks' | 'donations' | 'marketing' | 'team' | 'pending'>('tasks')
   const [shareUrl, setShareUrl] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [campaignTasks, setCampaignTasks] = useState<CampaignTask[]>([])
+
+  // Load campaign tasks from Firestore
+  useEffect(() => {
+    if (!params.id || !userProfile?.uid || !user) return
+
+    const fetchCampaignTasks = async () => {
+      try {
+        const token = await user.getIdToken()
+        const response = await fetch('/api/tasks/completion', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        const result = await response.json()
+        if (result.success) {
+          const campaignKey = params.id as string
+          const campaignCompletions = result.completions.campaigns?.[campaignKey] || {}
+
+          const tasks: CampaignTask[] = [
+            {
+              id: 'marketing',
+              title: 'Create Marketing Materials',
+              description: 'Set up your campaign description, images, and story to attract donors. Visit the Marketing tab to add your campaign details.',
+              status: (campaignCompletions['marketing'] as 'not_started' | 'in_progress' | 'complete') || 'not_started'
+            },
+            {
+              id: 'team',
+              title: 'Invite Internal Team Members',
+              description: 'Add team members from your organization to help manage this campaign. Visit the Team tab to invite collaborators.',
+              status: (campaignCompletions['team'] as 'not_started' | 'in_progress' | 'complete') || 'not_started'
+            },
+            {
+              id: 'donors',
+              title: 'Invite Donors',
+              description: 'Start inviting potential donors to your campaign. They will receive an invitation to participate and contribute.',
+              status: (campaignCompletions['donors'] as 'not_started' | 'in_progress' | 'complete') || 'not_started'
+            }
+          ]
+
+          setCampaignTasks(tasks)
+        }
+      } catch (error) {
+        console.error('Error fetching campaign tasks:', error)
+      }
+    }
+
+    fetchCampaignTasks()
+  }, [params.id, userProfile?.uid, user])
+
+  const handleSetCampaignTaskStatus = async (taskId: string, newStatus: 'not_started' | 'in_progress' | 'complete') => {
+    if (!userProfile?.uid || !user) return
+
+    // Update state immediately
+    setCampaignTasks(prev => prev.map(t =>
+      t.id === taskId ? { ...t, status: newStatus } : t
+    ))
+
+    // Save to Firestore
+    try {
+      const token = await user.getIdToken()
+      await fetch('/api/tasks/completion', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          taskType: 'campaign',
+          campaignId: params.id,
+          taskId,
+          status: newStatus
+        })
+      })
+    } catch (error) {
+      console.error('Error updating task status:', error)
+    }
+  }
 
   const fetchCampaignDetails = useCallback(async () => {
     if (!params.id) return
@@ -99,7 +188,6 @@ export default function CampaignDetailPage() {
           currentAmount: data.raised || data.currentAmount || 0,
           donorCount: data.donorCount || 0,
           status: data.status,
-          category: data.category || 'General',
           organizationId: data.organizationId,
           organizationName: data.organizationName || '',
           createdBy: data.createdBy,
@@ -190,149 +278,25 @@ export default function CampaignDetailPage() {
   const fetchParticipants = useCallback(async (donationData: Donation[] = donations) => {
     if (!params.id) return
 
-    // Looking for campaign participants
-
     try {
-      // First test basic access
-      // Testing basic collection access
-      try {
-        const testQuery = query(
-          collection(db, 'campaign_participants'),
-          limit(1)
-        )
-        await getDocs(testQuery)
-        // Basic access test successful
-      } catch (basicError) {
-        console.error('fetchParticipants: Basic access test failed:', basicError)
-        const basicErr = basicError as { code?: string; message?: string }
-        console.error('fetchParticipants: Error code:', basicErr?.code)
-        console.error('fetchParticipants: Error message:', basicErr?.message)
-      }
-
-      // Fetch campaign_participants for this campaign (donors only)
-      let participantsQuery = query(
-        collection(db, 'campaign_participants'),
-        where('campaignId', '==', params.id),
-        where('userRole', '==', 'donor'),
-        orderBy('joinedAt', 'desc')
-      )
-
-      // Executing query with where + orderBy
-      let snapshot
-      
-      try {
-        snapshot = await getDocs(participantsQuery)
-      } catch (indexError) {
-        console.error('fetchParticipants: OrderBy failed, trying without...', indexError)
-        console.error('fetchParticipants: Error details:', {
-          code: (indexError as { code?: string })?.code,
-          message: (indexError as Error)?.message,
-          name: (indexError as Error)?.name
-        })
-        
-        // Fallback without orderBy
-        participantsQuery = query(
-          collection(db, 'campaign_participants'),
-          where('campaignId', '==', params.id),
-          where('userRole', '==', 'donor')
-        )
-        
-        // Trying simple where query
-        snapshot = await getDocs(participantsQuery)
-      }
-      
-      // Found campaign_participants
-      
-      const participantData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        joinedAt: doc.data().joinedAt?.toDate() || new Date(),
-      })) as Array<{
-        id: string
-        userId: string
-        invitedEmail: string
-        inviterName: string
-        status: string
-        joinedAt: Date
-        [key: string]: unknown
-      }>
-
-      // Fetch user data for all participants to get proper names
-      const userIds = participantData.map(p => p.userId).filter(Boolean)
-      const userDataMap = new Map()
-      
-      // Processing participant data
-      
-      if (userIds.length > 0) {
-        try {
-          // Fetching user data
-          const usersQuery = query(
-            collection(db, 'users'),
-            where('__name__', 'in', userIds)
-          )
-          const usersSnapshot = await getDocs(usersQuery)
-          // Found user documents
-          
-          usersSnapshot.docs.forEach(doc => {
-            const userData = doc.data()
-            // Processing user
-            userDataMap.set(doc.id, {
-              name: userData.displayName || userData.firstName + ' ' + userData.lastName || userData.email?.split('@')[0] || 'User',
-              email: userData.email
-            })
-          })
-          // User data map processed
-        } catch (userError) {
-          console.error('fetchParticipants: Error fetching user data:', userError)
+      // Build participants directly from donations - no need for campaign_participants collection
+      const fullParticipants: CampaignParticipant[] = donationData.map(donation => {
+        return {
+          userId: donation.donorId,
+          donorName: donation.donorName || 'Unknown Donor',
+          donorEmail: donation.donorEmail || 'Unknown Email',
+          participantId: donation.id, // Use donation ID as participant ID
+          joinedAt: donation.createdAt,
+          status: 'active' as const,
+          hasDonation: true,
+          donation: donation,
+          taskProgress: {
+            total: 0,
+            completed: 0
+          }
         }
-      }
+      })
 
-      // Create full participant objects with donation info if available
-      const fullParticipants: CampaignParticipant[] = participantData
-        .filter(participant => {
-          // Filter out participants with missing or invalid userId
-          if (!participant.userId) {
-            console.log('fetchParticipants: Filtering out participant with no userId:', participant.id)
-            return false
-          }
-          
-          // Check if we found user data for this participant
-          const userData = userDataMap.get(participant.userId)
-          if (!userData) {
-            console.log('fetchParticipants: No user data found for userId:', participant.userId, 'participant:', participant.id, '- filtering out')
-            return false // Filter out participants with no valid user data
-          }
-          
-          return true
-        })
-        .map(participant => {
-          // Map from your database fields to our interface
-          const userId = participant.userId
-          const donation = donationData.find(d => d.donorId === userId)
-          const userData = userDataMap.get(userId)
-          
-          console.log('fetchParticipants: Creating participant for userId:', userId, 'userData:', userData)
-          
-          // Determine status based on participant record and donation existence
-          const participantStatus = donation ? 'completed' : 'active'
-          
-          return {
-            userId: userId,
-            donorName: userData?.name || participant.invitedEmail?.split('@')[0] || 'Unknown User',
-            donorEmail: userData?.email || participant.invitedEmail || 'Unknown Email',
-            participantId: participant.id, // Use document ID as participantId
-            joinedAt: participant.joinedAt,
-            status: participantStatus as "active" | "completed",
-            hasDonation: !!donation,
-            donation: donation,
-            taskProgress: {
-              total: 0,
-              completed: 0
-            }
-          }
-        })
-
-      // Created participants
       setParticipants(fullParticipants)
     } catch (error) {
       console.error('fetchParticipants: Error fetching participants:', error)
@@ -529,7 +493,10 @@ export default function CampaignDetailPage() {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                  <button className="inline-flex items-center space-x-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium border border-gray-300 rounded-lg transition-colors duration-200">
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium border border-gray-300 rounded-lg transition-colors duration-200"
+                  >
                     <Edit3 className="w-4 h-4" />
                     <span>Edit Campaign</span>
                   </button>
@@ -563,8 +530,9 @@ export default function CampaignDetailPage() {
             <div className="border-b border-gray-200">
               <nav className="flex space-x-8 px-6">
                 {[
-                  { id: 'donations', name: 'Campaign Donors', icon: Users },
-                  { id: 'pending', name: 'Pending Invitations', icon: Clock },
+                  { id: 'tasks', name: 'Tasks', icon: CheckCircle },
+                  { id: 'donations', name: 'Donation Projects', icon: Users },
+                  { id: 'pending', name: 'Pending Donor Invitations', icon: Clock },
                   { id: 'marketing', name: 'Marketing', icon: Share2 },
                   { id: 'team', name: 'Team', icon: Heart },
                 ].map((tab) => {
@@ -597,6 +565,155 @@ export default function CampaignDetailPage() {
             </div>
 
             <div className="p-6">
+              {activeTab === 'tasks' && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                    Campaign Setup Tasks
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Complete these tasks to get your campaign ready for donors.
+                  </p>
+
+                  {/* Progress Overview */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900">Setup Progress</h4>
+                      <span className="text-2xl font-bold text-blue-600">
+                        {campaignTasks.filter(t => t.status === 'complete').length}/{campaignTasks.length}
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                      <div
+                        className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+                        style={{
+                          width: `${campaignTasks.length > 0 ? (campaignTasks.filter(t => t.status === 'complete').length / campaignTasks.length) * 100 : 0}%`
+                        }}
+                      ></div>
+                    </div>
+
+                    <p className="text-sm text-gray-600">
+                      {campaignTasks.filter(t => t.status === 'complete').length === campaignTasks.length
+                        ? "🎉 Great job! You've completed all setup tasks. Your campaign is ready to receive donors!"
+                        : `${campaignTasks.length - campaignTasks.filter(t => t.status === 'complete').length} task${campaignTasks.length - campaignTasks.filter(t => t.status === 'complete').length === 1 ? '' : 's'} remaining to complete your campaign setup.`
+                      }
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {campaignTasks.map((task, index) => (
+                      <div
+                        key={task.id}
+                        className={`border rounded-lg p-6 transition-all duration-200 ${
+                          task.status === 'complete' ? 'border-green-200 bg-green-50' :
+                          task.status === 'in_progress' ? 'border-blue-200 bg-blue-50' :
+                          'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-3 flex-1">
+                            {/* Number Badge */}
+                            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                              task.status === 'complete' ? 'bg-green-600' :
+                              task.status === 'in_progress' ? 'bg-blue-600' :
+                              'bg-gray-300'
+                            }`}>
+                              {task.status === 'complete' ? (
+                                <CheckCircle2 className="w-5 h-5 text-white" />
+                              ) : task.status === 'in_progress' ? (
+                                <Clock className="w-5 h-5 text-white" />
+                              ) : (
+                                <span className="text-sm font-semibold text-gray-600">{index + 1}</span>
+                              )}
+                            </div>
+
+                            {/* Task Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h4 className={`text-lg font-semibold ${
+                                  task.status === 'complete' ? 'text-green-900 line-through' : 'text-gray-900'
+                                }`}>
+                                  {task.title}
+                                </h4>
+                                {task.status === 'in_progress' && (
+                                  <Badge variant="info" size="sm">In Progress</Badge>
+                                )}
+                                {task.status === 'complete' && (
+                                  <Badge variant="success" size="sm">Complete</Badge>
+                                )}
+                              </div>
+                              <p className="text-gray-600 mb-4">
+                                {task.description}
+                              </p>
+
+                              {/* Action Buttons */}
+                              <div className="flex items-center space-x-3">
+                                {task.status !== 'complete' && (
+                                  <>
+                                    {index === 0 && (
+                                      <button
+                                        onClick={() => setActiveTab('marketing')}
+                                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                                      >
+                                        <Share2 className="w-4 h-4" />
+                                        <span>Go to Marketing</span>
+                                      </button>
+                                    )}
+                                    {index === 1 && (
+                                      <button
+                                        onClick={() => setActiveTab('team')}
+                                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                                      >
+                                        <Heart className="w-4 h-4" />
+                                        <span>Go to Team</span>
+                                      </button>
+                                    )}
+                                    {index === 2 && (
+                                      <button
+                                        onClick={() => setShowInviteModal(true)}
+                                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+                                      >
+                                        <UserPlus className="w-4 h-4" />
+                                        <span>Invite Donors</span>
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Status Dropdown */}
+                          <div className="flex-shrink-0 ml-4">
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Status
+                            </label>
+                            <div className="relative">
+                              <select
+                                value={task.status}
+                                onChange={(e) => handleSetCampaignTaskStatus(task.id, e.target.value as 'not_started' | 'in_progress' | 'complete')}
+                                className={`appearance-none w-full px-3 py-2 pr-8 text-sm font-medium rounded-lg border transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                  task.status === 'complete'
+                                    ? 'bg-green-50 text-green-700 border-green-300'
+                                    : task.status === 'in_progress'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                    : 'bg-gray-50 text-gray-700 border-gray-300'
+                                }`}
+                              >
+                                <option value="not_started">Not Started</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="complete">Complete</option>
+                              </select>
+                              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'donations' && (
                 <div>
                   <div className="flex items-center justify-between mb-6">
@@ -606,7 +723,7 @@ export default function CampaignDetailPage() {
                     <div className="flex items-center space-x-4">
                       <button
                         onClick={() => setShowInviteModal(true)}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
                       >
                         <UserPlus className="w-4 h-4" />
                         <span>Invite Donors</span>
@@ -725,12 +842,12 @@ export default function CampaignDetailPage() {
                     <div className="flex items-center space-x-4">
                       <button
                         onClick={() => setShowInviteModal(true)}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
                       >
                         <UserPlus className="w-4 h-4" />
                         <span>Send New Invitation</span>
                       </button>
-                      <button 
+                      <button
                         onClick={fetchPendingInvitations}
                         className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
                       >
@@ -750,7 +867,7 @@ export default function CampaignDetailPage() {
                       <div className="mt-6">
                         <button
                           onClick={() => setShowInviteModal(true)}
-                          className="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                          className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
                         >
                           <UserPlus className="w-4 h-4" />
                           <span>Send First Invitation</span>
@@ -961,8 +1078,153 @@ export default function CampaignDetailPage() {
             />
           </div>
         )}
+
+        {/* Edit Campaign Modal */}
+        {showEditModal && campaign && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-black/50"
+              onClick={() => setShowEditModal(false)} />
+            <EditCampaignModal
+              campaign={campaign}
+              onClose={() => setShowEditModal(false)}
+              onSuccess={() => {
+                setShowEditModal(false)
+                fetchCampaignDetails()
+              }}
+            />
+          </div>
+        )}
       </div>
     </NonprofitAdminRoute>
+  )
+}
+
+// Edit Campaign Modal Component
+function EditCampaignModal({
+  campaign,
+  onClose,
+  onSuccess
+}: {
+  campaign: Campaign
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [formData, setFormData] = useState({
+    title: campaign.title,
+    description: campaign.description,
+    goal: campaign.goal.toString(),
+    status: campaign.status,
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+
+    try {
+      await updateDoc(doc(db, 'campaigns', campaign.id), {
+        title: formData.title,
+        description: formData.description,
+        goal: parseInt(formData.goal),
+        status: formData.status,
+        updatedAt: Timestamp.now(),
+      })
+      onSuccess()
+    } catch (error) {
+      secureLogger.error('Error updating campaign', error, { campaignId: campaign.id })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative z-10 transform transition-all">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">Edit Campaign</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Campaign Title
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              rows={4}
+              required
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Funding Goal ($)
+              </label>
+              <input
+                type="number"
+                required
+                min="1"
+                value={formData.goal}
+                onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Status
+              </label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as Campaign['status'] }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+    </div>
   )
 }
 
@@ -1137,7 +1399,7 @@ function InviteModal({
           <button
             type="submit"
             disabled={sending}
-            className="inline-flex items-center space-x-2 px-6 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
+            className="inline-flex items-center space-x-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-200"
           >
             {sending ? (
               <>

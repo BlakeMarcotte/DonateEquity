@@ -3,7 +3,7 @@ import { verifyAuth } from '@/lib/auth/verify-auth'
 import { adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import { docuSignClient } from '@/lib/docusign/simple-client'
-import { uploadDonationBufferAdmin } from '@/lib/firebase/storage-admin'
+import { uploadParticipantBufferAdmin } from '@/lib/firebase/storage-admin'
 import { secureLogger } from '@/lib/logging/secure-logger'
 
 export async function POST(request: NextRequest) {
@@ -94,9 +94,9 @@ export async function POST(request: NextRequest) {
         // Try to download and store the signed document
         try {
           const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(envelopeId)
-          
-          const uploadResult = await uploadDonationBufferAdmin(
-            `participants/${participantId}`,
+
+          const uploadResult = await uploadParticipantBufferAdmin(
+            participantId,
             'signed-documents',
             documentBuffer,
             `signed-nda-${envelopeId}.pdf`,

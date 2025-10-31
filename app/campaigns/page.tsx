@@ -2,8 +2,8 @@
 
 import { NonprofitAdminRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   collection, 
   query, 
@@ -23,17 +23,32 @@ import {
   Plus,
   Eye,
   Edit3,
-  MoreVertical,
   Target,
   Calendar,
   TrendingUp,
   X,
   DollarSign
 } from 'lucide-react'
+import { formatCurrencyInput, cleanCurrencyInput } from '@/lib/utils/formatters'
 
 
+// Main component wrapper with Suspense
 export default function CampaignsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <CampaignsContent />
+    </Suspense>
+  )
+}
+
+// Content component that uses useSearchParams
+function CampaignsContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { userProfile, customClaims } = useAuth()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,6 +95,20 @@ export default function CampaignsPage() {
     }
   }, [customClaims?.organizationId, fetchCampaigns])
 
+  // Handle edit query parameter to auto-open edit modal
+  useEffect(() => {
+    const editCampaignId = searchParams.get('edit')
+    if (editCampaignId && campaigns.length > 0) {
+      const campaignToEdit = campaigns.find(c => c.id === editCampaignId)
+      if (campaignToEdit) {
+        setSelectedCampaign(campaignToEdit)
+        setShowEditModal(true)
+        // Clear the query parameter after opening the modal
+        router.replace('/campaigns', { scroll: false })
+      }
+    }
+  }, [searchParams, campaigns, router])
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -124,14 +153,11 @@ export default function CampaignsPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="py-6">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Heart className="h-8 w-8 text-blue-600" />
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Campaigns</h1>
-                    <p className="mt-1 text-sm text-gray-600">
-                      Create and manage your fundraising campaigns
-                    </p>
-                  </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">Campaigns</h1>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Create and manage your fundraising campaigns
+                  </p>
                 </div>
                 
                 <button
@@ -222,68 +248,36 @@ export default function CampaignsPage() {
             ) : (
               <div className="divide-y divide-gray-200">
                 {campaigns.map((campaign) => (
-                  <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors duration-200 cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div 
-                        className="flex-1"
-                        onClick={() => router.push(`/campaigns/${campaign.id}`)}
-                      >
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors duration-200">
-                            {campaign.title}
-                          </h3>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(campaign.status)}`}>
-                            {campaign.status}
-                          </span>
-                        </div>
-                        
-                        <p className="text-gray-600 mb-4 line-clamp-2">
-                          {campaign.description}
-                        </p>
+                  <div
+                    key={campaign.id}
+                    onClick={() => router.push(`/campaigns/${campaign.id}`)}
+                    className="p-6 hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
+                  >
+                    {/* Header with Title, Status, and Button */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {campaign.title}
+                        </h3>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(campaign.status)}`}>
+                          {campaign.status}
+                        </span>
 
-                        {/* Progress Bar */}
-                        <div className="mb-3">
-                          <div className="flex justify-between text-sm text-gray-600 mb-1">
-                            <span>Progress</span>
-                            <span>{Math.round(getProgressPercentage(campaign.currentAmount || 0, campaign.goal))}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${getProgressPercentage(campaign.currentAmount || 0, campaign.goal)}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-6 text-sm text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <DollarSign className="w-4 h-4" />
-                            <span>
-                              {formatCurrency(campaign.currentAmount || 0)} of {formatCurrency(campaign.goal)}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>Created {campaign.createdAt.toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div 
-                        className="flex items-center space-x-2 ml-6"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button 
+                        {/* Explore Campaign Button */}
+                        <button
                           onClick={(e) => {
                             e.stopPropagation()
                             router.push(`/campaigns/${campaign.id}`)
                           }}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                          title="View Campaign Details"
+                          className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200"
                         >
                           <Eye className="w-4 h-4" />
+                          <span>Explore Campaign</span>
                         </button>
-                        <button 
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <button
                           onClick={(e) => {
                             e.stopPropagation()
                             setSelectedCampaign(campaign)
@@ -294,13 +288,55 @@ export default function CampaignsPage() {
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
                       </div>
+                    </div>
+
+                    {/* Campaign Content */}
+                    <div>
+                      <p className="text-gray-600 mb-4 line-clamp-2">
+                        {campaign.description}
+                      </p>
+
+                      {/* Progress Bar */}
+                      <div className="mb-3">
+                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                          <span className="flex items-center space-x-1">
+                            <DollarSign className="w-4 h-4" />
+                            <span>{formatCurrency(campaign.currentAmount || 0)} raised</span>
+                          </span>
+                          <span className="font-medium">{formatCurrency(campaign.goal)} goal</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div
+                            className="bg-green-600 h-2.5 rounded-full transition-all duration-300"
+                            style={{ width: `${getProgressPercentage(campaign.currentAmount || 0, campaign.goal)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-6 text-sm text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>Created {campaign.createdAt.toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                      {/* Tasks Reminder Banner */}
+                      {campaign.status === 'draft' && (
+                        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                          <div className="flex items-start space-x-2">
+                            <div className="flex-shrink-0 mt-0.5">
+                              <svg className="w-5 h-5 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-amber-800">Campaign setup incomplete</p>
+                              <p className="text-sm text-amber-700 mt-0.5">Complete your campaign details to make it visible to donors</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -374,10 +410,14 @@ function CreateCampaignModal({
     description: '',
     goal: '',
     endDate: '',
-    category: '',
     status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   })
   const [saving, setSaving] = useState(false)
+
+  const handleGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyInput(e.target.value)
+    setFormData(prev => ({ ...prev, goal: formatted }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -396,14 +436,14 @@ function CreateCampaignModal({
         console.error('Error fetching organization:', orgError)
       }
 
+      const cleanedGoal = cleanCurrencyInput(formData.goal)
       const campaignData = {
         title: formData.title,
         description: formData.description,
-        goal: parseInt(formData.goal),
+        goal: parseInt(cleanedGoal),
         currentAmount: 0,
         donorCount: 0,
         status: formData.status,
-        category: formData.category,
         organizationId,
         organizationName,
         createdBy: userId,
@@ -474,16 +514,15 @@ function CreateCampaignModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Funding Goal ($)
+                Funding Goal
               </label>
               <input
-                type="number"
+                type="text"
                 required
-                min="1"
                 value={formData.goal}
-                onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
+                onChange={handleGoalChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="100000"
+                placeholder="$100,000"
               />
             </div>
 
@@ -498,33 +537,6 @@ function CreateCampaignModal({
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
-              </label>
-              <select
-                required
-                value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select a category</option>
-                <option value="Technology">Technology</option>
-                <option value="Education">Education</option>
-                <option value="Healthcare">Healthcare</option>
-                <option value="Environment">Environment</option>
-                <option value="Arts & Culture">Arts & Culture</option>
-                <option value="Community">Community</option>
-                <option value="Social Impact">Social Impact</option>
-                <option value="Research">Research</option>
-                <option value="Emergency Relief">Emergency Relief</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
           </div>
 
           <div>
@@ -581,23 +593,27 @@ function EditCampaignModal({
   const [formData, setFormData] = useState({
     title: campaign.title,
     description: campaign.description,
-    goal: campaign.goal.toString(),
+    goal: formatCurrencyInput(campaign.goal.toString()),
     status: campaign.status,
-    category: campaign.category || '',
   })
   const [saving, setSaving] = useState(false)
+
+  const handleGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyInput(e.target.value)
+    setFormData(prev => ({ ...prev, goal: formatted }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    
+
     try {
+      const cleanedGoal = cleanCurrencyInput(formData.goal)
       await updateDoc(doc(db, 'campaigns', campaign.id), {
         title: formData.title,
         description: formData.description,
-        goal: parseInt(formData.goal),
+        goal: parseInt(cleanedGoal),
         status: formData.status,
-        category: formData.category,
         updatedAt: Timestamp.now(),
       })
       onSuccess()
@@ -650,15 +666,15 @@ function EditCampaignModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Funding Goal ($)
+                Funding Goal
               </label>
               <input
-                type="number"
+                type="text"
                 required
-                min="1"
                 value={formData.goal}
-                onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
+                onChange={handleGoalChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="$100,000"
               />
             </div>
 
@@ -677,33 +693,6 @@ function EditCampaignModal({
                 <option value="completed">Completed</option>
               </select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
-              </label>
-              <select
-                required
-                value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select a category</option>
-                <option value="Technology">Technology</option>
-                <option value="Education">Education</option>
-                <option value="Healthcare">Healthcare</option>
-                <option value="Environment">Environment</option>
-                <option value="Arts & Culture">Arts & Culture</option>
-                <option value="Community">Community</option>
-                <option value="Social Impact">Social Impact</option>
-                <option value="Research">Research</option>
-                <option value="Emergency Relief">Emergency Relief</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
           </div>
 
           <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">

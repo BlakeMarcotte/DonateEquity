@@ -15,12 +15,14 @@ interface CompleteOrganizationModalProps {
   onComplete?: () => void
 }
 
-export default function CompleteOrganizationModal({ 
-  isOpen, 
-  onClose, 
-  onComplete 
+export default function CompleteOrganizationModal({
+  isOpen,
+  onClose,
+  onComplete
 }: CompleteOrganizationModalProps) {
-  const { customClaims, userProfile } = useAuth()
+  const { customClaims, userProfile, user } = useAuth()
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  const [hasLoadedData, setHasLoadedData] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     taxId: '',
@@ -30,17 +32,17 @@ export default function CompleteOrganizationModal({
     state: ''
   })
 
-  const { 
-    loading, 
-    error, 
+  const {
+    loading,
+    error,
     success,
-    execute, 
-    reset 
+    execute,
+    reset
   } = useFormSubmission('Organization Update')
 
-  // Initialize form data when modal opens
+  // Initialize form data when modal opens - only load once
   useEffect(() => {
-    if (isOpen && customClaims?.organizationId && userProfile) {
+    if (isOpen && customClaims?.organizationId && userProfile && !hasLoadedData) {
       loadOrganizationData()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -49,6 +51,7 @@ export default function CompleteOrganizationModal({
   const loadOrganizationData = async () => {
     if (!customClaims?.organizationId || !userProfile) return
 
+    setIsLoadingData(true)
     try {
       const org = await getOrCreateOrganization(
         customClaims.organizationId,
@@ -64,16 +67,19 @@ export default function CompleteOrganizationModal({
           city: org.address?.city || '',
           state: org.address?.state || ''
         })
+        setHasLoadedData(true)
       }
       reset()
     } catch (error) {
       secureLogger.error('Error loading organization', error, { organizationId: customClaims?.organizationId })
+    } finally {
+      setIsLoadingData(false)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!customClaims?.organizationId) return
+    if (!customClaims?.organizationId || !userProfile) return
 
     const organizationId = customClaims.organizationId
     const result = await execute(async () => {
@@ -93,13 +99,64 @@ export default function CompleteOrganizationModal({
       }
 
       await updateOrganization(organizationId, cleanedData)
+
+      // Check if organization data is sufficiently complete to mark task as done
+      const isComplete = !!(
+        cleanedData.name &&
+        cleanedData.taxId &&
+        cleanedData.website &&
+        cleanedData.phone &&
+        cleanedData.address?.city &&
+        cleanedData.address?.state
+      )
+
+      secureLogger.info('Organization update completion check', {
+        isComplete,
+        hasName: !!cleanedData.name,
+        hasTaxId: !!cleanedData.taxId,
+        hasWebsite: !!cleanedData.website,
+        hasPhone: !!cleanedData.phone,
+        hasCity: !!cleanedData.address?.city,
+        hasState: !!cleanedData.address?.state
+      })
+
+      // Mark task as complete if all required fields are filled
+      if (isComplete && user) {
+        const token = await user.getIdToken()
+        const response = await fetch('/api/tasks/completion', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskType: 'onboarding',
+            taskId: 'organization',
+            status: 'complete'
+          })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          secureLogger.error('Failed to mark organization task as complete', new Error(errorData.error || 'API request failed'), {
+            status: response.status,
+            statusText: response.statusText
+          })
+          throw new Error('Failed to mark task as complete. Please try again.')
+        }
+
+        secureLogger.info('Organization task marked as complete successfully')
+      } else if (!isComplete) {
+        secureLogger.info('Organization task not marked complete - missing required fields')
+      }
+
       return { success: true }
     })
 
     if (result) {
       // Mark completion immediately to prevent re-opening
       onComplete?.()
-      
+
       // Wait a moment to show success state then close
       setTimeout(() => {
         handleClose()
@@ -109,14 +166,8 @@ export default function CompleteOrganizationModal({
 
   const handleClose = () => {
     if (loading) return
-    setFormData({
-      name: '',
-      taxId: '',
-      website: '',
-      phone: '',
-      city: '',
-      state: ''
-    })
+    // Don't reset form data - keep the last loaded values to prevent flicker on reopen
+    // The useEffect will update it when the modal reopens
     reset()
     onClose()
   }
@@ -136,20 +187,18 @@ export default function CompleteOrganizationModal({
     setFormData(prev => ({ ...prev, taxId: formatted }))
   }
 
-  const isFormValid = 
-    formData.name.trim().length > 0 &&
-    formData.taxId.trim().length > 0 &&
-    formData.website.trim().length > 0 &&
-    formData.phone.trim().length > 0 &&
-    formData.city.trim().length > 0 &&
-    formData.state.trim().length > 0
+  // Allow saving with any fields filled - no validation required
+  const isFormValid = true
+
+  // Don't render modal content until data is loaded
+  if (!isOpen) return null
 
   return (
     <FormModal
       isOpen={isOpen}
       onClose={handleClose}
       title="Complete Organization Information"
-      description="Please provide your organization's details to complete your profile."
+      description="Add your organization's details. You can save your progress at any time and complete this later."
       onSubmit={handleSubmit}
       loading={loading}
       loadingText="Updating Organization..."
@@ -159,10 +208,16 @@ export default function CompleteOrganizationModal({
       onSuccessClose={handleSuccessClose}
       error={error}
       submitDisabled={!isFormValid}
-      submitText="Update Organization"
+      submitText="Save Progress"
       maxWidth="lg"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {isLoadingData ? (
+        <div className="py-12 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading organization data...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
             <Building2 className="inline w-4 h-4 mr-1" />
@@ -176,7 +231,6 @@ export default function CompleteOrganizationModal({
             placeholder="Enter organization name"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
-            required
           />
         </div>
 
@@ -194,7 +248,6 @@ export default function CompleteOrganizationModal({
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
             maxLength={10}
-            required
           />
         </div>
 
@@ -212,7 +265,6 @@ export default function CompleteOrganizationModal({
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
             maxLength={14}
-            required
           />
         </div>
 
@@ -229,7 +281,6 @@ export default function CompleteOrganizationModal({
             placeholder="www.example.org"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
-            required
           />
         </div>
 
@@ -246,7 +297,6 @@ export default function CompleteOrganizationModal({
             placeholder="Enter city"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
-            required
           />
         </div>
 
@@ -263,10 +313,10 @@ export default function CompleteOrganizationModal({
             placeholder="Enter state"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             disabled={loading}
-            required
           />
         </div>
       </div>
+      )}
     </FormModal>
   )
 }

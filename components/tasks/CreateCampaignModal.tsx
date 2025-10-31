@@ -6,37 +6,37 @@ import { db } from '@/lib/firebase/config'
 import { FormModal } from '@/components/shared/FormModal'
 import { useFormSubmission } from '@/hooks/useAsyncOperation'
 import { secureLogger } from '@/lib/logging/secure-logger'
+import { formatCurrencyInput, cleanCurrencyInput } from '@/lib/utils/formatters'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface CreateCampaignModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (campaignId: string) => void
   organizationId: string
   userId: string
 }
 
-export default function CreateCampaignModal({ 
+export default function CreateCampaignModal({
   isOpen,
-  onClose, 
-  onSuccess, 
-  organizationId, 
-  userId 
+  onClose,
+  onSuccess,
+  organizationId,
+  userId
 }: CreateCampaignModalProps) {
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     goal: '',
-    endDate: '',
-    category: '',
     status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   })
   
-  const { 
-    loading: saving, 
-    error, 
-    success,
-    execute, 
-    reset 
+  const {
+    loading: saving,
+    error,
+    execute,
+    reset
   } = useFormSubmission('Campaign Creation')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,21 +63,24 @@ export default function CreateCampaignModal({
         secureLogger.error('Error fetching organization for campaign', orgError, { organizationId })
       }
 
+      // Parse the cleaned currency value (remove $ and commas)
+      const cleanedGoal = cleanCurrencyInput(formData.goal)
+      const goalAmount = parseInt(cleanedGoal)
+
       const campaignData = {
         title: formData.title,
         description: formData.description,
-        goal: parseInt(formData.goal),
+        goal: goalAmount,
         currentAmount: 0,
         donorCount: 0,
         status: formData.status,
-        category: formData.category,
         organizationId,
         organizationName,
         createdBy: userId,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
         startDate: Timestamp.now(),
-        endDate: formData.endDate ? Timestamp.fromDate(new Date(formData.endDate)) : null,
+        endDate: null,
         tags: [],
         images: {
           hero: '',
@@ -88,18 +91,32 @@ export default function CreateCampaignModal({
         }
       }
 
-      await addDoc(collection(db, 'campaigns'), campaignData)
-      return { campaignTitle: formData.title, goal: formData.goal }
+      const campaignRef = await addDoc(collection(db, 'campaigns'), campaignData)
+
+      // Mark task as complete since campaign was created
+      if (user) {
+        const token = await user.getIdToken()
+        await fetch('/api/tasks/completion', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskType: 'onboarding',
+            taskId: 'campaign',
+            status: 'complete'
+          })
+        })
+      }
+
+      return { campaignId: campaignRef.id, campaignTitle: formData.title, goal: formData.goal }
     })
 
     if (result) {
-      // Mark completion immediately to prevent re-opening
-      onSuccess()
-      
-      // Wait a moment to show success state then close
-      setTimeout(() => {
-        handleClose()
-      }, 1500)
+      // Navigate immediately without delay or celebration
+      handleClose()
+      onSuccess(result.campaignId)
     }
   }
 
@@ -109,38 +126,31 @@ export default function CreateCampaignModal({
       title: '',
       description: '',
       goal: '',
-      endDate: '',
-      category: '',
       status: 'draft',
     })
     reset()
     onClose()
   }
 
-  const handleSuccessClose = () => {
-    // Don't call onSuccess again as it was already called
-    handleClose()
+  const handleGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyInput(e.target.value)
+    setFormData(prev => ({ ...prev, goal: formatted }))
   }
 
-  const isFormValid = 
+  const isFormValid =
     formData.title.trim().length > 0 &&
     formData.description.trim().length > 0 &&
-    formData.goal.trim().length > 0 &&
-    formData.category.trim().length > 0
+    cleanCurrencyInput(formData.goal).length > 0
 
   return (
     <FormModal
       isOpen={isOpen}
       onClose={handleClose}
       title="Create New Campaign"
-      description="Set up your fundraising campaign with basic information."
+      description="All fields are required to create a campaign."
       onSubmit={handleSubmit}
       loading={saving}
       loadingText="Creating Campaign..."
-      success={success}
-      successTitle="Campaign Created!"
-      successMessage="Your campaign has been successfully created."
-      onSuccessClose={handleSuccessClose}
       error={error}
       submitDisabled={!isFormValid}
       submitText="Create Campaign"
@@ -149,7 +159,7 @@ export default function CreateCampaignModal({
       <div className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Campaign Title
+            Campaign Title <span className="text-red-600">*</span>
           </label>
           <input
             type="text"
@@ -164,7 +174,7 @@ export default function CreateCampaignModal({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Description
+            Description <span className="text-red-600">*</span>
           </label>
           <textarea
             rows={2}
@@ -177,60 +187,19 @@ export default function CreateCampaignModal({
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Funding Goal ($)
-            </label>
-            <input
-              type="number"
-              required
-              min="1"
-              value={formData.goal}
-              onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="100000"
-              disabled={saving}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              End Date (Optional)
-            </label>
-            <input
-              type="date"
-              value={formData.endDate}
-              onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={saving}
-            />
-          </div>
-        </div>
-
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Category
+            Funding Goal <span className="text-red-600">*</span>
           </label>
-          <select
+          <input
+            type="text"
             required
-            value={formData.category}
-            onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+            value={formData.goal}
+            onChange={handleGoalChange}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="$100,000"
             disabled={saving}
-          >
-            <option value="">Select a category</option>
-            <option value="Technology">Technology</option>
-            <option value="Education">Education</option>
-            <option value="Healthcare">Healthcare</option>
-            <option value="Environment">Environment</option>
-            <option value="Arts & Culture">Arts & Culture</option>
-            <option value="Community">Community</option>
-            <option value="Social Impact">Social Impact</option>
-            <option value="Research">Research</option>
-            <option value="Emergency Relief">Emergency Relief</option>
-            <option value="Other">Other</option>
-          </select>
+          />
         </div>
 
         <div>
@@ -245,7 +214,6 @@ export default function CreateCampaignModal({
           >
             <option value="draft">Draft - Not visible to donors</option>
             <option value="active">Active - Live and accepting donations</option>
-            <option value="paused">Paused - Temporarily hidden</option>
             <option value="completed">Completed - Campaign has ended</option>
           </select>
           <p className="text-sm text-gray-500 mt-1">

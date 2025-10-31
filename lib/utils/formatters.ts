@@ -107,3 +107,24 @@ export const formatRelativeTime = (date: Date): string => {
     return formatDate(date)
   }
 }
+
+// Format currency input as user types (adds dollar sign and commas)
+export const formatCurrencyInput = (value: string): string => {
+  // Remove all non-digits
+  const numbers = value.replace(/\D/g, '')
+
+  // If empty, return empty string
+  if (!numbers) return ''
+
+  // Convert to number and format with commas
+  const number = parseInt(numbers)
+  const formatted = number.toLocaleString('en-US')
+
+  // Add dollar sign
+  return `$${formatted}`
+}
+
+// Clean currency input for storage (remove dollar sign, commas, etc.)
+export const cleanCurrencyInput = (formattedCurrency: string): string => {
+  return formattedCurrency.replace(/\D/g, '')
+}

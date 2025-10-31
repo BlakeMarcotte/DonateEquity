@@ -135,6 +135,20 @@ export async function POST(request: NextRequest) {
     const invitationRef = adminDb.collection('team_invitations').doc()
     await invitationRef.set(invitationData)
 
+    // Mark team invitation task as complete
+    try {
+      const taskCompletionRef = adminDb.collection('task_completions').doc(authResult.decodedToken.uid as string)
+      await taskCompletionRef.set({
+        onboarding: {
+          team: 'complete'
+        },
+        updatedAt: new Date()
+      }, { merge: true })
+    } catch (taskError) {
+      console.error('Failed to mark team task as complete:', taskError)
+      // Don't fail the entire operation if task completion fails
+    }
+
     // Send email notification
     try {
       // Debug: Log the environment variable

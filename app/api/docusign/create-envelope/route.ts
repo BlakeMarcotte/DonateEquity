@@ -49,44 +49,64 @@ export async function POST(request: NextRequest) {
 
     // Find and update the DocuSign signature task with the envelope ID
     try {
-      // First try to find by participantId (new system)
+      // Try donation-based system first (our new system)
       let tasksQuery = await adminDb
         .collection('tasks')
-        .where('participantId', '==', donationId) // donationId is actually participantId in the new system
+        .where('donationId', '==', donationId)
         .where('type', '==', 'docusign_signature')
         .where('assignedTo', '==', user.uid)
+        .where('status', 'in', ['pending', 'in_progress'])
         .get()
 
-      // If not found, try the old donation-based system for backward compatibility
+      secureLogger.info('Task search for envelope ID update', {
+        donationId,
+        userId: user.uid,
+        foundTasks: tasksQuery.size
+      })
+
+      // If not found, try legacy participant-based system
       if (tasksQuery.empty) {
         tasksQuery = await adminDb
           .collection('tasks')
-          .where('donationId', '==', donationId)
+          .where('participantId', '==', donationId)
           .where('type', '==', 'docusign_signature')
           .where('assignedTo', '==', user.uid)
+          .where('status', 'in', ['pending', 'in_progress'])
           .get()
+
+        secureLogger.info('Legacy participant search for envelope ID update', {
+          participantId: donationId,
+          userId: user.uid,
+          foundTasks: tasksQuery.size
+        })
       }
 
       if (!tasksQuery.empty) {
         const taskDoc = tasksQuery.docs[0]
+        const taskData = taskDoc.data()
+
         await adminDb.collection('tasks').doc(taskDoc.id).update({
           'metadata.docuSignEnvelopeId': envelope.envelopeId,
           'metadata.envelopeStatus': envelope.status,
           'metadata.envelopeSentAt': envelope.statusDateTime,
           updatedAt: new Date()
         })
-        
-        secureLogger.info('Updated task with envelope ID', { 
-          taskId: taskDoc.id, 
+
+        secureLogger.info('Updated task with envelope ID', {
+          taskId: taskDoc.id,
+          taskTitle: taskData.title,
           envelopeId: envelope.envelopeId,
-          participantId: donationId,
-          userId: user.uid
+          donationId: donationId,
+          userId: user.uid,
+          previousEnvelopeId: taskData.metadata?.docuSignEnvelopeId || null
         })
       } else {
-        secureLogger.warn('No DocuSign signature task found', {
-          searchId: donationId,
+        secureLogger.error('No DocuSign signature task found for envelope ID update', {
+          donationId,
           userId: user.uid,
-          taskType: 'docusign_signature'
+          userEmail: user.email,
+          taskType: 'docusign_signature',
+          envelopeId: envelope.envelopeId
         })
       }
     } catch (taskUpdateError) {

@@ -15,31 +15,37 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
-    
+
     if (user.customClaims?.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
     const body = await request.json()
-    const { envelopeId, donationId } = body
+    const { envelopeId, donationId, role = 'donor' } = body
 
     if (!envelopeId || !donationId) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: envelopeId, donationId' 
+      return NextResponse.json({
+        error: 'Missing required fields: envelopeId, donationId'
+      }, { status: 400 })
+    }
+
+    if (!['donor', 'nonprofit', 'appraiser'].includes(role)) {
+      return NextResponse.json({
+        error: 'Invalid role. Must be donor, nonprofit, or appraiser'
       }, { status: 400 })
     }
 
     try {
       console.log(`Manually downloading signed document for envelope ${envelopeId}`)
-      
+
       // Download the signed document from DocuSign
       const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(envelopeId)
       console.log(`Downloaded ${documentBuffer.length} bytes`)
-      
-      // Upload to Firebase Storage
+
+      // Upload to Firebase Storage with role-based path
       const uploadResult = await uploadDonationBufferAdmin(
         donationId,
-        'signed-documents',
+        role as 'donor' | 'nonprofit' | 'appraiser',
         documentBuffer,
         `signed-nda-${envelopeId}.pdf`,
         'application/pdf'

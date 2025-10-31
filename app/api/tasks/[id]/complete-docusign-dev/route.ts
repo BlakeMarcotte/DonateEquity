@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import { docuSignClient } from '@/lib/docusign/simple-client'
-import { uploadDonationBufferAdmin } from '@/lib/firebase/storage-admin'
+import { uploadDonationBufferAdmin, uploadParticipantBufferAdmin } from '@/lib/firebase/storage-admin'
 
 export async function POST(
   request: NextRequest,
@@ -86,35 +86,39 @@ export async function POST(
     try {
       console.log(`[DEV] Downloading signed document for envelope ${envelopeId}`)
       const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(envelopeId)
-      
+
       // Use participant ID if available, otherwise fall back to donation ID
       const participantId = task.participantId
       const donationId = task.donationId
-      
-      if (participantId) {
-        console.log(`[DEV] Uploading signed document to storage for participant ${participantId}`)
-        const uploadResult = await uploadDonationBufferAdmin(
-          `participants/${participantId}`,
-          'signed-documents',
-          documentBuffer,
-          `signed-nda-${envelopeId}.pdf`,
-          'application/pdf'
-        )
-        
-        signedDocumentUrl = uploadResult.url
-        console.log(`[DEV] Signed document stored at: ${signedDocumentUrl}`)
-      } else if (donationId) {
-        console.log(`[DEV] Uploading signed document to storage for donation ${donationId} (legacy)`)
+
+      // Use new role-based storage for donation tasks
+      if (donationId && task.assignedRole) {
+        const role = task.assignedRole === 'nonprofit_admin' ? 'nonprofit' : task.assignedRole as 'donor' | 'nonprofit' | 'appraiser'
+        console.log(`[DEV] Uploading signed document to storage for donation ${donationId}, role: ${role}`)
         const uploadResult = await uploadDonationBufferAdmin(
           donationId,
+          role,
+          documentBuffer,
+          `signed-document-${envelopeId}.pdf`,
+          'application/pdf',
+          task.assignedTo || undefined,
+          undefined
+        )
+        signedDocumentUrl = uploadResult.url
+        console.log(`[DEV] Signed document stored at: ${signedDocumentUrl}`)
+      }
+      // Fallback to legacy participant-based storage
+      else if (participantId) {
+        console.log(`[DEV] Uploading signed document to storage for participant ${participantId}`)
+        const uploadResult = await uploadParticipantBufferAdmin(
+          participantId,
           'signed-documents',
           documentBuffer,
           `signed-nda-${envelopeId}.pdf`,
           'application/pdf'
         )
-        
         signedDocumentUrl = uploadResult.url
-        console.log(`[DEV] Signed document stored at: ${signedDocumentUrl} (legacy path)`)
+        console.log(`[DEV] Signed document stored at: ${signedDocumentUrl}`)
       } else {
         console.warn(`[DEV] No participantId or donationId found in task ${id} metadata`)
         return NextResponse.json({ error: 'No participant ID or donation ID found in task' }, { status: 400 })

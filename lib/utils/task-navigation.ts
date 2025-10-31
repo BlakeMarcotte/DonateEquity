@@ -1,6 +1,3 @@
-import { db } from '@/lib/firebase/config'
-import { doc, getDoc } from 'firebase/firestore'
-
 /**
  * Helper function to get the correct task page URL based on available information
  * Prioritizes participant-based URLs over donation-based URLs
@@ -22,23 +19,13 @@ export async function getTaskPageUrl(
     return `/campaigns/${campaignId}/participants/${donorId}/tasks`
   }
 
-  // If we only have donationId, fetch donation data to get campaignId and donorId
+  // If we only have donationId, use donation-based URL directly
   if (donationId) {
-    try {
-      const donationDoc = await getDoc(doc(db, 'donations', donationId))
-      if (donationDoc.exists()) {
-        const donation = donationDoc.data()
-        if (donation.campaignId && donation.donorId) {
-          return `/campaigns/${donation.campaignId}/participants/${donation.donorId}/tasks`
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching donation data for task navigation:', error)
-    }
+    return `/donations/${donationId}/tasks`
   }
 
-  // Fallback to a general tasks page
-  return '/my-campaign'
+  // Fallback to tasks dashboard
+  return '/tasks'
 }
 
 /**
