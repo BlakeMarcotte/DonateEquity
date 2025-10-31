@@ -3,7 +3,7 @@ import { verifyAuth } from '@/lib/auth/verify-auth'
 import { adminDb } from '@/lib/firebase/admin'
 import { docuSignClient } from '@/lib/docusign/simple-client'
 import { FieldValue } from 'firebase-admin/firestore'
-import { uploadDonationBufferAdmin } from '@/lib/firebase/storage-admin'
+import { uploadDonationBufferAdmin, uploadParticipantBufferAdmin } from '@/lib/firebase/storage-admin'
 import { secureLogger } from '@/lib/logging/secure-logger'
 
 /**
@@ -168,10 +168,28 @@ async function checkDocuSignTaskCompletion(taskDoc: FirebaseFirestore.QueryDocum
     let signedDocumentUrl = null
     try {
       const documentBuffer = await docuSignClient.downloadEnvelopeDocuments(envelopeId)
-      
-      if (task.participantId) {
+
+      const participantId = task.participantId
+      const donationId = task.donationId
+
+      // Use new role-based storage for donation tasks
+      if (donationId && task.assignedRole) {
+        const role = task.assignedRole === 'nonprofit_admin' ? 'nonprofit' : task.assignedRole as 'donor' | 'nonprofit' | 'appraiser'
         const uploadResult = await uploadDonationBufferAdmin(
-          `participants/${task.participantId}`,
+          donationId,
+          role,
+          documentBuffer,
+          `signed-document-${envelopeId}.pdf`,
+          'application/pdf',
+          task.assignedTo || undefined,
+          undefined
+        )
+        signedDocumentUrl = uploadResult.url
+      }
+      // Fallback to legacy participant-based storage
+      else if (participantId) {
+        const uploadResult = await uploadParticipantBufferAdmin(
+          participantId,
           'signed-documents',
           documentBuffer,
           `signed-nda-${envelopeId}.pdf`,
