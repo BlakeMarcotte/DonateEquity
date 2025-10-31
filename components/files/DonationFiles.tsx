@@ -35,13 +35,13 @@ const FOLDER_LABELS = {
   'signed-documents': 'Signed Documents'
 } as const
 
-export function DonationFiles({ 
-  donationId, 
+export function DonationFiles({
+  donationId,
   title = 'Shared Files',
   showUpload = true,
-  className = '' 
+  className = ''
 }: DonationFilesProps) {
-  const { customClaims } = useAuth()
+  const { user, customClaims } = useAuth()
   
   // Check if donationId is actually a participant path
   const isParticipantPath = donationId?.startsWith('participants/')
@@ -75,7 +75,15 @@ export function DonationFiles({
 
   const handleUpload = async (file: File, folder: string) => {
     try {
-      await uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
+      // For donation files, we need to pass additional parameters
+      if (!isParticipantPath && user) {
+        // Map folder to role for new system
+        const role = folder as 'donor' | 'nonprofit' | 'appraiser'
+        await uploadFile(file, role, user.uid, user.displayName || user.email || 'Unknown User')
+      } else {
+        // For participant files, use old signature
+        await uploadFile(file, folder as 'legal' | 'financial' | 'appraisals' | 'signed-documents' | 'general')
+      }
     } catch (error) {
       // Upload failed
       throw error

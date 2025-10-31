@@ -192,6 +192,15 @@ export function useDonationFiles(donationId: string | null) {
     return Array.from(roles) as Array<'donor' | 'nonprofit' | 'appraiser'>
   }
 
+  // Backward compatibility: alias folder functions to role functions
+  const getFilesByFolder = (folder: string) => {
+    return files.filter(file => file.role === folder)
+  }
+
+  const getAllFolders = () => {
+    return getAllRoles() as string[]
+  }
+
   const getTotalSize = () => {
     return files.reduce((total, file) => total + file.size, 0)
   }
@@ -210,6 +219,8 @@ export function useDonationFiles(donationId: string | null) {
     loadFiles,
     getFilesByRole,
     getAllRoles,
+    getFilesByFolder, // Backward compatibility
+    getAllFolders, // Backward compatibility
     getTotalSize,
     getFileCount
   }
